@@ -1,0 +1,40 @@
+<!-- plugin-docs: https://www.jetbrains.org/intellij/sdk/docs/basics.html -->
+<idea-plugin>
+  <id>org.tboox.xmake</id>
+  <name>A XMake integration plugin in Intellij Platform</name>
+  <version>1.0</version>
+  <vendor email="waruqi@gmail.com" url="http://www.tboox.org">tboox.org</vendor>
+
+  <description><![CDATA[
+      Enter short description for your plugin here.<br>
+      <em>most HTML tags may be used</em>
+    ]]></description>
+
+  <change-notes><![CDATA[
+      Add change notes here.<br>
+      <em>most HTML tags may be used</em>
+    ]]>
+  </change-notes>
+
+  <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/build_number_ranges.html for description -->
+  <idea-version since-build="145.0"/>
+
+  <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/plugin_compatibility.html
+       on how to target different products -->
+  <!-- uncomment to enable plugin in all products
+  <depends>com.intellij.modules.lang</depends>
+  -->
+
+  <extensions defaultExtensionNs="com.intellij">
+    <!-- Add your extensions here -->
+  </extensions>
+
+  <!-- group id: http://keithlea.com/idea-actions/ -->
+  <actions>
+    <!-- Add your actions here -->
+    <action id="action_id" class="org.tboox.xmake.BuildAction" text="action_name" description="action_desc">
+      <add-to-group group-id="BuildMenu" anchor="first"/>
+    </action>
+  </actions>
+
+</idea-plugin>
