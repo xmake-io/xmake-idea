@@ -1,4 +1,4 @@
-package org.tboox.xmake.build;
+package org.tboox.xmake.shared.build;
 
 import com.intellij.openapi.diagnostic.Logger;
 import org.jetbrains.annotations.NotNull;

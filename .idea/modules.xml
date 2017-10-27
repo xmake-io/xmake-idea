@@ -3,6 +3,8 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/xmake-idea.iml" filepath="$PROJECT_DIR$/xmake-idea.iml" />
+      <module fileurl="file://$PROJECT_DIR$/xmake-service/xmake-service.iml" filepath="$PROJECT_DIR$/xmake-service/xmake-service.iml" />
+      <module fileurl="file://$PROJECT_DIR$/xmake-shared/xmake-shared.iml" filepath="$PROJECT_DIR$/xmake-shared/xmake-shared.iml" />
     </modules>
   </component>
 </project>

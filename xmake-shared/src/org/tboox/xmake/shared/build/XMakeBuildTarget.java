@@ -1,4 +1,4 @@
-package org.tboox.xmake.build;
+package org.tboox.xmake.shared.build;
 
 import com.intellij.openapi.diagnostic.Logger;
 import org.jetbrains.annotations.NotNull;
@@ -9,9 +9,8 @@ import org.jetbrains.jps.builders.*;
 import org.jetbrains.jps.indices.IgnoredFileIndex;
 import org.jetbrains.jps.indices.ModuleExcludeIndex;
 import org.jetbrains.jps.model.JpsModel;
-
-import java.util.*;
 import java.io.File;
+import java.util.*;
 
 public class XMakeBuildTarget extends BuildTarget<BuildRootDescriptor> {
 

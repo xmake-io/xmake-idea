@@ -27,6 +27,7 @@
 
   <extensions defaultExtensionNs="com.intellij">
     <compiler.buildTargetScopeProvider implementation="org.tboox.xmake.build.XMakeBuildTargetScopeProvider"/>
+    <compileServer.plugin classpath="xmake-service.jar;xmake-shared.jar"/>
   </extensions>
 
   <!-- group id: http://keithlea.com/idea-actions/ -->
