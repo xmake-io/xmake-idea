@@ -1,9 +1,0 @@
-<component name="libraryTable">
-  <library name="xmake-shared">
-    <CLASSES>
-      <root url="jar://$PROJECT_DIR$/xmake-shared/xmake-shared.jar!/" />
-    </CLASSES>
-    <JAVADOC />
-    <SOURCES />
-  </library>
-</component>
