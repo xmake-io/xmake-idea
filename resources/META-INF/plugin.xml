@@ -26,13 +26,12 @@
   -->
 
   <extensions defaultExtensionNs="com.intellij">
-    <!-- Add your extensions here -->
+    <compiler.buildTargetScopeProvider implementation="org.tboox.xmake.build.XMakeBuildTargetScopeProvider"/>
   </extensions>
 
   <!-- group id: http://keithlea.com/idea-actions/ -->
   <actions>
-    <!-- Add your actions here -->
-    <action id="action_id" class="org.tboox.xmake.BuildAction" text="action_name" description="action_desc">
+    <action id="build" class="org.tboox.xmake.actions.BuildAction" text="Build" description="Build the current project.">
       <add-to-group group-id="BuildMenu" anchor="first"/>
     </action>
   </actions>
