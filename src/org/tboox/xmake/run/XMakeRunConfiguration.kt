@@ -9,10 +9,7 @@ import com.intellij.openapi.project.Project
 import org.jdom.Element
 import org.tboox.xmake.run.XMakeRunConfigurationEditor
 
-class XMakeRunConfiguration(
-        project: Project,
-        name: String,
-        factory: ConfigurationFactory
+class XMakeRunConfiguration(project: Project, name: String, factory: ConfigurationFactory
 ) : LocatableConfigurationBase(project, factory, name), RunConfigurationWithSuppressedDefaultDebugAction {
 
     override fun writeExternal(element: Element) {
