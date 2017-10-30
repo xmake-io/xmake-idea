@@ -7,15 +7,8 @@ import javax.swing.Icon
 
 class XMakeIconProvider : IconProvider() {
 
-    override fun getIcon(element: PsiElement, flags: Int): Icon? {
-        Log.info("getIcon")
-        return null
+    override fun getIcon(element: PsiElement, flags: Int): Icon? = when {
+        element.containingFile.name == "xmake.lua" -> XMakeIcons.FILE
+        else -> null
     }
-
-    companion object {
-
-        // get log
-        private val Log = Logger.getInstance(XMakeIconProvider::class.java.getName())
-    }
-
 }

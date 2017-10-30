@@ -4,6 +4,9 @@ import com.intellij.openapi.util.IconLoader
 
 object XMakeIcons {
 
-    // logos
+    // logo icon
     val XMAKE = IconLoader.getIcon("/icons/xmake.png")
+
+    // file icon
+    val FILE = IconLoader.getIcon("/icons/xmake.png")
 }

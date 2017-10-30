@@ -27,8 +27,11 @@
 
   <extensions defaultExtensionNs="com.intellij">
 
+    <!-- lang -->
+<!--    <lang.parserDefinition language="XMake" implementationClass="org.tboox.xmake.lang.XMakeParserDefinition"/> -->
+<!--    <fileTypeFactory implementation="org.tboox.xmake.lang.XMakeFileTypeFactory"/> -->
 
-    <!-- Icon Provider -->
+    <!-- icons -->
     <iconProvider implementation="org.tboox.xmake.icons.XMakeIconProvider"/>
 
     <!-- run configurations -->
