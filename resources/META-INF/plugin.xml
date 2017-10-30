@@ -26,16 +26,25 @@
   -->
 
   <extensions defaultExtensionNs="com.intellij">
-    <compiler.buildTargetScopeProvider implementation="org.tboox.xmake.build.XMakeBuildTargetScopeProvider"/>
-<!--    <compileServer.plugin classpath="out/artifacts/xmake-service.jar;out/artifacts/xmake-shared.jar"/> -->
-    <compileServer.plugin/>
+
+
+    <!-- Icon Provider -->
+    <iconProvider implementation="org.tboox.xmake.icons.XMakeIconProvider"/>
+
+    <!-- run configurations -->
+    <programRunner implementation="org.tboox.xmake.run.XMakeRunner"/>
+    <configurationType implementation="org.tboox.xmake.run.XMakeRunConfigurationType"/>
+    <runConfigurationProducer implementation="org.tboox.xmake.run.XMakeRunConfigurationProducer"/>
+    <projectTaskRunner implementation="org.tboox.xmake.run.XMakeProjectTasksRunner"/>
+
   </extensions>
 
   <!-- group id: http://keithlea.com/idea-actions/ -->
   <actions>
-    <action id="build" class="org.tboox.xmake.actions.BuildAction" text="Build" description="Build the current project.">
-      <add-to-group group-id="BuildMenu" anchor="first"/>
-    </action>
+    <group id="org.tboox.xmake.actions.XMakeMenu" text="XMake" description="XMake Menu">
+      <add-to-group group-id="MainMenu" anchor="after" relative-to-action="RunMenu"/>
+      <action id="build" class="org.tboox.xmake.actions.BuildAction" text="Build" description="Build the current project."/>
+    </group>
   </actions>
 
 </idea-plugin>

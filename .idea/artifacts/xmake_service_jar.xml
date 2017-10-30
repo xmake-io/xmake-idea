@@ -1,9 +1,0 @@
-<component name="ArtifactManager">
-  <artifact type="jar" name="xmake-service:jar">
-    <output-path>$PROJECT_DIR$/out/artifacts/</output-path>
-    <root id="archive" name="xmake-service.jar">
-      <element id="module-output" name="xmake-service" />
-      <element id="module-output" name="xmake-shared" />
-    </root>
-  </artifact>
-</component>

@@ -9,7 +9,5 @@
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="module" module-name="xmake-shared" />
-    <orderEntry type="module" module-name="xmake-service" />
   </component>
 </module>
