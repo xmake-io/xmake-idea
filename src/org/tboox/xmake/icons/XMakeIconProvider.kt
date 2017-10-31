@@ -8,7 +8,7 @@ import javax.swing.Icon
 class XMakeIconProvider : IconProvider() {
 
     override fun getIcon(element: PsiElement, flags: Int): Icon? = when {
-        element.containingFile.name == "xmake.lua" -> XMakeIcons.FILE
+        element.containingFile?.name == "xmake.lua" -> XMakeIcons.FILE
         else -> null
     }
 }

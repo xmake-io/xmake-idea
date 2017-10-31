@@ -27,7 +27,9 @@ class XMakeRunConfiguration(project: Project, name: String, factory: Configurati
             }
             return _currentArchitecture
         }
-        set(value) { _currentArchitecture = value }
+        set(value) {
+            _currentArchitecture = value
+        }
 
     // the modes
     val modes = arrayOf("release", "debug")
@@ -46,11 +48,21 @@ class XMakeRunConfiguration(project: Project, name: String, factory: Configurati
     // save configuration
     override fun writeExternal(element: Element) {
         super.writeExternal(element)
+        element.writeString("currentPlatfrom", currentPlatfrom)
+        element.writeString("currentArchitecture", currentArchitecture)
+        element.writeString("currentMode", currentMode)
+        element.writeString("currentTarget", currentTarget)
+        element.writeString("additionalConfiguration", additionalConfiguration)
     }
 
     // load configuration
     override fun readExternal(element: Element) {
         super.readExternal(element)
+        element.readString("currentPlatfrom")?.let { currentPlatfrom = it }
+        element.readString("currentArchitecture")?.let { currentArchitecture = it }
+        element.readString("currentMode")?.let { currentMode = it }
+        element.readString("currentTarget")?.let { currentTarget = it }
+        element.readString("additionalConfiguration")?.let { additionalConfiguration = it }
     }
 
     override fun checkConfiguration() {
@@ -78,3 +90,14 @@ class XMakeRunConfiguration(project: Project, name: String, factory: Configurati
         }
     }
 }
+
+
+private fun Element.writeString(name: String, value: String) {
+    val opt = org.jdom.Element("option")
+    opt.setAttribute("name", name)
+    opt.setAttribute("value", value)
+    addContent(opt)
+}
+
+private fun Element.readString(name: String): String? =
+        children.find { it.name == "option" && it.getAttributeValue("name") == name }?.getAttributeValue("value")
