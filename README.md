@@ -26,7 +26,7 @@
     </a>
   </div>
 
-  <p>A XMake integration in idea Text</p>
+  <p>A XMake integration in IntelliJ IDEA</p>
 </div>
 
 ## Introduction 
