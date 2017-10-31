@@ -19,6 +19,6 @@ class QuickStartAction : AnAction() {
     companion object {
 
         // get log
-        private val Log = Logger.getInstance(BuildAction::class.java.getName())
+        private val Log = Logger.getInstance(QuickStartAction::class.java.getName())
     }
 }

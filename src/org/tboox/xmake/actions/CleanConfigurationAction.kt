@@ -19,6 +19,6 @@ class CleanConfigurationAction : AnAction() {
     companion object {
 
         // get log
-        private val Log = Logger.getInstance(BuildAction::class.java.getName())
+        private val Log = Logger.getInstance(CleanConfigurationAction::class.java.getName())
     }
 }
