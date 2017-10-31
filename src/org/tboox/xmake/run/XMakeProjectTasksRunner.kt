@@ -1,14 +1,14 @@
 package org.tboox.xmake.run
 
 import com.intellij.execution.Executor
-import com.intellij.execution.ExecutorRegistry
-import com.intellij.execution.ProgramRunnerUtil
-import com.intellij.execution.RunManager
-import com.intellij.execution.executors.DefaultRunExecutor
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import com.intellij.task.*
+import com.intellij.task.ExecuteRunConfigurationTask
+import com.intellij.execution.configurations.RunProfile
+
+
 
 class XMakeProjectTasksRunner : ProjectTaskRunner() {
 
@@ -17,8 +17,26 @@ class XMakeProjectTasksRunner : ProjectTaskRunner() {
     }
 
     override fun canRun(projectTask: ProjectTask): Boolean {
-        Log.info("canRun")
-        return true
+
+        // hook 'Build Project/Module F9' => build
+        if (projectTask is ModuleBuildTask) {
+            return true
+        }
+
+        // hook 'Build Artifacts' => package
+        if (projectTask is ArtifactBuildTask) {
+            return true
+        }
+
+        // run configuration?
+        if (projectTask is ExecuteRunConfigurationTask) {
+            val runProfile = projectTask.runProfile
+            if (runProfile is XMakeRunConfiguration) {
+                return true
+            }
+        }
+
+        return false
     }
 
     override fun createExecutionEnvironment(project: Project, task: ExecuteRunConfigurationTask, executor: Executor?): ExecutionEnvironment? = null
