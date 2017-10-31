@@ -1,14 +1,13 @@
 package org.tboox.xmake.utils
 
-object SystemUtils {
+import com.intellij.openapi.util.SystemInfo
 
-    // the operation system
-    private val OS: String = System.getProperty("os.name").toLowerCase()
+object SystemUtils {
 
     // get platform
     fun platform(): String = when {
-        OS.contains("win") -> "windows"
-        OS.contains("mac") -> "macosx"
+        SystemInfo.isWindows -> "windows"
+        SystemInfo.isMac -> "macosx"
         else -> "linux"
     }
 }

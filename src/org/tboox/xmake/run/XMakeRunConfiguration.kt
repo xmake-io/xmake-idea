@@ -59,8 +59,7 @@ class XMakeRunConfiguration(project: Project, name: String, factory: Configurati
     override fun getConfigurationEditor(): SettingsEditor<out RunConfiguration> = XMakeRunConfigurationEditor(project)
 
     override fun getState(executor: Executor, environment: ExecutionEnvironment): RunProfileState? {
-        Log.info("getState")
-        return null
+        return XMakeRunState(environment, currentTarget)
     }
 
     companion object {
