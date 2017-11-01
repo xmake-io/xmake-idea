@@ -12,14 +12,13 @@ import org.tboox.xmake.utils.SystemUtils
 
 class XMakeRunState(
         environment: ExecutionEnvironment,
-        runTarget: String,
+        runParameters: List<String>,
         workingDirectory: String,
-        environmentVariables: EnvironmentVariablesData,
-        verboseOutput: Boolean
+        environmentVariables: EnvironmentVariablesData
 ) : CommandLineState(environment) {
 
-    // the run target
-    val runTarget = runTarget
+    // the run parameters
+    val runParameters = runParameters
 
     // the working Directory
     val workingDirectory = workingDirectory
@@ -27,25 +26,15 @@ class XMakeRunState(
     // the enviroment variables
     val environmentVariables = environmentVariables
 
-    // the verbose output
-    val verboseOutput = verboseOutput
-
     override fun startProcess(): ProcessHandler {
 
-        // init parameters
-        val parameters = mutableListOf("run")
-        if (verboseOutput) {
-            parameters.add("-v")
-        }
-        if (runTarget == "all") {
-            parameters.add("-a")
-        } else if (runTarget != "" && runTarget != "default") {
-            parameters.add(runTarget)
-        }
+        Log.info("startProcess")
+        runParameters.forEach { Log.info(it) }
+
 
         // make command
         val cmd = GeneralCommandLine(SystemUtils.xmakeProgram)
-                .withParameters(parameters)
+                .withParameters(runParameters)
                 .withCharset(Charsets.UTF_8)
                 .withWorkDirectory(workingDirectory)
                 .withEnvironment(environmentVariables.envs)

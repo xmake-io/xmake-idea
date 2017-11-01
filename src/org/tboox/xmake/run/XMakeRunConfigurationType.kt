@@ -37,6 +37,8 @@ class XMakeRunConfigurationType : ConfigurationTypeBase(
         })
     }
 
+    val factory: ConfigurationFactory get() = configurationFactories.single()
+
     companion object {
 
         // get log

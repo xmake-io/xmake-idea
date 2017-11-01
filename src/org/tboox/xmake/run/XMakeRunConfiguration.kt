@@ -45,6 +45,46 @@ class XMakeRunConfiguration(project: Project, name: String, factory: Configurati
     // the verbose output
     var verboseOutput = false
 
+    // the run command arguments
+    val runCommandArguments: List<String>
+        get() {
+
+            val parameters = mutableListOf("run")
+            if (verboseOutput) {
+                parameters.add("-v")
+            }
+            if (currentTarget == "all") {
+                parameters.add("-a")
+            } else if (currentTarget != "" && currentTarget != "default") {
+                parameters.add(currentTarget)
+            }
+            return parameters
+        }
+
+    // the build command arguments
+    val buildCommandArguments: List<String>
+        get() {
+
+            val parameters = mutableListOf<String>()
+            if (currentTarget != "" && currentTarget != "default") {
+                parameters.add("build")
+            }
+            if (verboseOutput) {
+                parameters.add("-v")
+            } else {
+                parameters.add("-w")
+            }
+            if (currentTarget != "" && currentTarget != "default") {
+                parameters.add(currentTarget)
+            } else if (currentTarget == "all") {
+                parameters.add("-a")
+            }
+            return parameters
+        }
+
+    // the current command arguments
+    var currentCommandArguments: List<String> ?= null
+
     // the targets
     val targets: Array<String>
         get() {
@@ -96,7 +136,7 @@ class XMakeRunConfiguration(project: Project, name: String, factory: Configurati
     override fun getConfigurationEditor(): SettingsEditor<out RunConfiguration> = XMakeRunConfigurationEditor(project)
 
     override fun getState(executor: Executor, environment: ExecutionEnvironment): RunProfileState? {
-        return XMakeRunState(environment, currentTarget, workingDirectory, environmentVariables, verboseOutput)
+        return XMakeRunState(environment, currentCommandArguments ?: runCommandArguments, workingDirectory, environmentVariables)
     }
 
     companion object {
