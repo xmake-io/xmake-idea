@@ -5,10 +5,10 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import org.tboox.xmake.shared.XMakeConfiguration
 import org.tboox.xmake.utils.SystemUtils
 
-class CleanAction : AnAction() {
+class RebuildAction : AnAction() {
 
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
-        SystemUtils.runvInConsole(project, "Clean Targets", XMakeConfiguration.cleanCommandLine)
+        SystemUtils.runvInConsole(project, "Rebuild Project", XMakeConfiguration.rebuildCommandLine)
     }
 }

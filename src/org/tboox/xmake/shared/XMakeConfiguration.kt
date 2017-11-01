@@ -53,13 +53,8 @@ object XMakeConfiguration {
                 parameters.add(currentTarget)
             }
 
-            // make command
-            return GeneralCommandLine(SystemUtils.xmakeProgram)
-                    .withParameters(parameters)
-                    .withCharset(Charsets.UTF_8)
-                    .withWorkDirectory(workingDirectory)
-                    .withEnvironment(environmentVariables.envs)
-                    .withRedirectErrorStream(true)
+            // make command line
+            return makeCommandLine(parameters)
         }
 
     // the build command line
@@ -82,13 +77,76 @@ object XMakeConfiguration {
                 parameters.add("-a")
             }
 
-            // make command
-            return GeneralCommandLine(SystemUtils.xmakeProgram)
-                    .withParameters(parameters)
-                    .withCharset(Charsets.UTF_8)
-                    .withWorkDirectory(workingDirectory)
-                    .withEnvironment(environmentVariables.envs)
-                    .withRedirectErrorStream(true)
+            // make command line
+            return makeCommandLine(parameters)
+        }
+
+    // the rebuild command line
+    val rebuildCommandLine: GeneralCommandLine
+        get() {
+
+            // make parameters
+            val parameters = mutableListOf<String>("-r")
+            if (verboseOutput) {
+                parameters.add("-v")
+            } else {
+                parameters.add("-w")
+            }
+            if (currentTarget != "" && currentTarget != "default") {
+                parameters.add(currentTarget)
+            } else if (currentTarget == "all") {
+                parameters.add("-a")
+            }
+
+            // make command line
+            return makeCommandLine(parameters)
+        }
+
+    // the clean command line
+    val cleanCommandLine: GeneralCommandLine
+        get() {
+
+            // make parameters
+            val parameters = mutableListOf<String>("c")
+            if (verboseOutput) {
+                parameters.add("-v")
+            }
+            if (currentTarget != "" && currentTarget != "default") {
+                parameters.add(currentTarget)
+            } else if (currentTarget == "all") {
+                parameters.add("-a")
+            }
+
+            // make command line
+            return makeCommandLine(parameters)
+        }
+
+    // the clean configuration command line
+    val cleanConfigurationCommandLine: GeneralCommandLine
+        get() {
+
+            // make parameters
+            val parameters = mutableListOf<String>("f", "-c")
+            if (verboseOutput) {
+                parameters.add("-v")
+            }
+
+            // make command line
+            return makeCommandLine(parameters)
+        }
+
+    // the quick start command line
+    val quickStartCommandLine: GeneralCommandLine
+        get() {
+
+            // make parameters
+            val parameters = mutableListOf<String>("f", "-y")
+            if (verboseOutput) {
+                parameters.add("-v")
+            }
+
+            // make command line
+            return makeCommandLine(parameters)
         }
 
     // the targets
@@ -118,5 +176,17 @@ object XMakeConfiguration {
         "watchos" -> arrayOf("armv7s", "i386")
         "android" -> arrayOf("armv7-a", "armv5te", "armv6", "armv8-a", "arm64-v8a")
         else -> arrayOf()
+    }
+
+    // make command line
+    private fun makeCommandLine(parameters: List<String>): GeneralCommandLine {
+
+        // make command
+        return GeneralCommandLine(SystemUtils.xmakeProgram)
+                .withParameters(parameters)
+                .withCharset(Charsets.UTF_8)
+                .withWorkDirectory(workingDirectory)
+                .withEnvironment(environmentVariables.envs)
+                .withRedirectErrorStream(true)
     }
 }

@@ -46,8 +46,8 @@
   <actions>
     <group id="org.tboox.xmake.actions.XMakeMenu" text="XMake" description="XMake Menu">
       <add-to-group group-id="MainMenu" anchor="after" relative-to-action="RunMenu"/>
-      <reference id="CompileDirty"/>
-      <reference id="CompileProject"/>
+      <action id="build" class="org.tboox.xmake.actions.BuildAction" text="Build Project" description="Build the current project."/>
+      <action id="rebuild" class="org.tboox.xmake.actions.RebuildAction" text="Rebuild Project" description="Rebuild the current project."/>
       <action id="clean" class="org.tboox.xmake.actions.CleanAction" text="Clean Project" description="Clean target and object files."/>
       <separator/>
       <reference id="editRunConfigurations"/>

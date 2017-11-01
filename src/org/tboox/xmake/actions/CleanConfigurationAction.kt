@@ -2,23 +2,13 @@ package org.tboox.xmake.actions
 
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
-import com.intellij.openapi.project.Project
-import com.intellij.openapi.ui.Messages
-import com.intellij.openapi.diagnostic.Logger
+import org.tboox.xmake.shared.XMakeConfiguration
+import org.tboox.xmake.utils.SystemUtils
 
 class CleanConfigurationAction : AnAction() {
 
-    @Override
     override fun actionPerformed(e: AnActionEvent) {
-
-        val project = e.project
-        val s = Messages.showInputDialog(project, "What's your name?", "Hello", Messages.getQuestionIcon())
-        Messages.showMessageDialog(project, "Hello $s!", "Welcome", Messages.getInformationIcon())
-    }
-
-    companion object {
-
-        // get log
-        private val Log = Logger.getInstance(CleanConfigurationAction::class.java.getName())
+        val project = e.project ?: return
+        SystemUtils.runvInConsole(project, "Clean Configuration", XMakeConfiguration.cleanConfigurationCommandLine)
     }
 }

@@ -6,8 +6,6 @@ import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import com.intellij.task.*
 import com.intellij.task.ExecuteRunConfigurationTask
-import com.intellij.execution.configurations.RunProfile
-import com.intellij.execution.executors.DefaultRunExecutor
 import org.tboox.xmake.shared.XMakeConfiguration
 import org.tboox.xmake.utils.SystemUtils
 
@@ -15,7 +13,7 @@ import org.tboox.xmake.utils.SystemUtils
 class XMakeProjectTasksRunner : ProjectTaskRunner() {
 
     override fun run(project: Project, context: ProjectTaskContext, callback: ProjectTaskNotification?, tasks: MutableCollection<out ProjectTask>) {
-        SystemUtils.runvInConsole(project, "xmake.build", XMakeConfiguration.buildCommandLine)
+        SystemUtils.runvInConsole(project, "Build Project", XMakeConfiguration.buildCommandLine)
     }
 
     override fun canRun(projectTask: ProjectTask): Boolean {
