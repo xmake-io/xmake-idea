@@ -51,7 +51,7 @@ class XMakeRunConfiguration(project: Project, name: String, factory: Configurati
 
             // make targets
             var targets = arrayOf("default", "all")
-            val results = SystemUtils.ioRunv(listOf("xmake", "l", "-c", "import(\"core.project.config\"); import(\"core.project.project\"); config.load(); for name, _ in pairs((project.targets())) do print(name) end"), workingDirectory)
+            val results = SystemUtils.ioRunv(listOf(SystemUtils.xmakeProgram, "l", "-c", "import(\"core.project.config\"); import(\"core.project.project\"); config.load(); for name, _ in pairs((project.targets())) do print(name) end"), workingDirectory)
             results.split("\n").forEach {
                 if (it.trim() != "") {
                     targets += it

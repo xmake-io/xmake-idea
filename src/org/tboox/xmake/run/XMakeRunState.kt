@@ -8,6 +8,7 @@ import com.intellij.execution.process.ProcessHandler
 import com.intellij.execution.process.ProcessTerminatedListener
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.diagnostic.Logger
+import org.tboox.xmake.utils.SystemUtils
 
 class XMakeRunState(
         environment: ExecutionEnvironment,
@@ -43,7 +44,7 @@ class XMakeRunState(
         }
 
         // make command
-        val cmd = GeneralCommandLine("xmake")
+        val cmd = GeneralCommandLine(SystemUtils.xmakeProgram)
                 .withParameters(parameters)
                 .withCharset(Charsets.UTF_8)
                 .withWorkDirectory(workingDirectory)

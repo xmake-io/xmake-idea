@@ -7,12 +7,56 @@ import java.io.IOException
 import java.io.InputStreamReader
 import java.io.File
 
-
-
 object SystemUtils {
 
-    // get log
+    // the log
     private val Log = Logger.getInstance(SystemUtils::class.java.getName())
+
+    // the xmake program
+    private var _xmakeProgram:String = ""
+    var xmakeProgram:String
+        get() {
+
+            // cached? return it directly
+            if (_xmakeProgram != "") {
+                return _xmakeProgram
+            }
+
+            // for windows? return xmake directly
+            if (SystemInfo.isWindows) {
+                _xmakeProgram = "xmake"
+                return _xmakeProgram
+            }
+
+            // attempt to get xmake program
+            val programs = arrayOf("xmake", (System.getenv("HOME") ?: "") + "/.local/bin/xmake", "/usr/local/bin/xmake", "/usr/bin/xmake")
+            for (program in programs) {
+                if (program == "xmake" || File(program).exists()) {
+
+                    try {
+
+                        // init process builder
+                        val processBuilder = ProcessBuilder(listOf(program, "--version"))
+
+                        // run process
+                        val process = processBuilder.start()
+
+                        // wait for process
+                        if (process.waitFor() == 0) {
+                            _xmakeProgram = program
+                            break
+                        }
+
+                    } catch (e: IOException) {
+                        e.printStackTrace()
+                    }
+                }
+            }
+
+            // ok?
+            return _xmakeProgram
+        }
+        set(value) { _xmakeProgram = value }
 
     // get platform
     fun platform(): String = when {
@@ -27,8 +71,6 @@ object SystemUtils {
         var result = ""
         var bufferReader: BufferedReader? = null
         try {
-
-            Log.info(workingDirectory)
 
             // init process builder
             val processBuilder = ProcessBuilder(argv)
