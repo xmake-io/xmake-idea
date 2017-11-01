@@ -9,27 +9,13 @@ import com.intellij.task.ExecuteRunConfigurationTask
 import com.intellij.execution.configurations.RunProfile
 import com.intellij.execution.executors.DefaultRunExecutor
 import org.tboox.xmake.shared.XMakeConfiguration
+import org.tboox.xmake.utils.SystemUtils
 
 
 class XMakeProjectTasksRunner : ProjectTaskRunner() {
 
     override fun run(project: Project, context: ProjectTaskContext, callback: ProjectTaskNotification?, tasks: MutableCollection<out ProjectTask>) {
-
-        // get runner
-        val runner = RunManager.getInstance(project)
-
-        // create run configuration settings
-        val runnerAndConfigurationSettings = runner.createRunConfiguration("xmake build", XMakeRunConfigurationType().factory)
-
-        // set build command
-        val configuration = runnerAndConfigurationSettings.configuration as XMakeRunConfiguration
-        configuration.currentCommandArguments = XMakeConfiguration.buildCommandArguments
-
-        // get executor
-        val executor = ExecutorRegistry.getInstance().getExecutorById(DefaultRunExecutor.EXECUTOR_ID)
-
-        // run build task
-        ProgramRunnerUtil.executeConfiguration(project, runnerAndConfigurationSettings, executor)
+        SystemUtils.runvInConsole(project, "xmake.build", XMakeConfiguration.buildCommandLine)
     }
 
     override fun canRun(projectTask: ProjectTask): Boolean {

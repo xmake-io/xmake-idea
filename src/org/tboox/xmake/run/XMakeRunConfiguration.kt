@@ -13,13 +13,15 @@ class XMakeRunConfiguration(project: Project, name: String, factory: Configurati
 ) : LocatableConfigurationBase(project, factory, name), RunConfigurationWithSuppressedDefaultDebugAction {
 
     init {
+
+        // init working directory
         if (XMakeConfiguration.workingDirectory == "") {
             XMakeConfiguration.workingDirectory = project.basePath.toString()
         }
     }
 
-    // the current command arguments
-    var currentCommandArguments: List<String> ?= null
+    // the current command line
+    var currentCommandLine: GeneralCommandLine ?= null
 
     // save configuration
     override fun writeExternal(element: Element) {
@@ -53,7 +55,7 @@ class XMakeRunConfiguration(project: Project, name: String, factory: Configurati
     override fun getConfigurationEditor(): SettingsEditor<out RunConfiguration> = XMakeRunConfigurationEditor(project)
 
     override fun getState(executor: Executor, environment: ExecutionEnvironment): RunProfileState? {
-        return XMakeRunState(environment, currentCommandArguments ?: XMakeConfiguration.runCommandArguments, XMakeConfiguration.workingDirectory, XMakeConfiguration.environmentVariables)
+        return XMakeRunState(environment, currentCommandLine ?: XMakeConfiguration.runCommandLine)
     }
 }
 

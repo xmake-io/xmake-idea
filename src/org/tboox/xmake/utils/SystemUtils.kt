@@ -1,7 +1,15 @@
 package org.tboox.xmake.utils
 
+import com.intellij.execution.ExecutorRegistry
+import com.intellij.execution.ProgramRunnerUtil
+import com.intellij.execution.RunManager
+import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.execution.executors.DefaultRunExecutor
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.project.Project
+import org.tboox.xmake.run.XMakeRunConfiguration
+import org.tboox.xmake.run.XMakeRunConfigurationType
 import java.io.BufferedReader
 import java.io.IOException
 import java.io.InputStreamReader
@@ -111,5 +119,25 @@ object SystemUtils {
 
         // ok?
         return result
+    }
+
+    // run process in console
+    fun runvInConsole(project: Project, name: String, commandLine: GeneralCommandLine) {
+
+        // get runner
+        val runner = RunManager.getInstance(project)
+
+        // create run configuration settings
+        val runnerAndConfigurationSettings = runner.createRunConfiguration(name, XMakeRunConfigurationType().factory)
+
+        // set build command
+        val configuration = runnerAndConfigurationSettings.configuration as XMakeRunConfiguration
+        configuration.currentCommandLine = commandLine
+
+        // get executor
+        val executor = ExecutorRegistry.getInstance().getExecutorById(DefaultRunExecutor.EXECUTOR_ID)
+
+        // run build task
+        ProgramRunnerUtil.executeConfiguration(project, runnerAndConfigurationSettings, executor)
     }
 }

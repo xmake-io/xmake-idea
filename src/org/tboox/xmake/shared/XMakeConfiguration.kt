@@ -1,6 +1,7 @@
 package org.tboox.xmake.shared
 
 import com.intellij.execution.configuration.EnvironmentVariablesData
+import com.intellij.execution.configurations.GeneralCommandLine
 import org.tboox.xmake.utils.SystemUtils
 
 object XMakeConfiguration {
@@ -37,10 +38,11 @@ object XMakeConfiguration {
     // the verbose output
     var verboseOutput = false
 
-    // the run command arguments
-    val runCommandArguments: List<String>
+    // the run command line
+    val runCommandLine: GeneralCommandLine
         get() {
 
+            // make parameters
             val parameters = mutableListOf("run")
             if (verboseOutput) {
                 parameters.add("-v")
@@ -50,13 +52,21 @@ object XMakeConfiguration {
             } else if (currentTarget != "" && currentTarget != "default") {
                 parameters.add(currentTarget)
             }
-            return parameters
+
+            // make command
+            return GeneralCommandLine(SystemUtils.xmakeProgram)
+                    .withParameters(parameters)
+                    .withCharset(Charsets.UTF_8)
+                    .withWorkDirectory(workingDirectory)
+                    .withEnvironment(environmentVariables.envs)
+                    .withRedirectErrorStream(true)
         }
 
-    // the build command arguments
-    val buildCommandArguments: List<String>
+    // the build command line
+    val buildCommandLine: GeneralCommandLine
         get() {
 
+            // make parameters
             val parameters = mutableListOf<String>()
             if (currentTarget != "" && currentTarget != "default") {
                 parameters.add("build")
@@ -71,7 +81,14 @@ object XMakeConfiguration {
             } else if (currentTarget == "all") {
                 parameters.add("-a")
             }
-            return parameters
+
+            // make command
+            return GeneralCommandLine(SystemUtils.xmakeProgram)
+                    .withParameters(parameters)
+                    .withCharset(Charsets.UTF_8)
+                    .withWorkDirectory(workingDirectory)
+                    .withEnvironment(environmentVariables.envs)
+                    .withRedirectErrorStream(true)
         }
 
     // the targets

@@ -26,11 +26,11 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file leaf-file-name="XMakeRunConfiguration.kt" pinned="false" current-in-tab="false">
+      <file leaf-file-name="XMakeRunConfiguration.kt" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/src/org/tboox/xmake/run/XMakeRunConfiguration.kt">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="224">
-              <caret line="15" column="53" lean-forward="false" selection-start-line="15" selection-start-column="53" selection-end-line="15" selection-end-column="53" />
+            <state relative-caret-position="80">
+              <caret line="16" column="33" lean-forward="false" selection-start-line="16" selection-start-column="33" selection-end-line="16" selection-end-column="33" />
               <folding>
                 <element signature="e#29#410#0" expanded="true" />
               </folding>
@@ -52,9 +52,9 @@
         <entry file="file://$PROJECT_DIR$/src/org/tboox/xmake/shared/XMakeConfiguration.kt">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="188">
-              <caret line="31" column="24" lean-forward="true" selection-start-line="31" selection-start-column="24" selection-end-line="31" selection-end-column="24" />
+              <caret line="65" column="44" lean-forward="false" selection-start-line="65" selection-start-column="26" selection-end-line="65" selection-end-column="44" />
               <folding>
-                <element signature="e#32#141#0" expanded="true" />
+                <element signature="e#32#205#0" expanded="true" />
               </folding>
             </state>
           </provider>
@@ -75,23 +75,33 @@
       <file leaf-file-name="SystemUtils.kt" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/org/tboox/xmake/utils/SystemUtils.kt">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="1140">
-              <caret line="76" column="0" lean-forward="false" selection-start-line="76" selection-start-column="0" selection-end-line="76" selection-end-column="0" />
+            <state relative-caret-position="358">
+              <caret line="129" column="44" lean-forward="true" selection-start-line="129" selection-start-column="44" selection-end-line="129" selection-end-column="44" />
               <folding>
-                <element signature="e#31#230#0" expanded="true" />
+                <element signature="e#31#635#0" expanded="true" />
               </folding>
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="XMakeRunState.kt" pinned="false" current-in-tab="true">
+      <file leaf-file-name="XMakeRunState.kt" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/org/tboox/xmake/run/XMakeRunState.kt">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="276">
-              <caret line="29" column="0" lean-forward="true" selection-start-line="29" selection-start-column="0" selection-end-line="29" selection-end-column="0" />
+            <state relative-caret-position="30">
+              <caret line="2" column="0" lean-forward="false" selection-start-line="2" selection-start-column="0" selection-end-line="2" selection-end-column="0" />
               <folding>
-                <element signature="e#29#554#0" expanded="true" />
+                <element signature="e#29#444#0" expanded="true" />
               </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="CleanAction.kt" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/src/org/tboox/xmake/actions/CleanAction.kt">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="180">
+              <caret line="16" column="5" lean-forward="false" selection-start-line="16" selection-start-column="5" selection-end-line="16" selection-end-column="5" />
+              <folding />
             </state>
           </provider>
         </entry>
@@ -108,23 +118,13 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="EnvironmentVariablesData.class" pinned="false" current-in-tab="false">
-        <entry file="jar://$APPLICATION_HOME_DIR$/lib/idea.jar!/com/intellij/execution/configuration/EnvironmentVariablesData.class">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="105">
-              <caret line="20" column="49" lean-forward="false" selection-start-line="20" selection-start-column="49" selection-end-line="20" selection-end-column="49" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
       <file leaf-file-name="XMakeProjectTasksRunner.kt" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/org/tboox/xmake/run/XMakeProjectTasksRunner.kt">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="313">
-              <caret line="30" column="25" lean-forward="true" selection-start-line="30" selection-start-column="25" selection-end-line="30" selection-end-column="25" />
+            <state relative-caret-position="132">
+              <caret line="17" column="93" lean-forward="false" selection-start-line="17" selection-start-column="93" selection-end-line="17" selection-end-column="93" />
               <folding>
-                <element signature="e#29#453#0" expanded="true" />
+                <element signature="e#29#494#0" expanded="true" />
               </folding>
             </state>
           </provider>
@@ -221,14 +221,14 @@
         <option value="$PROJECT_DIR$/resources/META-INF/clion-only.xml" />
         <option value="$PROJECT_DIR$/resources/META-INF/plugin.xml" />
         <option value="$PROJECT_DIR$/src/org/tboox/xmake/icons/XMakeIconProvider.kt" />
-        <option value="$PROJECT_DIR$/src/org/tboox/xmake/utils/SystemUtils.kt" />
         <option value="$PROJECT_DIR$/src/org/tboox/xmake/run/XMakeRunConfigurationType.kt" />
         <option value="$PROJECT_DIR$/src/org/tboox/xmake/run/XMakeRunner.kt" />
         <option value="$PROJECT_DIR$/src/org/tboox/xmake/run/XMakeRunConfigurationEditor.kt" />
-        <option value="$PROJECT_DIR$/src/org/tboox/xmake/run/XMakeProjectTasksRunner.kt" />
-        <option value="$PROJECT_DIR$/src/org/tboox/xmake/shared/XMakeConfiguration.kt" />
-        <option value="$PROJECT_DIR$/src/org/tboox/xmake/run/XMakeRunConfiguration.kt" />
         <option value="$PROJECT_DIR$/src/org/tboox/xmake/run/XMakeRunState.kt" />
+        <option value="$PROJECT_DIR$/src/org/tboox/xmake/shared/XMakeConfiguration.kt" />
+        <option value="$PROJECT_DIR$/src/org/tboox/xmake/utils/SystemUtils.kt" />
+        <option value="$PROJECT_DIR$/src/org/tboox/xmake/run/XMakeProjectTasksRunner.kt" />
+        <option value="$PROJECT_DIR$/src/org/tboox/xmake/run/XMakeRunConfiguration.kt" />
       </list>
     </option>
   </component>
@@ -688,14 +688,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/org/tboox/xmake/actions/CleanAction.kt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="180">
-          <caret line="16" column="5" lean-forward="false" selection-start-line="16" selection-start-column="5" selection-end-line="16" selection-end-column="5" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/.gitignore">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
@@ -794,26 +786,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/src/org/tboox/xmake/utils/SystemUtils.kt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1140">
-          <caret line="76" column="0" lean-forward="false" selection-start-line="76" selection-start-column="0" selection-end-line="76" selection-end-column="0" />
-          <folding>
-            <element signature="e#31#230#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/org/tboox/xmake/run/XMakeProjectTasksRunner.kt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="313">
-          <caret line="30" column="25" lean-forward="true" selection-start-line="30" selection-start-column="25" selection-end-line="30" selection-end-column="25" />
-          <folding>
-            <element signature="e#29#453#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/src/org/tboox/xmake/run/XMakeRunConfigurationProducer.kt">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="210">
@@ -840,32 +812,60 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/src/org/tboox/xmake/actions/CleanAction.kt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="180">
+          <caret line="16" column="5" lean-forward="false" selection-start-line="16" selection-start-column="5" selection-end-line="16" selection-end-column="5" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/org/tboox/xmake/run/XMakeRunState.kt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="30">
+          <caret line="2" column="0" lean-forward="false" selection-start-line="2" selection-start-column="0" selection-end-line="2" selection-end-column="0" />
+          <folding>
+            <element signature="e#29#444#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/src/org/tboox/xmake/shared/XMakeConfiguration.kt">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="188">
-          <caret line="31" column="24" lean-forward="true" selection-start-line="31" selection-start-column="24" selection-end-line="31" selection-end-column="24" />
+          <caret line="65" column="44" lean-forward="false" selection-start-line="65" selection-start-column="26" selection-end-line="65" selection-end-column="44" />
           <folding>
-            <element signature="e#32#141#0" expanded="true" />
+            <element signature="e#32#205#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/org/tboox/xmake/utils/SystemUtils.kt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="358">
+          <caret line="129" column="44" lean-forward="true" selection-start-line="129" selection-start-column="44" selection-end-line="129" selection-end-column="44" />
+          <folding>
+            <element signature="e#31#635#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/src/org/tboox/xmake/run/XMakeProjectTasksRunner.kt">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="132">
+          <caret line="17" column="93" lean-forward="false" selection-start-line="17" selection-start-column="93" selection-end-line="17" selection-end-column="93" />
+          <folding>
+            <element signature="e#29#494#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/src/org/tboox/xmake/run/XMakeRunConfiguration.kt">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="224">
-          <caret line="15" column="53" lean-forward="false" selection-start-line="15" selection-start-column="53" selection-end-line="15" selection-end-column="53" />
+        <state relative-caret-position="80">
+          <caret line="16" column="33" lean-forward="false" selection-start-line="16" selection-start-column="33" selection-end-line="16" selection-end-column="33" />
           <folding>
             <element signature="e#29#410#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/src/org/tboox/xmake/run/XMakeRunState.kt">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="276">
-          <caret line="29" column="0" lean-forward="true" selection-start-line="29" selection-start-column="0" selection-end-line="29" selection-end-column="0" />
-          <folding>
-            <element signature="e#29#554#0" expanded="true" />
           </folding>
         </state>
       </provider>
