@@ -8,6 +8,7 @@ import com.intellij.task.*
 import com.intellij.task.ExecuteRunConfigurationTask
 import com.intellij.execution.configurations.RunProfile
 import com.intellij.execution.executors.DefaultRunExecutor
+import org.tboox.xmake.shared.XMakeConfiguration
 
 
 class XMakeProjectTasksRunner : ProjectTaskRunner() {
@@ -22,7 +23,7 @@ class XMakeProjectTasksRunner : ProjectTaskRunner() {
 
         // set build command
         val configuration = runnerAndConfigurationSettings.configuration as XMakeRunConfiguration
-        configuration.currentCommandArguments = configuration.buildCommandArguments
+        configuration.currentCommandArguments = XMakeConfiguration.buildCommandArguments
 
         // get executor
         val executor = ExecutorRegistry.getInstance().getExecutorById(DefaultRunExecutor.EXECUTOR_ID)

@@ -28,10 +28,6 @@ class XMakeRunState(
 
     override fun startProcess(): ProcessHandler {
 
-        Log.info("startProcess")
-        runParameters.forEach { Log.info(it) }
-
-
         // make command
         val cmd = GeneralCommandLine(SystemUtils.xmakeProgram)
                 .withParameters(runParameters)
