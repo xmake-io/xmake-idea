@@ -2,6 +2,7 @@ package org.tboox.xmake.shared
 
 import com.intellij.execution.configuration.EnvironmentVariablesData
 import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.openapi.project.Project
 import org.tboox.xmake.utils.SystemUtils
 
 object XMakeConfiguration {
@@ -167,6 +168,18 @@ object XMakeConfiguration {
 
     // the additional configuration
     var additionalConfiguration = ""
+
+    // clean configuration
+    fun cleanConfiguration(project: Project) {
+        currentPlatfrom = SystemUtils.platform()
+        _currentArchitecture = ""
+        currentMode = "release"
+        workingDirectory = project.basePath.toString()
+        environmentVariables = EnvironmentVariablesData.DEFAULT
+        verboseOutput = false
+        currentTarget = "default"
+        additionalConfiguration = ""
+    }
 
     // get architectures by platform
     fun getArchitecturesByPlatform(platform: String) = when (platform) {

@@ -4,6 +4,7 @@ import com.intellij.execution.Executor
 import com.intellij.execution.configuration.EnvironmentVariablesData
 import com.intellij.execution.configurations.*
 import com.intellij.execution.runners.ExecutionEnvironment
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.project.Project
 import org.jdom.Element
@@ -12,21 +13,13 @@ import org.tboox.xmake.shared.XMakeConfiguration
 class XMakeRunConfiguration(project: Project, name: String, factory: ConfigurationFactory
 ) : LocatableConfigurationBase(project, factory, name), RunConfigurationWithSuppressedDefaultDebugAction {
 
-    init {
-
-        // init working directory
-        if (XMakeConfiguration.workingDirectory == "") {
-            XMakeConfiguration.workingDirectory = project.basePath.toString()
-        }
-    }
-
     // the current command line
     var currentCommandLine: GeneralCommandLine ?= null
 
     // save configuration
     override fun writeExternal(element: Element) {
         super.writeExternal(element)
-        element.writeString("currentPlatfrom", XMakeConfiguration.currentPlatfrom)
+        element.writeString("currentPlatform", XMakeConfiguration.currentPlatfrom)
         element.writeString("currentArchitecture", XMakeConfiguration.currentArchitecture)
         element.writeString("currentMode", XMakeConfiguration.currentMode)
         element.writeString("currentTarget", XMakeConfiguration.currentTarget)
@@ -39,7 +32,8 @@ class XMakeRunConfiguration(project: Project, name: String, factory: Configurati
     // load configuration
     override fun readExternal(element: Element) {
         super.readExternal(element)
-        element.readString("currentPlatfrom")?.let { XMakeConfiguration.currentPlatfrom = it }
+        XMakeConfiguration.cleanConfiguration(project)
+        element.readString("currentPlatform")?.let { XMakeConfiguration.currentPlatfrom = it }
         element.readString("currentArchitecture")?.let { XMakeConfiguration.currentArchitecture = it }
         element.readString("currentMode")?.let { XMakeConfiguration.currentMode = it }
         element.readString("currentTarget")?.let { XMakeConfiguration.currentTarget = it }
@@ -56,6 +50,12 @@ class XMakeRunConfiguration(project: Project, name: String, factory: Configurati
 
     override fun getState(executor: Executor, environment: ExecutionEnvironment): RunProfileState? {
         return XMakeRunState(environment, currentCommandLine ?: XMakeConfiguration.runCommandLine)
+    }
+
+    companion object {
+
+        // get log
+        private val Log = Logger.getInstance(XMakeRunConfiguration::class.java.getName())
     }
 }
 

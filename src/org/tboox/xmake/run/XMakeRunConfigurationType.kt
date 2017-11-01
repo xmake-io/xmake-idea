@@ -24,8 +24,6 @@ class XMakeRunConfigurationType : ConfigurationTypeBase(
             override fun configureBeforeRunTaskDefaults(providerID: Key<out BeforeRunTask<BeforeRunTask<*>>>,
                                                         task: BeforeRunTask<out BeforeRunTask<*>>) {
 
-                Log.info("configureBeforeRunTaskDefaults")
-
                 if (providerID == CompileStepBeforeRun.ID) {
                     // We don't use jps, so we don't need to execute `Make` task
                     // before run configuration is executed
