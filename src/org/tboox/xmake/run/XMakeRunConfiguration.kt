@@ -1,6 +1,7 @@
 package org.tboox.xmake.run
 
 import com.intellij.execution.Executor
+import com.intellij.execution.configuration.EnvironmentVariablesData
 import com.intellij.execution.configurations.*
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.diagnostic.Logger
@@ -35,10 +36,28 @@ class XMakeRunConfiguration(project: Project, name: String, factory: Configurati
     val modes = arrayOf("release", "debug")
     var currentMode = "release"
 
+    // the working directory
+    var workingDirectory = project.basePath.toString()
+
+    // the environment variables
+    var environmentVariables: EnvironmentVariablesData = EnvironmentVariablesData.DEFAULT
+
+    // the verbose output
+    var verboseOutput = false
+
     // the targets
     val targets: Array<String>
         get() {
-            return arrayOf("default", "all")
+
+            // make targets
+            var targets = arrayOf("default", "all")
+            val results = SystemUtils.ioRunv(listOf("xmake", "l", "-c", "import(\"core.project.config\"); import(\"core.project.project\"); config.load(); for name, _ in pairs((project.targets())) do print(name) end"), workingDirectory)
+            results.split("\n").forEach {
+                if (it.trim() != "") {
+                    targets += it
+                }
+            }
+            return targets
         }
     var currentTarget = "default"
 
@@ -53,6 +72,9 @@ class XMakeRunConfiguration(project: Project, name: String, factory: Configurati
         element.writeString("currentMode", currentMode)
         element.writeString("currentTarget", currentTarget)
         element.writeString("additionalConfiguration", additionalConfiguration)
+        element.writeString("workingDirectory", workingDirectory)
+        element.writeBool("verboseOutput", verboseOutput)
+        environmentVariables.writeExternal(element)
     }
 
     // load configuration
@@ -63,6 +85,9 @@ class XMakeRunConfiguration(project: Project, name: String, factory: Configurati
         element.readString("currentMode")?.let { currentMode = it }
         element.readString("currentTarget")?.let { currentTarget = it }
         element.readString("additionalConfiguration")?.let { additionalConfiguration = it }
+        element.readString("workingDirectory")?.let { workingDirectory = it }
+        element.readBool("verboseOutput")?.let { verboseOutput = it }
+        environmentVariables = EnvironmentVariablesData.readExternal(element)
     }
 
     override fun checkConfiguration() {
@@ -71,7 +96,7 @@ class XMakeRunConfiguration(project: Project, name: String, factory: Configurati
     override fun getConfigurationEditor(): SettingsEditor<out RunConfiguration> = XMakeRunConfigurationEditor(project)
 
     override fun getState(executor: Executor, environment: ExecutionEnvironment): RunProfileState? {
-        return XMakeRunState(environment, currentTarget)
+        return XMakeRunState(environment, currentTarget, workingDirectory, environmentVariables, verboseOutput)
     }
 
     companion object {
@@ -99,5 +124,11 @@ private fun Element.writeString(name: String, value: String) {
     addContent(opt)
 }
 
-private fun Element.readString(name: String): String? =
-        children.find { it.name == "option" && it.getAttributeValue("name") == name }?.getAttributeValue("value")
+private fun Element.readString(name: String): String? = children.find { it.name == "option" && it.getAttributeValue("name") == name }?.getAttributeValue("value")
+
+
+private fun Element.writeBool(name: String, value: Boolean) {
+    writeString(name, value.toString())
+}
+
+private fun Element.readBool(name: String) = readString(name)?.toBoolean()

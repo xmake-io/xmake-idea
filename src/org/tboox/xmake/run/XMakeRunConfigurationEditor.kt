@@ -1,11 +1,17 @@
 package org.tboox.xmake.run
 
+import com.intellij.execution.ExecutionBundle
+import com.intellij.execution.configuration.EnvironmentVariablesComponent
 import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.options.ConfigurationException
 import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
+import com.intellij.openapi.ui.LabeledComponent
+import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.ui.RawCommandLineEditor
+import com.intellij.ui.components.CheckBox
 import com.intellij.ui.layout.*
 import com.intellij.ui.components.Label
 import java.awt.Dimension
@@ -40,6 +46,23 @@ class XMakeRunConfigurationEditor(private val project: Project) : SettingsEditor
     // the additional configuration
     private val additionalConfiguration = RawCommandLineEditor()
 
+    // the working directory
+    private val workingDirectory = run {
+        val textField = TextFieldWithBrowseButton().apply {
+            val fileChooser = FileChooserDescriptorFactory.createSingleFolderDescriptor().apply {
+                title = ExecutionBundle.message("select.working.directory.message")
+            }
+            addBrowseFolderListener(null, null, null, fileChooser)
+        }
+        LabeledComponent.create(textField, ExecutionBundle.message("run.configuration.working.directory.label"))
+    }
+
+    // the environment variables
+    private val environmentVariables = EnvironmentVariablesComponent()
+
+    // verbose output
+    private val verboseOutput = CheckBox("Show verbose output", true)
+
     // reset editor from configuration
     override fun resetEditorFrom(configuration: XMakeRunConfiguration) {
 
@@ -73,6 +96,15 @@ class XMakeRunConfigurationEditor(private val project: Project) : SettingsEditor
 
         // reset additional configuration
         additionalConfiguration.text = configuration.additionalConfiguration
+
+        // reset working directory
+        workingDirectory.component.text = configuration.workingDirectory
+
+        // reset environment variables
+        environmentVariables.envData = configuration.environmentVariables
+
+        // reset verbose output
+        verboseOutput.isSelected = configuration.verboseOutput
     }
 
     // apply editor to configuration
@@ -83,6 +115,9 @@ class XMakeRunConfigurationEditor(private val project: Project) : SettingsEditor
         configuration.currentArchitecture       = architecturesModels.selectedItem.toString()
         configuration.currentMode               = modesModels.selectedItem.toString()
         configuration.additionalConfiguration   = additionalConfiguration.text
+        configuration.workingDirectory          = workingDirectory.component.text
+        configuration.environmentVariables      = environmentVariables.envData
+        configuration.verboseOutput             = verboseOutput.isSelected
     }
 
     // create editor
@@ -109,6 +144,14 @@ class XMakeRunConfigurationEditor(private val project: Project) : SettingsEditor
                 dialogCaption = "Additional configuration"
                 makeWide()
             }()
+        }
+
+        row { verboseOutput() }
+
+        row(environmentVariables.label) { environmentVariables.apply { makeWide() }() }
+
+        row(workingDirectory.label) {
+            workingDirectory.apply { makeWide() }()
         }
 
         platformsModels.addListDataListener(object: ListDataListener {
