@@ -14,7 +14,7 @@ import com.intellij.ui.RawCommandLineEditor
 import com.intellij.ui.components.CheckBox
 import com.intellij.ui.layout.*
 import com.intellij.ui.components.Label
-import org.tboox.xmake.shared.XMakeConfiguration
+import org.tboox.xmake.project.XMakeProjectConfiguration
 import java.awt.Dimension
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -27,6 +27,9 @@ import javax.swing.event.ListDataEvent
 import javax.swing.event.ListDataListener
 
 class XMakeRunConfigurationEditor(private val project: Project) : SettingsEditor<XMakeRunConfiguration>() {
+
+    // the project configuration
+    val projectConfiguration = project.getComponent(XMakeProjectConfiguration::class.java)
 
     // the targets ui
     private val targetsModels = DefaultComboBoxModel<String>()
@@ -69,56 +72,56 @@ class XMakeRunConfigurationEditor(private val project: Project) : SettingsEditor
 
         // reset targets
         targetsModels.removeAllElements()
-        for (target in XMakeConfiguration.targets) {
+        for (target in projectConfiguration.targets) {
             targetsModels.addElement(target)
         }
-        targetsModels.selectedItem = XMakeConfiguration.currentTarget
+        targetsModels.selectedItem = projectConfiguration.currentTarget
 
         // reset platforms
         platformsModels.removeAllElements()
-        for (platform in XMakeConfiguration.platforms) {
+        for (platform in projectConfiguration.platforms) {
             platformsModels.addElement(platform)
         }
-        platformsModels.selectedItem = XMakeConfiguration.currentPlatfrom
+        platformsModels.selectedItem = projectConfiguration.currentPlatfrom
 
         // reset architectures
         architecturesModels.removeAllElements()
-        for (architecture in XMakeConfiguration.architectures) {
+        for (architecture in projectConfiguration.architectures) {
             architecturesModels.addElement(architecture)
         }
-        architecturesModels.selectedItem = XMakeConfiguration.currentArchitecture
+        architecturesModels.selectedItem = projectConfiguration.currentArchitecture
 
         // reset modes
         modesModels.removeAllElements()
-        for (mode in XMakeConfiguration.modes) {
+        for (mode in projectConfiguration.modes) {
             modesModels.addElement(mode)
         }
-        modesModels.selectedItem = XMakeConfiguration.currentMode
+        modesModels.selectedItem = projectConfiguration.currentMode
 
         // reset additional configuration
-        additionalConfiguration.text = XMakeConfiguration.additionalConfiguration
+        additionalConfiguration.text = projectConfiguration.additionalConfiguration
 
         // reset working directory
-        workingDirectory.component.text = XMakeConfiguration.workingDirectory
+        workingDirectory.component.text = projectConfiguration.workingDirectory
 
         // reset environment variables
-        environmentVariables.envData = XMakeConfiguration.environmentVariables
+        environmentVariables.envData = projectConfiguration.environmentVariables
 
         // reset verbose output
-        verboseOutput.isSelected = XMakeConfiguration.verboseOutput
+        verboseOutput.isSelected = projectConfiguration.verboseOutput
     }
 
     // apply editor to configuration
     override fun applyEditorTo(configuration: XMakeRunConfiguration) {
 
-        XMakeConfiguration.currentTarget             = targetsModels.selectedItem.toString()
-        XMakeConfiguration.currentPlatfrom           = platformsModels.selectedItem.toString()
-        XMakeConfiguration.currentArchitecture       = architecturesModels.selectedItem.toString()
-        XMakeConfiguration.currentMode               = modesModels.selectedItem.toString()
-        XMakeConfiguration.additionalConfiguration   = additionalConfiguration.text
-        XMakeConfiguration.workingDirectory          = workingDirectory.component.text
-        XMakeConfiguration.environmentVariables      = environmentVariables.envData
-        XMakeConfiguration.verboseOutput             = verboseOutput.isSelected
+        projectConfiguration.currentTarget             = targetsModels.selectedItem.toString()
+        projectConfiguration.currentPlatfrom           = platformsModels.selectedItem.toString()
+        projectConfiguration.currentArchitecture       = architecturesModels.selectedItem.toString()
+        projectConfiguration.currentMode               = modesModels.selectedItem.toString()
+        projectConfiguration.additionalConfiguration   = additionalConfiguration.text
+        projectConfiguration.workingDirectory          = workingDirectory.component.text
+        projectConfiguration.environmentVariables      = environmentVariables.envData
+        projectConfiguration.verboseOutput             = verboseOutput.isSelected
     }
 
     // create editor
@@ -158,7 +161,7 @@ class XMakeRunConfigurationEditor(private val project: Project) : SettingsEditor
         platformsModels.addListDataListener(object: ListDataListener {
             override fun contentsChanged(e: ListDataEvent) {
                 architecturesModels.removeAllElements()
-                for (architecture in XMakeConfiguration.getArchitecturesByPlatform(platformsModels.selectedItem.toString())) {
+                for (architecture in XMakeProjectConfiguration.getArchitecturesByPlatform(platformsModels.selectedItem.toString())) {
                     architecturesModels.addElement(architecture)
                 }
             }

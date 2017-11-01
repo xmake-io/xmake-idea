@@ -57,4 +57,9 @@
     </group>
   </actions>
 
+  <project-components>
+    <component>
+      <implementation-class>org.tboox.xmake.project.XMakeProjectConfiguration</implementation-class>
+    </component>
+  </project-components>
 </idea-plugin>

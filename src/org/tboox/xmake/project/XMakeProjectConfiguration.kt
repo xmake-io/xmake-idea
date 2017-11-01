@@ -1,11 +1,13 @@
-package org.tboox.xmake.shared
+package org.tboox.xmake.project
 
 import com.intellij.execution.configuration.EnvironmentVariablesData
 import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.openapi.components.ProjectComponent
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import org.tboox.xmake.utils.SystemUtils
 
-object XMakeConfiguration {
+class XMakeProjectConfiguration(project: Project) : ProjectComponent {
 
     // the platforms
     val platforms = arrayOf("macosx", "linux", "windows", "android", "iphoneos", "watchos", "mingw")
@@ -31,7 +33,7 @@ object XMakeConfiguration {
     var currentMode = "release"
 
     // the working directory
-    var workingDirectory = ""
+    var workingDirectory = project.basePath.toString()
 
     // the environment variables
     var environmentVariables: EnvironmentVariablesData = EnvironmentVariablesData.DEFAULT
@@ -156,7 +158,7 @@ object XMakeConfiguration {
 
             // make targets
             var targets = arrayOf("default", "all")
-            val results = SystemUtils.ioRunv(listOf(SystemUtils.xmakeProgram, "l", "-c", "import(\"core.project.config\"); import(\"core.project.project\"); config.load(); for name, _ in pairs((project.targets())) do print(name) end"), XMakeConfiguration.workingDirectory)
+            val results = SystemUtils.ioRunv(listOf(SystemUtils.xmakeProgram, "l", "-c", "import(\"core.project.config\"); import(\"core.project.project\"); config.load(); for name, _ in pairs((project.targets())) do print(name) end"), workingDirectory)
             results.split("\n").forEach {
                 if (it.trim() != "") {
                     targets += it
@@ -169,28 +171,6 @@ object XMakeConfiguration {
     // the additional configuration
     var additionalConfiguration = ""
 
-    // clean configuration
-    fun cleanConfiguration(project: Project) {
-        currentPlatfrom = SystemUtils.platform()
-        _currentArchitecture = ""
-        currentMode = "release"
-        workingDirectory = project.basePath.toString()
-        environmentVariables = EnvironmentVariablesData.DEFAULT
-        verboseOutput = false
-        currentTarget = "default"
-        additionalConfiguration = ""
-    }
-
-    // get architectures by platform
-    fun getArchitecturesByPlatform(platform: String) = when (platform) {
-        "macosx", "linux", "mingw" -> arrayOf("x86_64", "i386")
-        "windows" -> arrayOf("x86", "x64")
-        "iphoneos" -> arrayOf("arm64", "armv7", "armv7s", "x86_64", "i386")
-        "watchos" -> arrayOf("armv7s", "i386")
-        "android" -> arrayOf("armv7-a", "armv5te", "armv6", "armv8-a", "arm64-v8a")
-        else -> arrayOf()
-    }
-
     // make command line
     private fun makeCommandLine(parameters: List<String>): GeneralCommandLine {
 
@@ -202,4 +182,37 @@ object XMakeConfiguration {
                 .withEnvironment(environmentVariables.envs)
                 .withRedirectErrorStream(true)
     }
+
+    override fun initComponent() {
+    }
+
+    override fun disposeComponent() {
+    }
+
+    override fun getComponentName(): String {
+        return "XMakeProjectConfiguration"
+    }
+
+    override fun projectOpened() {
+    }
+
+    override fun projectClosed() {
+    }
+
+    companion object {
+
+        // get architectures by platform
+        fun getArchitecturesByPlatform(platform: String) = when (platform) {
+            "macosx", "linux", "mingw" -> arrayOf("x86_64", "i386")
+            "windows" -> arrayOf("x86", "x64")
+            "iphoneos" -> arrayOf("arm64", "armv7", "armv7s", "x86_64", "i386")
+            "watchos" -> arrayOf("armv7s", "i386")
+            "android" -> arrayOf("armv7-a", "armv5te", "armv6", "armv8-a", "arm64-v8a")
+            else -> arrayOf()
+        }
+
+        // get log
+        private val Log = Logger.getInstance(XMakeProjectConfiguration::class.java.getName())
+    }
 }
+

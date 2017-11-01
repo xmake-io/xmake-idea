@@ -10,7 +10,6 @@ import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import org.tboox.xmake.run.XMakeRunConfiguration
 import org.tboox.xmake.run.XMakeRunConfigurationType
-import org.tboox.xmake.shared.XMakeConfiguration
 import java.io.BufferedReader
 import java.io.IOException
 import java.io.InputStreamReader

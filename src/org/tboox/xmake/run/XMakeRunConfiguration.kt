@@ -8,39 +8,41 @@ import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.project.Project
 import org.jdom.Element
-import org.tboox.xmake.shared.XMakeConfiguration
+import org.tboox.xmake.project.XMakeProjectConfiguration
 
 class XMakeRunConfiguration(project: Project, name: String, factory: ConfigurationFactory
 ) : LocatableConfigurationBase(project, factory, name), RunConfigurationWithSuppressedDefaultDebugAction {
 
     // the current command line
     var currentCommandLine: GeneralCommandLine ?= null
+    
+    // the project configuration
+    val projectConfiguration = project.getComponent(XMakeProjectConfiguration::class.java)
 
     // save configuration
     override fun writeExternal(element: Element) {
         super.writeExternal(element)
-        element.writeString("currentPlatform", XMakeConfiguration.currentPlatfrom)
-        element.writeString("currentArchitecture", XMakeConfiguration.currentArchitecture)
-        element.writeString("currentMode", XMakeConfiguration.currentMode)
-        element.writeString("currentTarget", XMakeConfiguration.currentTarget)
-        element.writeString("additionalConfiguration", XMakeConfiguration.additionalConfiguration)
-        element.writeString("workingDirectory", XMakeConfiguration.workingDirectory)
-        element.writeBool("verboseOutput", XMakeConfiguration.verboseOutput)
-        XMakeConfiguration.environmentVariables.writeExternal(element)
+        element.writeString("currentPlatform", projectConfiguration.currentPlatfrom)
+        element.writeString("currentArchitecture", projectConfiguration.currentArchitecture)
+        element.writeString("currentMode", projectConfiguration.currentMode)
+        element.writeString("currentTarget", projectConfiguration.currentTarget)
+        element.writeString("additionalConfiguration", projectConfiguration.additionalConfiguration)
+        element.writeString("workingDirectory", projectConfiguration.workingDirectory)
+        element.writeBool("verboseOutput", projectConfiguration.verboseOutput)
+        projectConfiguration.environmentVariables.writeExternal(element)
     }
 
     // load configuration
     override fun readExternal(element: Element) {
         super.readExternal(element)
-        XMakeConfiguration.cleanConfiguration(project)
-        element.readString("currentPlatform")?.let { XMakeConfiguration.currentPlatfrom = it }
-        element.readString("currentArchitecture")?.let { XMakeConfiguration.currentArchitecture = it }
-        element.readString("currentMode")?.let { XMakeConfiguration.currentMode = it }
-        element.readString("currentTarget")?.let { XMakeConfiguration.currentTarget = it }
-        element.readString("additionalConfiguration")?.let { XMakeConfiguration.additionalConfiguration = it }
-        element.readString("workingDirectory")?.let { XMakeConfiguration.workingDirectory = it }
-        element.readBool("verboseOutput")?.let { XMakeConfiguration.verboseOutput = it }
-        XMakeConfiguration.environmentVariables = EnvironmentVariablesData.readExternal(element)
+        element.readString("currentPlatform")?.let { projectConfiguration.currentPlatfrom = it }
+        element.readString("currentArchitecture")?.let { projectConfiguration.currentArchitecture = it }
+        element.readString("currentMode")?.let { projectConfiguration.currentMode = it }
+        element.readString("currentTarget")?.let { projectConfiguration.currentTarget = it }
+        element.readString("additionalConfiguration")?.let { projectConfiguration.additionalConfiguration = it }
+        element.readString("workingDirectory")?.let { projectConfiguration.workingDirectory = it }
+        element.readBool("verboseOutput")?.let { projectConfiguration.verboseOutput = it }
+        projectConfiguration.environmentVariables = EnvironmentVariablesData.readExternal(element)
     }
 
     override fun checkConfiguration() {
@@ -49,7 +51,7 @@ class XMakeRunConfiguration(project: Project, name: String, factory: Configurati
     override fun getConfigurationEditor(): SettingsEditor<out RunConfiguration> = XMakeRunConfigurationEditor(project)
 
     override fun getState(executor: Executor, environment: ExecutionEnvironment): RunProfileState? {
-        return XMakeRunState(environment, currentCommandLine ?: XMakeConfiguration.runCommandLine)
+        return XMakeRunState(environment, currentCommandLine ?: projectConfiguration.runCommandLine)
     }
 
     companion object {
