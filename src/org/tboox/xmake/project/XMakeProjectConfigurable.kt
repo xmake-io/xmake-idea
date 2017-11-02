@@ -117,7 +117,7 @@ class XMakeProjectConfigurable(
         for (platform in xmakeConfiguration.platforms) {
             platformsModels.addElement(platform)
         }
-        platformsModels.selectedItem = xmakeConfiguration.data.currentPlatfrom
+        platformsModels.selectedItem = xmakeConfiguration.data.currentPlatform
 
         // reset architectures
         architecturesModels.removeAllElements()
@@ -146,7 +146,7 @@ class XMakeProjectConfigurable(
     @Throws(ConfigurationException::class)
     override fun apply() {
 
-        xmakeConfiguration.data.currentPlatfrom         = platformsModels.selectedItem.toString()
+        xmakeConfiguration.data.currentPlatform         = platformsModels.selectedItem.toString()
         xmakeConfiguration.data.currentArchitecture     = architecturesModels.selectedItem.toString()
         xmakeConfiguration.data.currentMode             = modesModels.selectedItem.toString()
         xmakeConfiguration.data.additionalConfiguration = additionalConfiguration.text
@@ -156,7 +156,7 @@ class XMakeProjectConfigurable(
 
     override fun isModified(): Boolean {
 
-        if (xmakeConfiguration.data.currentPlatfrom != platformsModels.selectedItem.toString())
+        if (xmakeConfiguration.data.currentPlatform != platformsModels.selectedItem.toString())
             return true
         if (xmakeConfiguration.data.currentArchitecture != architecturesModels.selectedItem.toString())
             return true

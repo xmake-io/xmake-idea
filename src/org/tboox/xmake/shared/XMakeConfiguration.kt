@@ -20,7 +20,7 @@ class XMakeConfiguration(project: Project) : PersistentStateComponent<XMakeConfi
 
     // the architectures
     val architectures: Array<String>
-        get() = getArchitecturesByPlatform(data.currentPlatfrom)
+        get() = getArchitecturesByPlatform(data.currentPlatform)
 
     // the modes
     val modes = arrayOf("release", "debug")
@@ -131,7 +131,7 @@ class XMakeConfiguration(project: Project) : PersistentStateComponent<XMakeConfi
     }
 
     data class State (
-        var currentPlatfrom: String = SystemUtils.platform(),
+        var currentPlatform: String = SystemUtils.platform(),
         var currentArchitecture: String = "",
         var currentMode: String = "release",
         var workingDirectory: String = "",
