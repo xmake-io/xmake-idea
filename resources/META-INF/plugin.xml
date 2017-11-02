@@ -30,6 +30,9 @@
     <!-- icons -->
     <iconProvider implementation="org.tboox.xmake.icons.XMakeIconProvider"/>
 
+    <!-- project configurations -->
+    <projectConfigurable instance="org.tboox.xmake.project.XMakeProjectConfigurable" displayName="XMake" groupId="language"/>
+
     <!-- run configurations -->
     <programRunner implementation="org.tboox.xmake.run.XMakeRunner"/>
     <configurationType implementation="org.tboox.xmake.run.XMakeRunConfigurationType"/>
@@ -59,7 +62,7 @@
 
   <project-components>
     <component>
-      <implementation-class>org.tboox.xmake.project.XMakeProjectConfiguration</implementation-class>
+      <implementation-class>org.tboox.xmake.shared.XMakeConfiguration</implementation-class>
     </component>
   </project-components>
 </idea-plugin>

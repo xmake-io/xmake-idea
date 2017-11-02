@@ -1,64 +1,29 @@
-package org.tboox.xmake.project
+package org.tboox.xmake.shared
 
 import com.intellij.execution.configuration.EnvironmentVariablesData
 import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.openapi.components.PersistentStateComponent
+import com.intellij.openapi.components.State
 import com.intellij.openapi.components.ProjectComponent
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import org.tboox.xmake.utils.SystemUtils
 
-class XMakeProjectConfiguration(project: Project) : ProjectComponent {
+@State(name = "XMakeProjectSettings")
+class XMakeConfiguration(project: Project) : PersistentStateComponent<XMakeConfiguration.State>, ProjectComponent {
+
+    // the project
+    val project = project
 
     // the platforms
     val platforms = arrayOf("macosx", "linux", "windows", "android", "iphoneos", "watchos", "mingw")
-    var currentPlatfrom = SystemUtils.platform()
 
     // the architectures
     val architectures: Array<String>
-        get() = getArchitecturesByPlatform(currentPlatfrom)
-    private var _currentArchitecture: String = ""
-    var currentArchitecture: String
-        get() {
-            if (_currentArchitecture == "" && architectures.isNotEmpty()) {
-                _currentArchitecture = architectures[0]
-            }
-            return _currentArchitecture
-        }
-        set(value) {
-            _currentArchitecture = value
-        }
+        get() = getArchitecturesByPlatform(data.currentPlatfrom)
 
     // the modes
     val modes = arrayOf("release", "debug")
-    var currentMode = "release"
-
-    // the working directory
-    var workingDirectory = project.basePath.toString()
-
-    // the environment variables
-    var environmentVariables: EnvironmentVariablesData = EnvironmentVariablesData.DEFAULT
-
-    // the verbose output
-    var verboseOutput = false
-
-    // the run command line
-    val runCommandLine: GeneralCommandLine
-        get() {
-
-            // make parameters
-            val parameters = mutableListOf("run")
-            if (verboseOutput) {
-                parameters.add("-v")
-            }
-            if (currentTarget == "all") {
-                parameters.add("-a")
-            } else if (currentTarget != "" && currentTarget != "default") {
-                parameters.add(currentTarget)
-            }
-
-            // make command line
-            return makeCommandLine(parameters)
-        }
 
     // the build command line
     val buildCommandLine: GeneralCommandLine
@@ -66,18 +31,10 @@ class XMakeProjectConfiguration(project: Project) : ProjectComponent {
 
             // make parameters
             val parameters = mutableListOf<String>()
-            if (currentTarget != "" && currentTarget != "default") {
-                parameters.add("build")
-            }
-            if (verboseOutput) {
+            if (data.verboseOutput) {
                 parameters.add("-v")
             } else {
                 parameters.add("-w")
-            }
-            if (currentTarget != "" && currentTarget != "default") {
-                parameters.add(currentTarget)
-            } else if (currentTarget == "all") {
-                parameters.add("-a")
             }
 
             // make command line
@@ -90,15 +47,10 @@ class XMakeProjectConfiguration(project: Project) : ProjectComponent {
 
             // make parameters
             val parameters = mutableListOf<String>("-r")
-            if (verboseOutput) {
+            if (data.verboseOutput) {
                 parameters.add("-v")
             } else {
                 parameters.add("-w")
-            }
-            if (currentTarget != "" && currentTarget != "default") {
-                parameters.add(currentTarget)
-            } else if (currentTarget == "all") {
-                parameters.add("-a")
             }
 
             // make command line
@@ -111,13 +63,8 @@ class XMakeProjectConfiguration(project: Project) : ProjectComponent {
 
             // make parameters
             val parameters = mutableListOf<String>("c")
-            if (verboseOutput) {
+            if (data.verboseOutput) {
                 parameters.add("-v")
-            }
-            if (currentTarget != "" && currentTarget != "default") {
-                parameters.add(currentTarget)
-            } else if (currentTarget == "all") {
-                parameters.add("-a")
             }
 
             // make command line
@@ -130,7 +77,7 @@ class XMakeProjectConfiguration(project: Project) : ProjectComponent {
 
             // make parameters
             val parameters = mutableListOf<String>("f", "-c")
-            if (verboseOutput) {
+            if (data.verboseOutput) {
                 parameters.add("-v")
             }
 
@@ -144,7 +91,7 @@ class XMakeProjectConfiguration(project: Project) : ProjectComponent {
 
             // make parameters
             val parameters = mutableListOf<String>("f", "-y")
-            if (verboseOutput) {
+            if (data.verboseOutput) {
                 parameters.add("-v")
             }
 
@@ -158,7 +105,7 @@ class XMakeProjectConfiguration(project: Project) : ProjectComponent {
 
             // make targets
             var targets = arrayOf("default", "all")
-            val results = SystemUtils.ioRunv(listOf(SystemUtils.xmakeProgram, "l", "-c", "import(\"core.project.config\"); import(\"core.project.project\"); config.load(); for name, _ in pairs((project.targets())) do print(name) end"), workingDirectory)
+            val results = SystemUtils.ioRunv(listOf(SystemUtils.xmakeProgram, "l", "-c", "import(\"core.project.config\"); import(\"core.project.project\"); config.load(); for name, _ in pairs((project.targets())) do print(name) end"), data.workingDirectory)
             results.split("\n").forEach {
                 if (it.trim() != "") {
                     targets += it
@@ -166,34 +113,67 @@ class XMakeProjectConfiguration(project: Project) : ProjectComponent {
             }
             return targets
         }
-    var currentTarget = "default"
 
-    // the additional configuration
-    var additionalConfiguration = ""
+    // the state data
+    @Volatile
+    var data: State = State()
 
     // make command line
-    private fun makeCommandLine(parameters: List<String>): GeneralCommandLine {
+    fun makeCommandLine(parameters: List<String>, environmentVariables: EnvironmentVariablesData = EnvironmentVariablesData.DEFAULT): GeneralCommandLine {
 
         // make command
         return GeneralCommandLine(SystemUtils.xmakeProgram)
                 .withParameters(parameters)
                 .withCharset(Charsets.UTF_8)
-                .withWorkDirectory(workingDirectory)
+                .withWorkDirectory(data.workingDirectory)
                 .withEnvironment(environmentVariables.envs)
                 .withRedirectErrorStream(true)
     }
 
+    data class State (
+        var currentPlatfrom: String = SystemUtils.platform(),
+        var currentArchitecture: String = "",
+        var currentMode: String = "release",
+        var workingDirectory: String = "",
+        var verboseOutput: Boolean = false,
+        var additionalConfiguration: String = ""
+
+    )
+
+    // ensure state
+    fun ensureState() {
+        if (data.workingDirectory == "") {
+            data.workingDirectory = project.basePath.toString()
+        }
+        if (data.currentArchitecture == "" && architectures.isNotEmpty()) {
+            data.currentArchitecture = architectures[0]
+        }
+    }
+
+    // get and save state to file
+    override fun getState(): State {
+        return data
+    }
+
+    // load state from file
+    override fun loadState(state: State) {
+        data = state
+        ensureState()
+    }
+
     override fun initComponent() {
+        ensureState()
     }
 
     override fun disposeComponent() {
     }
 
     override fun getComponentName(): String {
-        return "XMakeProjectConfiguration"
+        return "XMakeConfiguration"
     }
 
     override fun projectOpened() {
+        ensureState()
     }
 
     override fun projectClosed() {
@@ -212,7 +192,11 @@ class XMakeProjectConfiguration(project: Project) : ProjectComponent {
         }
 
         // get log
-        private val Log = Logger.getInstance(XMakeProjectConfiguration::class.java.getName())
+        private val Log = Logger.getInstance(XMakeConfiguration::class.java.getName())
     }
 }
+
+val Project.xmakeConfiguration: XMakeConfiguration
+    get() = this.getComponent(XMakeConfiguration::class.java)
+            ?: error("Failed to get XMakeConfiguration for $this")
 
