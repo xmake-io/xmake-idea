@@ -80,6 +80,10 @@ class XMakeConfiguration(project: Project) : PersistentStateComponent<XMakeConfi
             if (data.verboseOutput) {
                 parameters.add("-v")
             }
+            if (data.buildOutputDirectory != "") {
+                parameters.add("-o")
+                parameters.add(data.buildOutputDirectory)
+            }
 
             // make command line
             return makeCommandLine(parameters)
@@ -91,8 +95,14 @@ class XMakeConfiguration(project: Project) : PersistentStateComponent<XMakeConfi
 
             // make parameters
             val parameters = mutableListOf<String>("f", "-p", data.currentPlatform, "-a", data.currentArchitecture, "-m", data.currentMode)
+            if (data.currentPlatform == "android" && data.androidNDKDirectory != "") {
+                parameters.add("--ndk=\"${data.androidNDKDirectory}\"")
+            }
             if (data.verboseOutput) {
                 parameters.add("-v")
+            }
+            if (data.buildOutputDirectory != "") {
+                parameters.add("-o \"${data.buildOutputDirectory}\"")
             }
 
             // make command line
@@ -149,6 +159,8 @@ class XMakeConfiguration(project: Project) : PersistentStateComponent<XMakeConfi
         var currentArchitecture: String = "",
         var currentMode: String = "release",
         var workingDirectory: String = "",
+        var androidNDKDirectory: String = "",
+        var buildOutputDirectory: String = "",
         var verboseOutput: Boolean = false,
         var additionalConfiguration: String = ""
 

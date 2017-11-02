@@ -73,6 +73,28 @@ class XMakeProjectConfigurable(
         LabeledComponent.create(textField, ExecutionBundle.message("run.configuration.working.directory.label"))
     }
 
+    // the android NDK directory
+    private val androidNDKDirectory = run {
+        val textField = TextFieldWithBrowseButton().apply {
+            val fileChooser = FileChooserDescriptorFactory.createSingleFolderDescriptor().apply {
+                title = ExecutionBundle.message("select.working.directory.message")
+            }
+            addBrowseFolderListener(null, null, null, fileChooser)
+        }
+        LabeledComponent.create(textField, ExecutionBundle.message("run.configuration.working.directory.label"))
+    }
+
+    // the build output directory
+    private val buildOutputDirectory = run {
+        val textField = TextFieldWithBrowseButton().apply {
+            val fileChooser = FileChooserDescriptorFactory.createSingleFolderDescriptor().apply {
+                title = ExecutionBundle.message("select.working.directory.message")
+            }
+            addBrowseFolderListener(null, null, null, fileChooser)
+        }
+        LabeledComponent.create(textField, ExecutionBundle.message("run.configuration.working.directory.label"))
+    }
+
     // verbose output
     private val verboseOutput = CheckBox("Show verbose output", true)
 
@@ -102,6 +124,16 @@ class XMakeProjectConfigurable(
         row(workingDirectory.label) {
             workingDirectory.apply { makeWide() }()
         }
+
+        row(buildOutputDirectory.label) {
+            buildOutputDirectory.apply { makeWide() }()
+        }
+        buildOutputDirectory.label.text = "Build directory: "
+
+        row(androidNDKDirectory.label) {
+            androidNDKDirectory.apply { makeWide() }()
+        }
+        androidNDKDirectory.label.text = "Android NDK directory: "
 
         row {
             configurationCommandText()
@@ -193,6 +225,12 @@ class XMakeProjectConfigurable(
         // reset working directory
         workingDirectory.component.text = xmakeConfiguration.data.workingDirectory
 
+        // reset build output directory
+        buildOutputDirectory.component.text = xmakeConfiguration.data.buildOutputDirectory
+
+        // reset android ndk directory
+        androidNDKDirectory.component.text = xmakeConfiguration.data.androidNDKDirectory
+
         // reset verbose output
         verboseOutput.isSelected = xmakeConfiguration.data.verboseOutput
 
@@ -208,6 +246,8 @@ class XMakeProjectConfigurable(
         xmakeConfiguration.data.currentMode             = modesModels.selectedItem.toString()
         xmakeConfiguration.data.additionalConfiguration = additionalConfiguration.text
         xmakeConfiguration.data.workingDirectory        = workingDirectory.component.text
+        xmakeConfiguration.data.buildOutputDirectory    = buildOutputDirectory.component.text
+        xmakeConfiguration.data.androidNDKDirectory     = androidNDKDirectory.component.text
         xmakeConfiguration.data.verboseOutput           = verboseOutput.isSelected
     }
 
@@ -222,6 +262,10 @@ class XMakeProjectConfigurable(
         if (xmakeConfiguration.data.additionalConfiguration != additionalConfiguration.text)
             return true
         if (xmakeConfiguration.data.workingDirectory != workingDirectory.component.text)
+            return true
+        if (xmakeConfiguration.data.buildOutputDirectory != buildOutputDirectory.component.text)
+            return true
+        if (xmakeConfiguration.data.androidNDKDirectory != androidNDKDirectory.component.text)
             return true
         if (xmakeConfiguration.data.verboseOutput != verboseOutput.isSelected)
             return true
@@ -244,14 +288,21 @@ class XMakeProjectConfigurable(
     private val previewConfigurationCommand: String
         get() {
             var cmd = "xmake f"
-            if (platformsModels.selectedItem != null) {
-                cmd += " -p ${platformsModels.selectedItem?.toString()}"
+            var platformItem = platformsModels.selectedItem
+            if (platformItem != null) {
+                cmd += " -p ${platformItem.toString()}"
             }
             if (architecturesModels.selectedItem != null) {
                 cmd += " -a ${architecturesModels.selectedItem?.toString()}"
             }
             if (modesModels.selectedItem != null) {
                 cmd += " -m ${modesModels.selectedItem?.toString()}"
+            }
+            if (platformItem?.toString() == "android" && androidNDKDirectory.component.text != "") {
+                cmd += " --ndk=\"${androidNDKDirectory.component.text}\""
+            }
+            if (buildOutputDirectory.component.text != "") {
+                cmd += " -o \"${buildOutputDirectory.component.text}\""
             }
             if (verboseOutput.isSelected) {
                 cmd += " -v"
