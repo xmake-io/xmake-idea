@@ -13,6 +13,7 @@ import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.ui.RawCommandLineEditor
 import com.intellij.ui.components.CheckBox
 import com.intellij.ui.components.Label
+import com.intellij.ui.components.JBLabel
 import com.intellij.ui.layout.CCFlags
 import com.intellij.ui.layout.LayoutBuilder
 import com.intellij.ui.layout.Row
@@ -25,10 +26,16 @@ import java.nio.file.Paths
 import javax.swing.JComponent
 import javax.swing.JList
 import javax.swing.JPanel
+import javax.swing.JLabel
 import javax.swing.JTextField
+import javax.swing.JTextArea
 import javax.swing.DefaultComboBoxModel
 import javax.swing.event.ListDataEvent
 import javax.swing.event.ListDataListener
+import java.awt.event.KeyEvent
+import java.awt.event.KeyListener
+import java.awt.event.ItemEvent
+import java.awt.event.ItemListener
 
 class XMakeProjectConfigurable(
         private val project: Project
@@ -52,6 +59,9 @@ class XMakeProjectConfigurable(
     // the additional configuration
     private val additionalConfiguration = RawCommandLineEditor()
 
+    // the configuration command text
+    private val configurationCommandText = JTextArea(10, 10)
+
     // the working directory
     private val workingDirectory = run {
         val textField = TextFieldWithBrowseButton().apply {
@@ -69,15 +79,15 @@ class XMakeProjectConfigurable(
     override fun createComponent(): JComponent = panel {
 
         labeledRow("Platform:", platformsComboBox) {
-            platformsComboBox(CCFlags.push)
+            platformsComboBox()
         }
 
         labeledRow("Architecture:", architecturesComboBox) {
-            architecturesComboBox(CCFlags.push)
+            architecturesComboBox()
         }
 
         labeledRow("Mode:", modesComboBox) {
-            modesComboBox(CCFlags.push)
+            modesComboBox()
         }
 
         labeledRow("Additional configuration:", additionalConfiguration) {
@@ -93,16 +103,60 @@ class XMakeProjectConfigurable(
             workingDirectory.apply { makeWide() }()
         }
 
+        row {
+            configurationCommandText()
+        }
+        configurationCommandText.setEditable(false)
+
         platformsModels.addListDataListener(object: ListDataListener {
             override fun contentsChanged(e: ListDataEvent) {
                 architecturesModels.removeAllElements()
                 for (architecture in XMakeConfiguration.getArchitecturesByPlatform(platformsModels.selectedItem.toString())) {
                     architecturesModels.addElement(architecture)
                 }
+                configurationCommandText.text = previewConfigurationCommand
             }
             override fun intervalAdded(e: ListDataEvent) {
             }
             override fun intervalRemoved(e: ListDataEvent) {
+            }
+        })
+
+        architecturesModels.addListDataListener(object: ListDataListener {
+            override fun contentsChanged(e: ListDataEvent) {
+                configurationCommandText.text = previewConfigurationCommand
+            }
+            override fun intervalAdded(e: ListDataEvent) {
+            }
+            override fun intervalRemoved(e: ListDataEvent) {
+            }
+        })
+
+        modesModels.addListDataListener(object: ListDataListener {
+            override fun contentsChanged(e: ListDataEvent) {
+                configurationCommandText.text = previewConfigurationCommand
+            }
+            override fun intervalAdded(e: ListDataEvent) {
+            }
+            override fun intervalRemoved(e: ListDataEvent) {
+            }
+        })
+
+        additionalConfiguration.textField.addKeyListener(object: KeyListener {
+            override fun keyPressed(keyEvent: KeyEvent) {
+                configurationCommandText.text = previewConfigurationCommand
+            }
+            override fun keyReleased(keyEvent: KeyEvent) {
+                configurationCommandText.text = previewConfigurationCommand
+            }
+            override fun keyTyped(keyEvent: KeyEvent) {
+                configurationCommandText.text = previewConfigurationCommand
+            }
+        })
+
+        verboseOutput.addItemListener(object: ItemListener {
+            override fun itemStateChanged(e: ItemEvent) {
+                configurationCommandText.text = previewConfigurationCommand
             }
         })
     }
@@ -141,6 +195,9 @@ class XMakeProjectConfigurable(
 
         // reset verbose output
         verboseOutput.isSelected = xmakeConfiguration.data.verboseOutput
+
+        // reset configuration command text
+        configurationCommandText.text = previewConfigurationCommand
     }
 
     @Throws(ConfigurationException::class)
@@ -183,6 +240,25 @@ class XMakeProjectConfigurable(
         label.labelFor = component
         row(label) { init() }
     }
+
+    private val previewConfigurationCommand: String
+        get() {
+            var cmd = "xmake f"
+            if (platformsModels.selectedItem != null) {
+                cmd += " -p ${platformsModels.selectedItem?.toString()}"
+            }
+            if (architecturesModels.selectedItem != null) {
+                cmd += " -a ${architecturesModels.selectedItem?.toString()}"
+            }
+            if (modesModels.selectedItem != null) {
+                cmd += " -m ${modesModels.selectedItem?.toString()}"
+            }
+            if (verboseOutput.isSelected) {
+                cmd += " -v"
+            }
+            cmd += " ${additionalConfiguration.text}"
+            return cmd
+        }
 
     companion object {
 

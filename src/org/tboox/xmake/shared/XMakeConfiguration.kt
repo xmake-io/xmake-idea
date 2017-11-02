@@ -85,6 +85,20 @@ class XMakeConfiguration(project: Project) : PersistentStateComponent<XMakeConfi
             return makeCommandLine(parameters)
         }
 
+    // the configuration command line
+    val configurationCommandLine: GeneralCommandLine
+        get() {
+
+            // make parameters
+            val parameters = mutableListOf<String>("f", "-p", data.currentPlatform, "-a", data.currentArchitecture, "-m", data.currentMode)
+            if (data.verboseOutput) {
+                parameters.add("-v")
+            }
+
+            // make command line
+            return makeCommandLine(parameters)
+        }
+
     // the quick start command line
     val quickStartCommandLine: GeneralCommandLine
         get() {

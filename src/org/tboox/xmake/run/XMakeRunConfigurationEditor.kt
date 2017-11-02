@@ -23,8 +23,6 @@ import javax.swing.JList
 import javax.swing.JPanel
 import javax.swing.JTextField
 import javax.swing.DefaultComboBoxModel
-import javax.swing.event.ListDataEvent
-import javax.swing.event.ListDataListener
 
 class XMakeRunConfigurationEditor(private val project: Project) : SettingsEditor<XMakeRunConfiguration>() {
 
