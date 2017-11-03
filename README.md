@@ -46,6 +46,12 @@ Please see [xmake-github](https://github.com/tboox/xmake) and [website](http://x
 * Tool windows
 * Build and run
  
+## Quickstart
+
+<div align="center">
+<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/quickstart.gif" width="80%" />
+</div>
+ 
 ## Tool windows
 
 #### Output panel
