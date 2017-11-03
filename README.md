@@ -51,20 +51,20 @@ Please see [xmake-github](https://github.com/tboox/xmake) and [website](http://x
 
 ## Project configuration
 
-<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/project_configuration.png" width="60%" />
+<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/project_configuration.png" width="80%" />
 
 ## Run configuration
 
-<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/run_configuration.png" width="60%" />
+<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/run_configuration.png" width="80%" />
 
 ## Menu tools
 
-<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/menu.png" width="30%" />
+<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/menu.png" width="20%" />
  
 ## Tool Windows
 
 #### Output panel
 
-<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/output_panel.png" width="80%" />
+<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/output_panel.png" width="90%" />
  
   
