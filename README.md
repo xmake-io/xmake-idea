@@ -59,12 +59,12 @@ Please see [xmake-github](https://github.com/tboox/xmake) and [website](http://x
 
 ## Menu tools
 
-<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/menu.png" width="60%" />
+<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/menu.png" width="30%" />
  
 ## Tool Windows
 
 #### Output panel
 
-<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/output_panel.png" width="60%" />
+<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/output_panel.png" width="80%" />
  
   
