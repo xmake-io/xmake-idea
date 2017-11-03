@@ -45,7 +45,13 @@ Please see [xmake-github](https://github.com/tboox/xmake) and [website](http://x
 * Menu tools
 * Tool windows
 * Build and run
+ 
+## Tool windows
 
+#### Output panel
+
+<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/output_panel.png" width="100%" />
+ 
 ## Project configuration
 
 <img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/project_configuration.png" width="100%" />
@@ -60,10 +66,5 @@ Please see [xmake-github](https://github.com/tboox/xmake) and [website](http://x
 <img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/menu.png" width="80%" />
 </div>
  
-## Tool windows
-
-#### Output panel
-
-<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/output_panel.png" width="100%" />
  
   
