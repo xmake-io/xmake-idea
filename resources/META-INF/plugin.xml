@@ -32,6 +32,7 @@
 
     <!-- project configurations -->
     <projectConfigurable instance="org.tboox.xmake.project.XMakeProjectConfigurable" displayName="XMake" groupId="language"/>
+    <toolWindow id="XMake"  anchor="right" factoryClass="org.tboox.xmake.project.XMakeToolWindowFactory" icon="/icons/xmake.png"/>
 
     <!-- run configurations -->
     <programRunner implementation="org.tboox.xmake.run.XMakeRunner"/>
@@ -47,16 +48,16 @@
        https://github.com/centic9/IntelliJ-Action-IDs
   -->
   <actions>
-    <group id="org.tboox.xmake.actions.XMakeMenu" text="XMake" description="XMake Menu">
+    <group id="XMake.Menu" text="XMake" description="XMake Menu">
       <add-to-group group-id="MainMenu" anchor="after" relative-to-action="RunMenu"/>
-      <action id="build" class="org.tboox.xmake.actions.BuildAction" text="Build Project" description="Build the current project."/>
-      <action id="rebuild" class="org.tboox.xmake.actions.RebuildAction" text="Rebuild Project" description="Rebuild the current project."/>
-      <action id="clean" class="org.tboox.xmake.actions.CleanAction" text="Clean Project" description="Clean target and object files."/>
+      <action id="XMake.Build" class="org.tboox.xmake.actions.BuildAction" text="Build Project" icon = "/icons/build.png" description="Build the current project."/>
+      <action id="XMake.Rebuild" class="org.tboox.xmake.actions.RebuildAction" text="Rebuild Project" icon = "/icons/rebuild.png" description="Rebuild the current project."/>
+      <action id="XMake.Clean" class="org.tboox.xmake.actions.CleanAction" text="Clean Project" icon = "/icons/clean.png" description="Clean target and object files."/>
       <separator/>
       <reference id="editRunConfigurations"/>
-      <action id="cleanConfiguration" class="org.tboox.xmake.actions.CleanConfigurationAction" text="Clean Configuration" description="Clean the current configuration."/>
+      <action id="XMake.CleanConfiguration" class="org.tboox.xmake.actions.CleanConfigurationAction" text="Clean Configuration" icon = "/icons/cleanconf.png" description="Clean the current configuration."/>
       <separator/>
-      <action id="quickStart" class="org.tboox.xmake.actions.QuickStartAction" text="Quick Start" description="Quick start a new project."/>
+      <action id="XMake.QuickStart" class="org.tboox.xmake.actions.QuickStartAction" text="Quick Start" icon = "/icons/quickstart.png" description="Quick start a new project."/>
     </group>
   </actions>
 
