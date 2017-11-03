@@ -13,10 +13,10 @@ class ConsoleProcessHandler(private val consoleView: ConsoleView, commandLine: G
     
     init {
 
-        // add process listener
-        this.addProcessListener(object : ProcessAdapter() {
-            override fun onTextAvailable(event: ProcessEvent?, k: Key<*>?) {
-                append(event!!.text, k)
+        // add colored text listener
+        this.addColoredTextListener(object: AnsiEscapeDecoder.ColoredTextAcceptor {
+            override fun coloredTextAvailable(text: String, attributes: Key<*>) {
+                append(text, attributes)
             }
         })
         
@@ -26,14 +26,7 @@ class ConsoleProcessHandler(private val consoleView: ConsoleView, commandLine: G
 
     // append info to the console view
     private fun append(s: String, k: Key<*>?) {
-
-        if (ProcessOutputTypes.STDERR == k) {
-            this.consoleView.print(s, ConsoleViewContentType.ERROR_OUTPUT)
-        } else if (ProcessOutputTypes.SYSTEM == k) {
-            this.consoleView.print(s, ConsoleViewContentType.SYSTEM_OUTPUT)
-        } else if (ProcessOutputTypes.STDOUT == k) {
-            this.consoleView.print(s, ConsoleViewContentType.NORMAL_OUTPUT)
-        }
+        this.consoleView.print(s, ConsoleViewContentType.getConsoleViewType(k))
     }
 
     // append input info to the console view
