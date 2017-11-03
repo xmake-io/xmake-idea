@@ -50,6 +50,7 @@
   <actions>
     <group id="XMake.Menu" text="XMake" description="XMake Menu">
       <add-to-group group-id="MainMenu" anchor="after" relative-to-action="RunMenu"/>
+      <action id="XMake.Run" class="org.tboox.xmake.actions.RunAction" text="Run Target" icon = "/icons/run.png" description="Run the current target."/>
       <action id="XMake.Build" class="org.tboox.xmake.actions.BuildAction" text="Build Project" icon = "/icons/build.png" description="Build the current project."/>
       <action id="XMake.Rebuild" class="org.tboox.xmake.actions.RebuildAction" text="Rebuild Project" icon = "/icons/rebuild.png" description="Rebuild the current project."/>
       <action id="XMake.Clean" class="org.tboox.xmake.actions.CleanAction" text="Clean Project" icon = "/icons/clean.png" description="Clean target and object files."/>
