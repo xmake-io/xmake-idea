@@ -1,5 +1,8 @@
 package org.tboox.xmake.project
 
+import com.intellij.execution.filters.TextConsoleBuilderFactory
+import com.intellij.execution.ui.ConsoleView
+import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.ActionToolbar
 import com.intellij.openapi.actionSystem.DefaultActionGroup
@@ -20,19 +23,21 @@ class XMakeToolWindowOutputPanel(project: Project) : SimpleToolWindowPanel(false
         actionManager.createActionToolbar("XMake Toolbar", actionManager.getAction("XMake.Menu") as DefaultActionGroup, false)
     }
 
-    // the content
-    val content = panel {
-        row {
-        }
+    // the console view
+    val consoleView: ConsoleView = run {
+        val builder = TextConsoleBuilderFactory.getInstance().createBuilder(project)
+        builder.setViewer(true)
+        builder.console
     }
 
     init {
 
         // init toolbar
         setToolbar(toolbar.component)
+        toolbar.setTargetComponent(this)
 
         // init content
-        setContent(content)
+        setContent(consoleView.component)
     }
 
     override fun getData(dataId: String): Any? {

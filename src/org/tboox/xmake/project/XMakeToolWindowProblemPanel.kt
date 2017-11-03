@@ -30,6 +30,7 @@ class XMakeToolWindowProblemPanel(project: Project) : SimpleToolWindowPanel(fals
 
         // init toolbar
         setToolbar(toolbar.component)
+        toolbar.setTargetComponent(this)
 
         // init content
         setContent(content)
