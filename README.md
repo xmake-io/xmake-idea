@@ -37,4 +37,34 @@ You need install [xmake](https://github.com/tboox/xmake) first and a project wit
 
 Please see [xmake-github](https://github.com/tboox/xmake) and [website](http://xmake.io) if you want to known more about xmake.
 
+## Features
 
+* Quickstart
+* Project configuration
+* Run configuration
+* Menu tools
+* Tool Windows
+
+## Quickstart
+
+<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/quickstart.gif" width="60%" />
+
+## Project configuration
+
+<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/project_configuration.png" width="60%" />
+
+## Run configuration
+
+<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/run_configuration.png" width="60%" />
+
+## Menu tools
+
+<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/menu.png" width="60%" />
+ 
+## Tool Windows
+
+#### Output panel
+
+<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/output_panel.png" width="60%" />
+ 
+  
