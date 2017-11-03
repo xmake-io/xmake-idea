@@ -6,13 +6,26 @@ import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import com.intellij.task.*
 import com.intellij.task.ExecuteRunConfigurationTask
+import org.tboox.xmake.project.xmakeConsoleView
 import org.tboox.xmake.utils.SystemUtils
 import org.tboox.xmake.shared.xmakeConfiguration
 
 class XMakeProjectTasksRunner : ProjectTaskRunner() {
 
     override fun run(project: Project, context: ProjectTaskContext, callback: ProjectTaskNotification?, tasks: MutableCollection<out ProjectTask>) {
-        SystemUtils.runvInConsole(project, project.xmakeConfiguration.buildCommandLine)
+
+        // clear console first
+        project.xmakeConsoleView.clear()
+
+        // configure it first
+        val xmakeConfiguration = project.xmakeConfiguration
+        if (xmakeConfiguration.changed) {
+            SystemUtils.runvInConsole(project, xmakeConfiguration.configurationCommandLine)
+            xmakeConfiguration.changed = false
+        }
+
+        // build it
+        SystemUtils.runvInConsole(project, xmakeConfiguration.buildCommandLine)
     }
 
     override fun canRun(projectTask: ProjectTask): Boolean {

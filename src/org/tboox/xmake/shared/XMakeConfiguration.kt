@@ -102,7 +102,8 @@ class XMakeConfiguration(project: Project) : PersistentStateComponent<XMakeConfi
                 parameters.add("-v")
             }
             if (data.buildOutputDirectory != "") {
-                parameters.add("-o \"${data.buildOutputDirectory}\"")
+                parameters.add("-o")
+                parameters.add(data.buildOutputDirectory)
             }
 
             // make command line
@@ -138,9 +139,29 @@ class XMakeConfiguration(project: Project) : PersistentStateComponent<XMakeConfi
             return targets
         }
 
+    // configuration is changed?
+    var changed = true
+
     // the state data
-    @Volatile
-    var data: State = State()
+    var _data: State = State()
+    var data: State
+        get() = _data
+        set(value) {
+            val newState = State(
+                    currentPlatform = value.currentPlatform,
+                    currentArchitecture = value.currentArchitecture,
+                    currentMode = value.currentMode,
+                    workingDirectory = value.workingDirectory,
+                    androidNDKDirectory = value.androidNDKDirectory,
+                    buildOutputDirectory = value.buildOutputDirectory,
+                    verboseOutput = value.verboseOutput,
+                    additionalConfiguration = value.additionalConfiguration
+            )
+            if (_data != newState) {
+                _data = newState
+                changed = true
+            }
+        }
 
     // make command line
     fun makeCommandLine(parameters: List<String>, environmentVariables: EnvironmentVariablesData = EnvironmentVariablesData.DEFAULT): GeneralCommandLine {
