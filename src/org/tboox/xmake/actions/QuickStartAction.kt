@@ -9,6 +9,6 @@ class QuickStartAction : AnAction() {
 
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
-        SystemUtils.runvInConsole(project, "Quick Start", project.xmakeConfiguration.quickStartCommandLine)
+        SystemUtils.runvInConsole(project, project.xmakeConfiguration.quickStartCommandLine)
     }
 }

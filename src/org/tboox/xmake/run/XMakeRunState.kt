@@ -2,36 +2,25 @@ package org.tboox.xmake.run
 
 import com.intellij.execution.configurations.CommandLineState
 import com.intellij.execution.configurations.GeneralCommandLine
-import com.intellij.execution.process.KillableColoredProcessHandler
 import com.intellij.execution.process.ProcessHandler
-import com.intellij.execution.process.ProcessTerminatedListener
 import com.intellij.execution.runners.ExecutionEnvironment
-import com.intellij.openapi.diagnostic.Logger
+import com.intellij.execution.ui.ConsoleView
+import org.tboox.xmake.utils.ConsoleProcessHandler
 
 class XMakeRunState(
         environment: ExecutionEnvironment,
+        consoleView: ConsoleView,
         commandLine: GeneralCommandLine
 ) : CommandLineState(environment) {
+
+    // the console view
+    val consoleView = consoleView
 
     // the command line
     val commandLine = commandLine
 
     // start process
     override fun startProcess(): ProcessHandler {
-
-        // make handler
-        val handler = KillableColoredProcessHandler(commandLine)
-
-        // shows exit code upon termination
-        ProcessTerminatedListener.attach(handler)
-
-        // start this command
-        return handler
-    }
-
-    companion object {
-
-        // get log
-        private val Log = Logger.getInstance(XMakeRunState::class.java.getName())
+        return ConsoleProcessHandler(consoleView, commandLine)
     }
 }

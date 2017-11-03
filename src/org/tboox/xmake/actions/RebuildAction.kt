@@ -9,6 +9,6 @@ class RebuildAction : AnAction() {
 
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
-        SystemUtils.runvInConsole(project, "Rebuild Project", project.xmakeConfiguration.rebuildCommandLine)
+        SystemUtils.runvInConsole(project, project.xmakeConfiguration.rebuildCommandLine)
     }
 }

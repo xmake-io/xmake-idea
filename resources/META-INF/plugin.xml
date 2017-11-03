@@ -32,7 +32,7 @@
 
     <!-- project configurations -->
     <projectConfigurable instance="org.tboox.xmake.project.XMakeProjectConfigurable" displayName="XMake" groupId="language"/>
-    <toolWindow id="XMake"  anchor="right" factoryClass="org.tboox.xmake.project.XMakeToolWindowFactory" icon="/icons/xmake.png"/>
+    <toolWindow id="XMake"  anchor="right" factoryClass="org.tboox.xmake.project.XMakeToolWindowFactory" icon="/icons/xmake_13x13.png"/>
 
     <!-- run configurations -->
     <programRunner implementation="org.tboox.xmake.run.XMakeRunner"/>

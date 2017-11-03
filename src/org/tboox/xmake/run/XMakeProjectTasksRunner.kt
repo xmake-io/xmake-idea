@@ -12,7 +12,7 @@ import org.tboox.xmake.shared.xmakeConfiguration
 class XMakeProjectTasksRunner : ProjectTaskRunner() {
 
     override fun run(project: Project, context: ProjectTaskContext, callback: ProjectTaskNotification?, tasks: MutableCollection<out ProjectTask>) {
-        SystemUtils.runvInConsole(project, "Build Project", project.xmakeConfiguration.buildCommandLine)
+        SystemUtils.runvInConsole(project, project.xmakeConfiguration.buildCommandLine)
     }
 
     override fun canRun(projectTask: ProjectTask): Boolean {

@@ -8,13 +8,11 @@ import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.project.Project
 import org.jdom.Element
+import org.tboox.xmake.project.xmakeConsoleView
 import org.tboox.xmake.shared.xmakeConfiguration
 
 class XMakeRunConfiguration(project: Project, name: String, factory: ConfigurationFactory
 ) : LocatableConfigurationBase(project, factory, name), RunConfigurationWithSuppressedDefaultDebugAction {
-
-    // the current command line
-    var currentCommandLine: GeneralCommandLine ?= null
 
     // the run target
     var runTarget: String = "default"
@@ -58,12 +56,10 @@ class XMakeRunConfiguration(project: Project, name: String, factory: Configurati
     override fun getConfigurationEditor(): SettingsEditor<out RunConfiguration> = XMakeRunConfigurationEditor(project)
 
     override fun getState(executor: Executor, environment: ExecutionEnvironment): RunProfileState? {
-        return XMakeRunState(environment, currentCommandLine ?: runCommandLine)
+        return XMakeRunState(environment, project.xmakeConsoleView, runCommandLine)
     }
 
     companion object {
-
-        // get log
         private val Log = Logger.getInstance(XMakeRunConfiguration::class.java.getName())
     }
 }

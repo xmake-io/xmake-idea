@@ -7,15 +7,18 @@ import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.ActionToolbar
 import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.project.CacheUpdateRunner
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.SimpleToolWindowPanel
-import com.intellij.ui.layout.panel
 import javax.swing.JEditorPane
 import javax.swing.JList
 import javax.swing.JPanel
 import javax.swing.ListSelectionModel
 
 class XMakeToolWindowOutputPanel(project: Project) : SimpleToolWindowPanel(false) {
+
+    // the project
+    val project = project
 
     // the toolbar
     val toolbar: ActionToolbar = run {
@@ -38,6 +41,12 @@ class XMakeToolWindowOutputPanel(project: Project) : SimpleToolWindowPanel(false
 
         // init content
         setContent(consoleView.component)
+    }
+
+    // show panel
+    fun showPanel() {
+        val contentManager = project.xmakeToolWindow.contentManager
+        contentManager.setSelectedContent(contentManager.getContent(0)!!)
     }
 
     override fun getData(dataId: String): Any? {

@@ -9,6 +9,6 @@ class CleanAction : AnAction() {
 
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
-        SystemUtils.runvInConsole(project, "Clean Targets", project.xmakeConfiguration.cleanCommandLine)
+        SystemUtils.runvInConsole(project, project.xmakeConfiguration.cleanCommandLine)
     }
 }

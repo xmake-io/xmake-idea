@@ -9,6 +9,6 @@ class BuildAction : AnAction() {
 
     override fun actionPerformed(e: AnActionEvent) {
         val project = e.project ?: return
-        SystemUtils.runvInConsole(project, "Build Project", project.xmakeConfiguration.buildCommandLine)
+        SystemUtils.runvInConsole(project, project.xmakeConfiguration.buildCommandLine)
     }
 }
