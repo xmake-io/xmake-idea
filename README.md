@@ -45,17 +45,17 @@ Please see [xmake-github](https://github.com/tboox/xmake) and [website](http://x
 * Menu tools
 * Tool Windows
 
-## Quickstart
-
-<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/quickstart.gif" width="60%" />
-
 ## Project configuration
 
-<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/project_configuration.png" width="80%" />
+<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/project_configuration.png" width="100%" />
 
 ## Run configuration
 
-<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/run_configuration.png" width="80%" />
+<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/run_configuration.png" width="100%" />
+
+## Quickstart
+
+<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/quickstart.gif" width="60%" />
 
 ## Menu tools
 
@@ -65,6 +65,6 @@ Please see [xmake-github](https://github.com/tboox/xmake) and [website](http://x
 
 #### Output panel
 
-<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/output_panel.png" width="90%" />
+<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/output_panel.png" width="100%" />
  
   
