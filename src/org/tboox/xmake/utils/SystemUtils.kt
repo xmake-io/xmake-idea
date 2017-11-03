@@ -1,13 +1,14 @@
 package org.tboox.xmake.utils
 
 import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.execution.process.ProcessHandler
+import com.intellij.execution.process.ProcessListener
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import org.tboox.xmake.project.xmakeConsoleView
 import org.tboox.xmake.project.xmakeOutputPanel
 import org.tboox.xmake.project.xmakeToolWindow
-import org.tboox.xmake.shared.xmakeConfiguration
 import java.io.BufferedReader
 import java.io.IOException
 import java.io.InputStreamReader
@@ -120,11 +121,24 @@ object SystemUtils {
     }
 
     // run process in console
-    fun runvInConsole(project: Project, commandLine: GeneralCommandLine) {
+    fun runvInConsole(project: Project, commandLine: GeneralCommandLine, showConsole: Boolean = true): ProcessHandler {
 
-        project.xmakeToolWindow.show {
-            project.xmakeOutputPanel.showPanel()
-            ConsoleProcessHandler(project.xmakeConsoleView, commandLine).startNotify()
+        // create handler
+        val handler = ConsoleProcessHandler(project.xmakeConsoleView, commandLine)
+        if (showConsole) {
+
+            // show tool window first
+            project.xmakeToolWindow.show {
+
+                // show output panel first
+                project.xmakeOutputPanel.showPanel()
+            }
         }
+
+        // start process
+        handler.startNotify()
+
+        // failed
+        return handler
     }
 }

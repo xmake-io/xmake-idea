@@ -1,6 +1,8 @@
 package org.tboox.xmake.run
 
 import com.intellij.execution.*
+import com.intellij.execution.process.ProcessAdapter
+import com.intellij.execution.process.ProcessEvent
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
@@ -17,15 +19,18 @@ class XMakeProjectTasksRunner : ProjectTaskRunner() {
         // clear console first
         project.xmakeConsoleView.clear()
 
-        // configure it first
+        // configure and build it
         val xmakeConfiguration = project.xmakeConfiguration
         if (xmakeConfiguration.changed) {
-            SystemUtils.runvInConsole(project, xmakeConfiguration.configurationCommandLine)
+            SystemUtils.runvInConsole(project, xmakeConfiguration.configurationCommandLine).addProcessListener(object: ProcessAdapter() {
+                override fun processTerminated(e: ProcessEvent) {
+                    SystemUtils.runvInConsole(project, xmakeConfiguration.buildCommandLine, false)
+                }
+            })
             xmakeConfiguration.changed = false
+        } else {
+            SystemUtils.runvInConsole(project, xmakeConfiguration.buildCommandLine)
         }
-
-        // build it
-        SystemUtils.runvInConsole(project, xmakeConfiguration.buildCommandLine)
     }
 
     override fun canRun(projectTask: ProjectTask): Boolean {

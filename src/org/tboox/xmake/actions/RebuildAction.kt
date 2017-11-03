@@ -1,5 +1,7 @@
 package org.tboox.xmake.actions
 
+import com.intellij.execution.process.ProcessAdapter
+import com.intellij.execution.process.ProcessEvent
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import org.tboox.xmake.project.xmakeConsoleView
@@ -16,14 +18,17 @@ class RebuildAction : AnAction() {
         // clear console first
         project.xmakeConsoleView.clear()
 
-        // configure it first
+        // configure and rebuild it
         val xmakeConfiguration = project.xmakeConfiguration
         if (xmakeConfiguration.changed) {
-            SystemUtils.runvInConsole(project, xmakeConfiguration.configurationCommandLine)
+            SystemUtils.runvInConsole(project, xmakeConfiguration.configurationCommandLine).addProcessListener(object: ProcessAdapter() {
+                override fun processTerminated(e: ProcessEvent) {
+                    SystemUtils.runvInConsole(project, xmakeConfiguration.rebuildCommandLine, false)
+                }
+            })
             xmakeConfiguration.changed = false
+        } else {
+            SystemUtils.runvInConsole(project, xmakeConfiguration.rebuildCommandLine)
         }
-
-        // rebuild it
-        SystemUtils.runvInConsole(project, xmakeConfiguration.rebuildCommandLine)
     }
 }

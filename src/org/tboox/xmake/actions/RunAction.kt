@@ -1,6 +1,8 @@
 package org.tboox.xmake.actions
 
 import com.intellij.execution.RunManager
+import com.intellij.execution.process.ProcessAdapter
+import com.intellij.execution.process.ProcessEvent
 import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -23,15 +25,18 @@ class RunAction : AnAction() {
             // clear console first
             project.xmakeConsoleView.clear()
 
-            // configure it first
+            // configure and run it
             val xmakeConfiguration = project.xmakeConfiguration
             if (xmakeConfiguration.changed) {
-                SystemUtils.runvInConsole(project, xmakeConfiguration.configurationCommandLine)
+                SystemUtils.runvInConsole(project, xmakeConfiguration.configurationCommandLine).addProcessListener(object: ProcessAdapter() {
+                    override fun processTerminated(e: ProcessEvent) {
+                        SystemUtils.runvInConsole(project, runConfiguration.runCommandLine, false)
+                    }
+                })
                 xmakeConfiguration.changed = false
+            } else {
+                SystemUtils.runvInConsole(project, runConfiguration.runCommandLine)
             }
-
-            // run it
-            SystemUtils.runvInConsole(project, runConfiguration.runCommandLine)
 
         } else {
 
