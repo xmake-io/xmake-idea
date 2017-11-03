@@ -43,7 +43,8 @@ Please see [xmake-github](https://github.com/tboox/xmake) and [website](http://x
 * Project configuration
 * Run configuration
 * Menu tools
-* Tool Windows
+* Tool windows
+* Build and run
 
 ## Project configuration
 
@@ -53,15 +54,11 @@ Please see [xmake-github](https://github.com/tboox/xmake) and [website](http://x
 
 <img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/run_configuration.png" width="100%" />
 
-## Quickstart
-
-<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/quickstart.gif" width="60%" />
-
 ## Menu tools
 
-<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/menu.png" width="20%" />
+<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/menu.png" width="100%" />
  
-## Tool Windows
+## Tool windows
 
 #### Output panel
 
