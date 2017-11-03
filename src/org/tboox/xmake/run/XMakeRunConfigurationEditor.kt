@@ -33,6 +33,9 @@ class XMakeRunConfigurationEditor(private val project: Project) : SettingsEditor
     private val targetsModels = DefaultComboBoxModel<String>()
     private val targetsComboBox = ComboBox<String>(targetsModels)
 
+    // the run arguments
+    private val runArguments = RawCommandLineEditor()
+
     // the environment variables
     private val environmentVariables = EnvironmentVariablesComponent()
 
@@ -46,6 +49,9 @@ class XMakeRunConfigurationEditor(private val project: Project) : SettingsEditor
         }
         targetsModels.selectedItem = configuration.runTarget
 
+        // reset run arguments
+        runArguments.text = configuration.runArguments
+
         // reset environment variables
         environmentVariables.envData = configuration.runEnvironment
     }
@@ -53,7 +59,8 @@ class XMakeRunConfigurationEditor(private val project: Project) : SettingsEditor
     // apply editor to configuration
     override fun applyEditorTo(configuration: XMakeRunConfiguration) {
 
-        configuration.runTarget    = targetsModels.selectedItem.toString()
+        configuration.runTarget         = targetsModels.selectedItem.toString()
+        configuration.runArguments      = runArguments.text
         configuration.runEnvironment    = environmentVariables.envData
     }
 
@@ -64,6 +71,12 @@ class XMakeRunConfigurationEditor(private val project: Project) : SettingsEditor
             targetsComboBox(CCFlags.push)
         }
 
+        labeledRow("Run arguments:", runArguments) {
+            runArguments.apply {
+                dialogCaption = "Run arguments"
+                makeWide()
+            }()
+        }
         row(environmentVariables.label) { environmentVariables.apply { makeWide() }() }
     }
 

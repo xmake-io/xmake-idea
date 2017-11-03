@@ -17,6 +17,9 @@ class XMakeRunConfiguration(project: Project, name: String, factory: Configurati
     // the run target
     var runTarget: String = "default"
 
+    // the run arguments
+    var runArguments: String = ""
+
     // the run environment
     var runEnvironment: EnvironmentVariablesData = EnvironmentVariablesData.DEFAULT
 
@@ -31,6 +34,11 @@ class XMakeRunConfiguration(project: Project, name: String, factory: Configurati
             } else if (runTarget != "" && runTarget != "default") {
                 parameters.add(runTarget)
             }
+            if (runArguments != "") {
+                runArguments.split(" ").forEach {
+                    parameters.add(it)
+                }
+            }
 
             // make command line
             return project.xmakeConfiguration.makeCommandLine(parameters, runEnvironment)
@@ -40,6 +48,7 @@ class XMakeRunConfiguration(project: Project, name: String, factory: Configurati
     override fun writeExternal(element: Element) {
         super.writeExternal(element)
         element.writeString("runTarget", runTarget)
+        element.writeString("runArguments", runArguments)
         runEnvironment.writeExternal(element)
     }
 
@@ -47,6 +56,7 @@ class XMakeRunConfiguration(project: Project, name: String, factory: Configurati
     override fun readExternal(element: Element) {
         super.readExternal(element)
         runTarget = element.readString("runTarget") ?: "default"
+        runArguments = element.readString("runArguments") ?: ""
         runEnvironment = EnvironmentVariablesData.readExternal(element)
     }
 
