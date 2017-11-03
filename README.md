@@ -56,7 +56,9 @@ Please see [xmake-github](https://github.com/tboox/xmake) and [website](http://x
 
 ## Menu tools
 
-<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/menu.png" width="100%" />
+<div align="center">
+<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/menu.png" width="80%" />
+</div>
  
 ## Tool windows
 
