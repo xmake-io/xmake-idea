@@ -23,12 +23,12 @@ class RebuildAction : AnAction() {
         if (xmakeConfiguration.changed) {
             SystemUtils.runvInConsole(project, xmakeConfiguration.configurationCommandLine).addProcessListener(object: ProcessAdapter() {
                 override fun processTerminated(e: ProcessEvent) {
-                    SystemUtils.runvInConsole(project, xmakeConfiguration.rebuildCommandLine, false)
+                    SystemUtils.runvInConsole(project, xmakeConfiguration.rebuildCommandLine, false, true)
                 }
             })
             xmakeConfiguration.changed = false
         } else {
-            SystemUtils.runvInConsole(project, xmakeConfiguration.rebuildCommandLine)
+            SystemUtils.runvInConsole(project, xmakeConfiguration.rebuildCommandLine, true, true)
         }
     }
 }

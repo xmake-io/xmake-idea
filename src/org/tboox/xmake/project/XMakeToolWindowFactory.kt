@@ -40,3 +40,10 @@ val Project.xmakeProblemPanel: XMakeToolWindowProblemPanel
 // the xmake console view
 val Project.xmakeConsoleView: ConsoleView
     get() = this.xmakeOutputPanel.consoleView
+
+// the xmake problem list
+var Project.xmakeProblemList: List<String>
+    get() = this.xmakeProblemPanel.problems
+    set(value) {
+        this.xmakeProblemPanel.problems = value
+    }

@@ -9,4 +9,10 @@ object XMakeIcons {
 
     // file icon
     val FILE = IconLoader.getIcon("/icons/xmake.png")
+
+    // error icon
+    val ERROR = IconLoader.getIcon("/icons/error.png")
+
+    // warning icon
+    val WARNING = IconLoader.getIcon("/icons/warning.png")
 }

@@ -10,7 +10,11 @@ import java.io.IOException
 import java.io.OutputStreamWriter
 
 class ConsoleProcessHandler(private val consoleView: ConsoleView, commandLine: GeneralCommandLine) : KillableColoredProcessHandler(commandLine) {
-    
+
+    // the output content
+    var outputContent = ""
+
+    // initialize
     init {
 
         // add colored text listener
@@ -27,6 +31,7 @@ class ConsoleProcessHandler(private val consoleView: ConsoleView, commandLine: G
     // append info to the console view
     private fun append(s: String, k: Key<*>?) {
         this.consoleView.print(s, ConsoleViewContentType.getConsoleViewType(k))
+        outputContent += s
     }
 
     // append input info to the console view

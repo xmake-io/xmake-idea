@@ -1,13 +1,18 @@
 package org.tboox.xmake.utils
 
 import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.execution.process.ProcessAdapter
+import com.intellij.execution.process.ProcessEvent
 import com.intellij.execution.process.ProcessHandler
 import com.intellij.execution.process.ProcessListener
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Key
 import org.tboox.xmake.project.xmakeConsoleView
 import org.tboox.xmake.project.xmakeOutputPanel
+import org.tboox.xmake.project.xmakeProblemList
 import org.tboox.xmake.project.xmakeToolWindow
 import java.io.BufferedReader
 import java.io.IOException
@@ -121,19 +126,34 @@ object SystemUtils {
     }
 
     // run process in console
-    fun runvInConsole(project: Project, commandLine: GeneralCommandLine, showConsole: Boolean = true): ProcessHandler {
+    fun runvInConsole(project: Project, commandLine: GeneralCommandLine, showConsole: Boolean = true, showProblem: Boolean = false): ProcessHandler {
 
         // create handler
         val handler = ConsoleProcessHandler(project.xmakeConsoleView, commandLine)
+
+        // show console?
         if (showConsole) {
 
             // show tool window first
             project.xmakeToolWindow.show {
-
-                // show output panel first
                 project.xmakeOutputPanel.showPanel()
             }
         }
+
+        // show problem?
+        if (showProblem) {
+            handler.addProcessListener(object : ProcessAdapter() {
+
+                override fun processTerminated(e: ProcessEvent) {
+                    Log.info("processTerminated")
+                    val s = handler.outputContent
+                    ApplicationManager.getApplication().invokeLater {
+                        project.xmakeProblemList = s.split('\n')
+                    }
+                }
+            })
+        }
+    //    project.xmakeProblemList = listOf("xxxxxxxx2") // listOf(s)
 
         // start process
         handler.startNotify()
