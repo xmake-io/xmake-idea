@@ -253,22 +253,17 @@ class XMakeProjectConfigurable(
 
     override fun isModified(): Boolean {
 
-        if (xmakeConfiguration.data.currentPlatform != platformsModels.selectedItem.toString())
+        if (xmakeConfiguration.data.currentPlatform != platformsModels.selectedItem.toString() ||
+            xmakeConfiguration.data.currentArchitecture != architecturesModels.selectedItem.toString() ||
+            xmakeConfiguration.data.currentMode != modesModels.selectedItem.toString() ||
+            xmakeConfiguration.data.additionalConfiguration != additionalConfiguration.text ||
+            xmakeConfiguration.data.workingDirectory != workingDirectory.component.text ||
+            xmakeConfiguration.data.buildOutputDirectory != buildOutputDirectory.component.text ||
+            xmakeConfiguration.data.androidNDKDirectory != androidNDKDirectory.component.text ||
+            xmakeConfiguration.data.verboseOutput != verboseOutput.isSelected) {
+            xmakeConfiguration.changed = true
             return true
-        if (xmakeConfiguration.data.currentArchitecture != architecturesModels.selectedItem.toString())
-            return true
-        if (xmakeConfiguration.data.currentMode != modesModels.selectedItem.toString())
-            return true
-        if (xmakeConfiguration.data.additionalConfiguration != additionalConfiguration.text)
-            return true
-        if (xmakeConfiguration.data.workingDirectory != workingDirectory.component.text)
-            return true
-        if (xmakeConfiguration.data.buildOutputDirectory != buildOutputDirectory.component.text)
-            return true
-        if (xmakeConfiguration.data.androidNDKDirectory != androidNDKDirectory.component.text)
-            return true
-        if (xmakeConfiguration.data.verboseOutput != verboseOutput.isSelected)
-            return true
+        }
         return false
     }
 
