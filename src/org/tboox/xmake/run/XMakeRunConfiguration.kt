@@ -3,6 +3,8 @@ package org.tboox.xmake.run
 import com.intellij.execution.Executor
 import com.intellij.execution.configuration.EnvironmentVariablesData
 import com.intellij.execution.configurations.*
+import com.intellij.execution.process.ProcessAdapter
+import com.intellij.execution.process.ProcessEvent
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.options.SettingsEditor
@@ -10,6 +12,7 @@ import com.intellij.openapi.project.Project
 import org.jdom.Element
 import org.tboox.xmake.project.xmakeConsoleView
 import org.tboox.xmake.shared.xmakeConfiguration
+import org.tboox.xmake.utils.SystemUtils
 
 class XMakeRunConfiguration(project: Project, name: String, factory: ConfigurationFactory
 ) : LocatableConfigurationBase(project, factory, name), RunConfigurationWithSuppressedDefaultDebugAction {
@@ -66,7 +69,25 @@ class XMakeRunConfiguration(project: Project, name: String, factory: Configurati
     override fun getConfigurationEditor(): SettingsEditor<out RunConfiguration> = XMakeRunConfigurationEditor(project)
 
     override fun getState(executor: Executor, environment: ExecutionEnvironment): RunProfileState? {
-        return XMakeRunState(environment, project.xmakeConsoleView, runCommandLine)
+
+        // clear console first
+        project.xmakeConsoleView.clear()
+
+        // configure and run it
+        val xmakeConfiguration = project.xmakeConfiguration
+        if (xmakeConfiguration.changed) {
+            SystemUtils.runvInConsole(project, xmakeConfiguration.configurationCommandLine).addProcessListener(object: ProcessAdapter() {
+                override fun processTerminated(e: ProcessEvent) {
+                    SystemUtils.runvInConsole(project, runCommandLine, false)
+                }
+            })
+            xmakeConfiguration.changed = false
+        } else {
+            SystemUtils.runvInConsole(project, runCommandLine)
+        }
+
+        // does not use builtin run console panel
+        return null
     }
 
     companion object {

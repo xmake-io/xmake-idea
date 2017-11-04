@@ -54,8 +54,6 @@ class XMakeToolWindowOutputPanel(project: Project) : SimpleToolWindowPanel(false
     }
 
     companion object {
-
-        // get log
         private val Log = Logger.getInstance(XMakeToolWindowOutputPanel::class.java.getName())
     }
 }
