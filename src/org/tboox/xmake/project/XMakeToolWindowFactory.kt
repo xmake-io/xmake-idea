@@ -6,6 +6,7 @@ import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.ui.content.ContentFactory
+import org.tboox.xmake.shared.XMakeProblem
 
 class XMakeToolWindowFactory : ToolWindowFactory {
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
@@ -42,7 +43,7 @@ val Project.xmakeConsoleView: ConsoleView
     get() = this.xmakeOutputPanel.consoleView
 
 // the xmake problem list
-var Project.xmakeProblemList: List<String>
+var Project.xmakeProblemList: List<XMakeProblem>
     get() = this.xmakeProblemPanel.problems
     set(value) {
         this.xmakeProblemPanel.problems = value

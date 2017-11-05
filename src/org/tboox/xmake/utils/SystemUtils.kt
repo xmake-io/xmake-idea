@@ -4,20 +4,20 @@ import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.process.ProcessAdapter
 import com.intellij.execution.process.ProcessEvent
 import com.intellij.execution.process.ProcessHandler
-import com.intellij.execution.process.ProcessListener
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.Key
 import org.tboox.xmake.project.xmakeConsoleView
 import org.tboox.xmake.project.xmakeOutputPanel
 import org.tboox.xmake.project.xmakeProblemList
 import org.tboox.xmake.project.xmakeToolWindow
+import org.tboox.xmake.shared.XMakeProblem
 import java.io.BufferedReader
 import java.io.IOException
 import java.io.InputStreamReader
 import java.io.File
+import java.util.regex.Pattern
 
 object SystemUtils {
 
@@ -125,6 +125,22 @@ object SystemUtils {
         return result
     }
 
+    // parse problems for the given line
+    private fun parseProblem(info: String): XMakeProblem? {
+
+        val pattern = Pattern.compile("^(error: )?(.*?):([0-9]*):([0-9]*): (.*?): (.*)\$")
+        val matcher = pattern.matcher(info)
+        if (matcher.find()) {
+            val file    = matcher.group(2)
+            val line    = matcher.group(3)
+            val column  = matcher.group(4)
+            val kind    = matcher.group(5)
+            val message = matcher.group(6)
+            return XMakeProblem(file, line, column, kind, message)
+        }
+        return null
+    }
+
     // run process in console
     fun runvInConsole(project: Project, commandLine: GeneralCommandLine, showConsole: Boolean = true, showProblem: Boolean = false): ProcessHandler {
 
@@ -145,10 +161,16 @@ object SystemUtils {
             handler.addProcessListener(object : ProcessAdapter() {
 
                 override fun processTerminated(e: ProcessEvent) {
-                    Log.info("processTerminated")
-                    val s = handler.outputContent
+                    val content = handler.outputContent
                     ApplicationManager.getApplication().invokeLater {
-                        project.xmakeProblemList = s.split('\n')
+                        val problems = mutableListOf<XMakeProblem>()
+                        content.split('\n').forEach {
+                            val problem = parseProblem(it.trim())
+                            if (problem !== null) {
+                                problems.add(problem)
+                            }
+                        }
+                        project.xmakeProblemList = problems
                     }
                 }
             })

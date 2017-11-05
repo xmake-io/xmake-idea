@@ -14,6 +14,7 @@ import com.intellij.ui.components.JBList
 import com.intellij.ui.layout.CCFlags
 import com.intellij.ui.layout.panel
 import org.tboox.xmake.icons.XMakeIcons
+import org.tboox.xmake.shared.XMakeProblem
 import javax.swing.JEditorPane
 import javax.swing.JScrollPane
 import javax.swing.JList
@@ -23,8 +24,8 @@ import javax.swing.ListSelectionModel
 class XMakeToolWindowProblemPanel(project: Project) : SimpleToolWindowPanel(false) {
 
     // the problems
-    private var _problems: List<String> = emptyList()
-    var problems: List<String>
+    private var _problems: List<XMakeProblem> = emptyList()
+    var problems: List<XMakeProblem>
         get() = _problems
         set(value) {
             check(ApplicationManager.getApplication().isDispatchThread)
@@ -39,20 +40,35 @@ class XMakeToolWindowProblemPanel(project: Project) : SimpleToolWindowPanel(fals
     }
 
     // the problem list
-    private val problemList = JBList<String>(emptyList()).apply {
+    private val problemList = JBList<XMakeProblem>(emptyList()).apply {
         emptyText.text = "There are no compiling problems to display."
         selectionMode = ListSelectionModel.SINGLE_SELECTION
-        cellRenderer = object : ColoredListCellRenderer<String>() {
-            override fun customizeCellRenderer(list: JList<out String>, value: String, index: Int, selected: Boolean, hasFocus: Boolean) {
-                if (index > 2) {
+        cellRenderer = object : ColoredListCellRenderer<XMakeProblem>() {
+            override fun customizeCellRenderer(list: JList<out XMakeProblem>, value: XMakeProblem, index: Int, selected: Boolean, hasFocus: Boolean) {
+
+                // get file path
+                var file = value.file
+                if (file === null) {
+                    return
+                }
+
+                // init icon
+                var attrs = SimpleTextAttributes.REGULAR_ATTRIBUTES
+                if (value.kind == "warning") {
+                    icon = XMakeIcons.WARNING
+                    attrs = attrs.derive(SimpleTextAttributes.STYLE_WAVED, null, null, JBColor.GRAY)
+                } else if (value.kind == "error") {
                     icon = XMakeIcons.ERROR
+                    attrs = attrs.derive(SimpleTextAttributes.STYLE_WAVED, null, null, JBColor.RED)
                 } else {
                     icon = XMakeIcons.WARNING
                 }
-                var attrs = SimpleTextAttributes.REGULAR_ATTRIBUTES
-                //attrs = attrs.derive(SimpleTextAttributes.STYLE_WAVED, null, null, JBColor.RED)
-//                toolTipText = "xxxx is up-to-date"
-                append(value, attrs)
+
+                // init tips
+                toolTipText = value.message ?: ""
+
+                // append text
+                append("${file}(${value.line?:"0"}): ${value.message?:""}", attrs)
             }
         }
     }
