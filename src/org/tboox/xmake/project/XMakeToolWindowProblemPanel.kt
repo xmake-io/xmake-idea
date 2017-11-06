@@ -15,6 +15,7 @@ import com.intellij.ui.layout.CCFlags
 import com.intellij.ui.layout.panel
 import org.tboox.xmake.icons.XMakeIcons
 import org.tboox.xmake.shared.XMakeProblem
+import java.awt.Font
 import java.awt.event.MouseEvent
 import java.awt.event.MouseAdapter
 import javax.swing.JEditorPane
@@ -26,6 +27,10 @@ import javax.swing.ListSelectionModel
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.vfs.LocalFileSystem
 import org.tboox.xmake.shared.xmakeConfiguration
+import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.editor.Editor
+import com.intellij.openapi.editor.markup.EffectType
+import com.intellij.openapi.editor.markup.TextAttributes
 
 
 class XMakeToolWindowProblemPanel(project: Project) : SimpleToolWindowPanel(false) {
@@ -60,13 +65,10 @@ class XMakeToolWindowProblemPanel(project: Project) : SimpleToolWindowPanel(fals
                 }
 
                 // init icon
-                var attrs = SimpleTextAttributes.REGULAR_ATTRIBUTES
                 if (value.kind == "warning") {
                     icon = XMakeIcons.WARNING
-                    attrs = attrs.derive(SimpleTextAttributes.STYLE_WAVED, null, null, JBColor.GRAY)
                 } else if (value.kind == "error") {
                     icon = XMakeIcons.ERROR
-                    attrs = attrs.derive(SimpleTextAttributes.STYLE_WAVED, null, null, JBColor.RED)
                 } else {
                     icon = XMakeIcons.WARNING
                 }
@@ -75,7 +77,7 @@ class XMakeToolWindowProblemPanel(project: Project) : SimpleToolWindowPanel(fals
                 toolTipText = value.message ?: ""
 
                 // append text
-                append("${file}(${value.line ?: "0"}): ${value.message ?: ""}", attrs)
+                append("${file}(${value.line ?: "0"}): ${value.message ?: ""}", SimpleTextAttributes.REGULAR_ATTRIBUTES)
             }
         }
     }
@@ -104,14 +106,15 @@ class XMakeToolWindowProblemPanel(project: Project) : SimpleToolWindowPanel(fals
         // init double click listener
         problemList.addMouseListener(object: MouseAdapter() {
             override fun mouseClicked(e: MouseEvent) {
-                if (e.getClickCount() == 2) {
+                if (e.getClickCount() == 1 || e.getClickCount() == 2) {
 
                     // get the clicked problem
-                    val index = problemList.locationToIndex(e.getPoint())
+                    val index   = problemList.locationToIndex(e.getPoint())
                     if (index < problems.size && problems[index].file !== null) {
 
                         // get file path
-                        var filename = problems[index].file
+                        val problem     = problems[index]
+                        var filename    = problem.file
                         if (File(filename).exists()) {
                             filename = File(filename).getAbsolutePath()
                         } else {
@@ -120,10 +123,36 @@ class XMakeToolWindowProblemPanel(project: Project) : SimpleToolWindowPanel(fals
 
                         // open this file
                         val file = LocalFileSystem.getInstance().findFileByPath(filename)
-                        Log.info(file.toString())
                         if (file !== null) {
-                            val descriptor = OpenFileDescriptor(project, file)
+
+                            // goto file:line
+                            val descriptor = OpenFileDescriptor(project, file, problem.line?.toInt() ?: 0, problem.column?.toInt() ?: 0)
                             descriptor.navigate(true)
+
+                            // highlight line
+                            val editor = FileEditorManager.getInstance(project).selectedTextEditor
+                            if (editor !== null) {
+
+                                if (e.getClickCount() == 2 && editor.markupModel.allHighlighters.size > 0) {
+                                    editor.markupModel.removeAllHighlighters()
+                                    return
+                                }
+
+                                // get line offset
+                                var line = problem.line?.toInt() ?: 0
+                                if (line > 0) line -= 1
+
+                                // init box color
+                                var boxcolor = JBColor.GRAY
+                                if (problem.kind == "warning") {
+                                    boxcolor = JBColor.YELLOW
+                                } else if (problem.kind == "error") {
+                                    boxcolor = JBColor.RED
+                                }
+
+                                // draw box
+                                editor.markupModel.addLineHighlighter(line, -1, TextAttributes(null, null, boxcolor, EffectType.BOXED, Font.PLAIN))
+                            }
                         }
                     }
                 }
