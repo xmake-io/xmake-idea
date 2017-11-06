@@ -26,11 +26,21 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
+      <file leaf-file-name="plugin.xml" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/resources/META-INF/plugin.xml">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="135">
+              <caret line="9" column="304" lean-forward="false" selection-start-line="9" selection-start-column="304" selection-end-line="9" selection-end-column="304" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
       <file leaf-file-name="SystemUtils.kt" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/org/tboox/xmake/utils/SystemUtils.kt">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="1630">
-              <caret line="164" column="44" lean-forward="true" selection-start-line="164" selection-start-column="0" selection-end-line="165" selection-end-column="0" />
+              <caret line="164" column="44" lean-forward="false" selection-start-line="164" selection-start-column="0" selection-end-line="165" selection-end-column="0" />
               <folding>
                 <element signature="e#31#819#0" expanded="true" />
               </folding>
@@ -38,11 +48,11 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="XMakeToolWindowProblemPanel.kt" pinned="false" current-in-tab="true">
+      <file leaf-file-name="XMakeToolWindowProblemPanel.kt" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/src/org/tboox/xmake/project/XMakeToolWindowProblemPanel.kt">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="55">
-              <caret line="118" column="71" lean-forward="true" selection-start-line="118" selection-start-column="71" selection-end-line="118" selection-end-column="71" />
+              <caret line="118" column="71" lean-forward="false" selection-start-line="118" selection-start-column="71" selection-end-line="118" selection-end-column="71" />
               <folding>
                 <element signature="e#33#1348#0" expanded="true" />
               </folding>
@@ -110,16 +120,6 @@
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="149">
               <caret line="22" column="32" lean-forward="false" selection-start-line="22" selection-start-column="32" selection-end-line="22" selection-end-column="32" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="VirtualFileManager.class" pinned="false" current-in-tab="false">
-        <entry file="jar://$APPLICATION_HOME_DIR$/lib/openapi.jar!/com/intellij/openapi/vfs/VirtualFileManager.class">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="133">
-              <caret line="48" column="32" lean-forward="false" selection-start-line="48" selection-start-column="32" selection-end-line="48" selection-end-column="32" />
               <folding />
             </state>
           </provider>
@@ -228,7 +228,6 @@
         <option value="$PROJECT_DIR$/src/org/tboox/xmake/project/XMakeToolWindowPanel.kt" />
         <option value="$PROJECT_DIR$/src/org/tboox/xmake/actions/CleanConfigurationAction.kt" />
         <option value="$PROJECT_DIR$/src/org/tboox/xmake/actions/QuickStartAction.kt" />
-        <option value="$PROJECT_DIR$/resources/META-INF/plugin.xml" />
         <option value="$PROJECT_DIR$/src/org/tboox/xmake/actions/CleanAction.kt" />
         <option value="$PROJECT_DIR$/src/org/tboox/xmake/actions/RunAction.kt" />
         <option value="$PROJECT_DIR$/src/org/tboox/xmake/run/XMakeRunConfigurationEditor.kt" />
@@ -247,6 +246,7 @@
         <option value="$PROJECT_DIR$/src/org/tboox/xmake/utils/SystemUtils.kt" />
         <option value="$PROJECT_DIR$/src/org/tboox/xmake/utils/FileUtils.kt" />
         <option value="$PROJECT_DIR$/src/org/tboox/xmake/project/XMakeToolWindowProblemPanel.kt" />
+        <option value="$PROJECT_DIR$/resources/META-INF/plugin.xml" />
       </list>
     </option>
   </component>
@@ -518,7 +518,7 @@
       <window_info id="Capture Analysis" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32907802" sideWeight="0.515674" order="7" side_tool="true" content_ui="tabs" />
       <window_info id="Maven Projects" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
-      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.32907802" sideWeight="0.484326" order="2" side_tool="false" content_ui="tabs" />
+      <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32907802" sideWeight="0.484326" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Capture Tool" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
@@ -585,14 +585,6 @@
           <folding>
             <element signature="e#33#275#0" expanded="false" />
           </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/resources/META-INF/plugin.xml">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="525">
-          <caret line="35" column="0" lean-forward="false" selection-start-line="35" selection-start-column="0" selection-end-line="35" selection-end-column="0" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -925,7 +917,7 @@
     <entry file="file://$PROJECT_DIR$/src/org/tboox/xmake/utils/SystemUtils.kt">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="1630">
-          <caret line="164" column="44" lean-forward="true" selection-start-line="164" selection-start-column="0" selection-end-line="165" selection-end-column="0" />
+          <caret line="164" column="44" lean-forward="false" selection-start-line="164" selection-start-column="0" selection-end-line="165" selection-end-column="0" />
           <folding>
             <element signature="e#31#819#0" expanded="true" />
           </folding>
@@ -970,10 +962,18 @@
     <entry file="file://$PROJECT_DIR$/src/org/tboox/xmake/project/XMakeToolWindowProblemPanel.kt">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="55">
-          <caret line="118" column="71" lean-forward="true" selection-start-line="118" selection-start-column="71" selection-end-line="118" selection-end-column="71" />
+          <caret line="118" column="71" lean-forward="false" selection-start-line="118" selection-start-column="71" selection-end-line="118" selection-end-column="71" />
           <folding>
             <element signature="e#33#1348#0" expanded="true" />
           </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/resources/META-INF/plugin.xml">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="135">
+          <caret line="9" column="304" lean-forward="false" selection-start-line="9" selection-start-column="304" selection-end-line="9" selection-end-column="304" />
+          <folding />
         </state>
       </provider>
     </entry>

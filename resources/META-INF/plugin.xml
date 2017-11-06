@@ -6,13 +6,39 @@
   <vendor email="waruqi@gmail.com" url="http://www.tboox.org">tboox.org</vendor>
 
   <description><![CDATA[
-      Enter short description for your plugin here.<br>
-      <em>most HTML tags may be used</em>
+    A XMake integration plugin in Intellij Platform<br>
+    <p><a href="https://github.com/tboox/xmake-idea">Source Code</a> | <a href="https://gitter.im/tboox/tboox?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge">Gitter</a> | <a href="http://xmake.io/pages/donation.html#donate">Donate</a> | <a href="http://xmake.io">XMake Homepage</a></p>
+    Features:
+    <ul>
+        <li>xmake</li>
+        <ul>
+            <li>C/C++/Objc/Swift/Rust/Dlang/Golang ... support</li>
+            <li>Cross-platform support</li>
+            <li>Lua syntax</li>
+            <li><a href="https://github.com/tboox/xmake">More features and info about xmake</a></li>
+        </ul>
+        <li>Quickstart</li>
+        <li>Project configuration</li>
+        <li>Run configuration</li>
+        <li>Menu tools</li>
+        <li>Tool windows</li>
+        <li>Build and run</li>
+        <li>Goto error and waring problems</li>
+    </ul>
+    <p>中国朋友可以加QQ群交流及反馈BUG: 343118190</p>
     ]]></description>
 
   <change-notes><![CDATA[
-      Add change notes here.<br>
-      <em>most HTML tags may be used</em>
+    <strong>1.0.1</strong>
+    <ul>
+        <li>[NEW]: Quickstart</li>
+        <li>[NEW]: Project configuration</li>
+        <li>[NEW]: Run configuration</li>
+        <li>[NEW]: Menu tools</li>
+        <li>[NEW]: Tool windows</li>
+        <li>[NEW]: Build and run</li>
+        <li>[NEW]: Goto error and waring problems</li>
+    </ul>
     ]]>
   </change-notes>
 
