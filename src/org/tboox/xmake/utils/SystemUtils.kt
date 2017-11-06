@@ -19,6 +19,8 @@ import java.io.InputStreamReader
 import java.io.File
 import java.util.regex.Pattern
 
+import java.nio.charset.Charset
+
 object SystemUtils {
 
     // the log
@@ -128,15 +130,35 @@ object SystemUtils {
     // parse problems for the given line
     private fun parseProblem(info: String): XMakeProblem? {
 
-        val pattern = Pattern.compile("^(error: )?(.*?):([0-9]*):([0-9]*): (.*?): (.*)\$")
-        val matcher = pattern.matcher(info)
-        if (matcher.find()) {
-            val file    = matcher.group(2)
-            val line    = matcher.group(3)
-            val column  = matcher.group(4)
-            val kind    = matcher.group(5)
-            val message = matcher.group(6)
-            return XMakeProblem(file, line, column, kind, message)
+        if (SystemInfo.isWindows) {
+
+            // gbk => utf8
+            val info_utf8 = String(info.toByteArray(), charset("UTF-8"))
+
+            // parse problem info
+            val pattern = Pattern.compile("(.*?)\\(([0-9]*)\\): (.*?) .*?: (.*)")
+            val matcher = pattern.matcher(info_utf8)
+            if (matcher.find()) {
+                val file = matcher.group(1)
+                val line = matcher.group(2)
+                val kind = matcher.group(3)
+                val message = matcher.group(4)
+                return XMakeProblem(file, line, "0", kind, message)
+            }
+
+        } else {
+
+            // parse problem info
+            val pattern = Pattern.compile("^(error: )?(.*?):([0-9]*):([0-9]*): (.*?): (.*)\$")
+            val matcher = pattern.matcher(info)
+            if (matcher.find()) {
+                val file = matcher.group(2)
+                val line = matcher.group(3)
+                val column = matcher.group(4)
+                val kind = matcher.group(5)
+                val message = matcher.group(6)
+                return XMakeProblem(file, line, column, kind, message)
+            }
         }
         return null
     }
