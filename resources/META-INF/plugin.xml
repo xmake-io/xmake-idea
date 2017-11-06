@@ -1,8 +1,8 @@
 <!-- plugin-docs: https://www.jetbrains.org/intellij/sdk/docs/basics.html -->
 <idea-plugin>
   <id>org.tboox.xmake</id>
-  <name>A XMake integration plugin in Intellij Platform</name>
-  <version>1.0</version>
+  <name>XMake</name>
+  <version>1.0.1</version>
   <vendor email="waruqi@gmail.com" url="http://www.tboox.org">tboox.org</vendor>
 
   <description><![CDATA[
