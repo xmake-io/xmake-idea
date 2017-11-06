@@ -15,11 +15,18 @@ import com.intellij.ui.layout.CCFlags
 import com.intellij.ui.layout.panel
 import org.tboox.xmake.icons.XMakeIcons
 import org.tboox.xmake.shared.XMakeProblem
+import java.awt.event.MouseEvent
+import java.awt.event.MouseAdapter
 import javax.swing.JEditorPane
 import javax.swing.JScrollPane
 import javax.swing.JList
 import javax.swing.JPanel
+import java.io.File
 import javax.swing.ListSelectionModel
+import com.intellij.openapi.fileEditor.OpenFileDescriptor
+import com.intellij.openapi.vfs.LocalFileSystem
+import org.tboox.xmake.shared.xmakeConfiguration
+
 
 class XMakeToolWindowProblemPanel(project: Project) : SimpleToolWindowPanel(false) {
 
@@ -68,7 +75,7 @@ class XMakeToolWindowProblemPanel(project: Project) : SimpleToolWindowPanel(fals
                 toolTipText = value.message ?: ""
 
                 // append text
-                append("${file}(${value.line?:"0"}): ${value.message?:""}", attrs)
+                append("${file}(${value.line ?: "0"}): ${value.message ?: ""}", attrs)
             }
         }
     }
@@ -82,7 +89,6 @@ class XMakeToolWindowProblemPanel(project: Project) : SimpleToolWindowPanel(fals
     val content = panel {
         row {
             problemPane(CCFlags.push, CCFlags.grow)
-
         }
     }
 
@@ -94,6 +100,35 @@ class XMakeToolWindowProblemPanel(project: Project) : SimpleToolWindowPanel(fals
 
         // init content
         setContent(content)
+
+        // init double click listener
+        problemList.addMouseListener(object: MouseAdapter() {
+            override fun mouseClicked(e: MouseEvent) {
+                if (e.getClickCount() == 2) {
+
+                    // get the clicked problem
+                    val index = problemList.locationToIndex(e.getPoint())
+                    if (index < problems.size && problems[index].file !== null) {
+
+                        // get file path
+                        var filename = problems[index].file
+                        if (File(filename).exists()) {
+                            filename = File(filename).getAbsolutePath()
+                        } else {
+                            filename = File(project.xmakeConfiguration.data.workingDirectory, filename).getAbsolutePath()
+                        }
+
+                        // open this file
+                        val file = LocalFileSystem.getInstance().findFileByPath(filename)
+                        Log.info(file.toString())
+                        if (file !== null) {
+                            val descriptor = OpenFileDescriptor(project, file)
+                            descriptor.navigate(true)
+                        }
+                    }
+                }
+            }
+        })
     }
 
     override fun getData(dataId: String): Any? {

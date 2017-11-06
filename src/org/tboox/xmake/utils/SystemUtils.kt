@@ -175,7 +175,6 @@ object SystemUtils {
                 }
             })
         }
-    //    project.xmakeProblemList = listOf("xxxxxxxx2") // listOf(s)
 
         // start process
         handler.startNotify()
