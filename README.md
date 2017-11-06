@@ -45,13 +45,20 @@ Please see [xmake-github](https://github.com/tboox/xmake) and [website](http://x
 * Menu tools
 * Tool windows
 * Build and run
+* Parse errors and goto file
  
 ## Quickstart
 
 <div align="center">
 <img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/quickstart.gif" width="80%" />
 </div>
+
+## Parse errors and goto file
  
+<div align="center">
+<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/problem.gif" width="80%" />
+</div>
+
 ## Tool windows
 
 #### Output panel
@@ -72,5 +79,5 @@ Please see [xmake-github](https://github.com/tboox/xmake) and [website](http://x
 <img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/menu.png" width="80%" />
 </div>
  
- 
+
   
