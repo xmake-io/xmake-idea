@@ -9,7 +9,7 @@ import com.intellij.execution.configurations.GeneralCommandLine
 import java.io.IOException
 import java.io.OutputStreamWriter
 
-class ConsoleProcessHandler(private val consoleView: ConsoleView, commandLine: GeneralCommandLine) : KillableColoredProcessHandler(commandLine) {
+class ConsoleProcessHandler(private val consoleView: ConsoleView, commandLine: GeneralCommandLine, showExitCode: Boolean = false) : KillableColoredProcessHandler(commandLine) {
 
     // the output content
     var outputContent = ""
@@ -25,7 +25,9 @@ class ConsoleProcessHandler(private val consoleView: ConsoleView, commandLine: G
         })
         
         // shows exit code upon termination
-        ProcessTerminatedListener.attach(this)
+        if (showExitCode) {
+            ProcessTerminatedListener.attach(this)
+        }
     }
 
     // append info to the console view

@@ -40,6 +40,7 @@ Please see [xmake-github](https://github.com/tboox/xmake) and [website](http://x
 ## Features
 
 * Quickstart
+* Create project
 * Project configuration
 * Run configuration
 * Menu tools
@@ -65,6 +66,10 @@ Please see [xmake-github](https://github.com/tboox/xmake) and [website](http://x
 
 <img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/output_panel.png" width="100%" />
  
+## Create project
+
+<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/create_project.png" width="100%" />
+
 ## Project configuration
 
 <img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/project_configuration.png" width="100%" />

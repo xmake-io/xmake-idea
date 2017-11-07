@@ -72,6 +72,20 @@ object SystemUtils {
         }
         set(value) { _xmakeProgram = value }
 
+    // the xmake version
+    private var _xmakeVersion:String = ""
+    var xmakeVersion:String
+        get() {
+            if (_xmakeVersion == "") {
+                val result = ioRunv(listOf(xmakeProgram, "--version")).split(',')
+                if (result.size > 0) {
+                    _xmakeVersion = result[0]
+                }
+            }
+            return _xmakeVersion
+        }
+        set(value) { _xmakeVersion = value }
+
     // get platform
     fun platform(): String = when {
         SystemInfo.isWindows -> "windows"
@@ -79,8 +93,37 @@ object SystemUtils {
         else -> "linux"
     }
 
+    // run command with arguments
+    fun Runv(argv: List<String>, workingDirectory: String? = null): Int {
+
+        var code = -1
+        try {
+
+            // init process builder
+            val processBuilder = ProcessBuilder(argv)
+
+            // init working directory
+            if (workingDirectory !== null) {
+                processBuilder.directory(File(workingDirectory))
+            }
+
+            // run process
+            val process = processBuilder.start()
+
+            // wait for process
+            code = process.waitFor()
+
+        } catch (e: IOException) {
+            e.printStackTrace()
+        } finally {
+        }
+
+        // ok?
+        return code
+    }
+
     // run command with arguments and return output
-    fun ioRunv(argv: List<String>, workingDirectory: String): String {
+    fun ioRunv(argv: List<String>, workingDirectory: String? = null): String {
 
         var result = ""
         var bufferReader: BufferedReader? = null
@@ -90,7 +133,12 @@ object SystemUtils {
             val processBuilder = ProcessBuilder(argv)
 
             // init working directory
-            processBuilder.directory(File(workingDirectory))
+            if (workingDirectory !== null) {
+                processBuilder.directory(File(workingDirectory))
+            }
+
+            // disable color for xmake
+            processBuilder.environment().put("COLORTERM", "nocolor")
 
             // run process
             val process = processBuilder.start()
@@ -164,10 +212,10 @@ object SystemUtils {
     }
 
     // run process in console
-    fun runvInConsole(project: Project, commandLine: GeneralCommandLine, showConsole: Boolean = true, showProblem: Boolean = false): ProcessHandler {
+    fun runvInConsole(project: Project, commandLine: GeneralCommandLine, showConsole: Boolean = true, showProblem: Boolean = false, showExitCode: Boolean = false): ProcessHandler {
 
         // create handler
-        val handler = ConsoleProcessHandler(project.xmakeConsoleView, commandLine)
+        val handler = ConsoleProcessHandler(project.xmakeConsoleView, commandLine, showExitCode)
 
         // show console?
         if (showConsole) {

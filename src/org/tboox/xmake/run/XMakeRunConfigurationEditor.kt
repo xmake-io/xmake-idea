@@ -30,8 +30,8 @@ class XMakeRunConfigurationEditor(private val project: Project) : SettingsEditor
     val xmakeConfiguration = project.xmakeConfiguration
 
     // the targets ui
-    private val targetsModels = DefaultComboBoxModel<String>()
-    private val targetsComboBox = ComboBox<String>(targetsModels)
+    private val targetsModel = DefaultComboBoxModel<String>()
+    private val targetsComboBox = ComboBox<String>(targetsModel)
 
     // the run arguments
     private val runArguments = RawCommandLineEditor()
@@ -43,11 +43,11 @@ class XMakeRunConfigurationEditor(private val project: Project) : SettingsEditor
     override fun resetEditorFrom(configuration: XMakeRunConfiguration) {
 
         // reset targets
-        targetsModels.removeAllElements()
+        targetsModel.removeAllElements()
         for (target in xmakeConfiguration.targets) {
-            targetsModels.addElement(target)
+            targetsModel.addElement(target)
         }
-        targetsModels.selectedItem = configuration.runTarget
+        targetsModel.selectedItem = configuration.runTarget
 
         // reset run arguments
         runArguments.text = configuration.runArguments
@@ -59,7 +59,7 @@ class XMakeRunConfigurationEditor(private val project: Project) : SettingsEditor
     // apply editor to configuration
     override fun applyEditorTo(configuration: XMakeRunConfiguration) {
 
-        configuration.runTarget         = targetsModels.selectedItem.toString()
+        configuration.runTarget         = targetsModel.selectedItem.toString()
         configuration.runArguments      = runArguments.text
         configuration.runEnvironment    = environmentVariables.envData
     }

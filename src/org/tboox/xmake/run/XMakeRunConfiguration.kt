@@ -78,12 +78,12 @@ class XMakeRunConfiguration(project: Project, name: String, factory: Configurati
         if (xmakeConfiguration.changed) {
             SystemUtils.runvInConsole(project, xmakeConfiguration.configurationCommandLine).addProcessListener(object: ProcessAdapter() {
                 override fun processTerminated(e: ProcessEvent) {
-                    SystemUtils.runvInConsole(project, runCommandLine, false, true)
+                    SystemUtils.runvInConsole(project, runCommandLine, false, true, true)
                 }
             })
             xmakeConfiguration.changed = false
         } else {
-            SystemUtils.runvInConsole(project, runCommandLine, true, true)
+            SystemUtils.runvInConsole(project, runCommandLine, true, true, true)
         }
 
         // does not use builtin run console panel

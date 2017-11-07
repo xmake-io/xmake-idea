@@ -2,7 +2,7 @@
 <idea-plugin>
   <id>org.tboox.xmake</id>
   <name>XMake</name>
-  <version>1.0.1</version>
+  <version>1.0.2</version>
   <vendor email="waruqi@gmail.com" url="http://www.tboox.org">tboox.org</vendor>
 
   <description><![CDATA[
@@ -29,6 +29,10 @@
     ]]></description>
 
   <change-notes><![CDATA[
+    <strong>1.0.2</strong>
+    <ul>
+        <li>[NEW]: Create project (c/c++/rust/go/dlang/swift/objc)</li>
+    </ul>
     <strong>1.0.1</strong>
     <ul>
         <li>[NEW]: Quickstart</li>
@@ -55,6 +59,11 @@
 
     <!-- icons -->
     <iconProvider implementation="org.tboox.xmake.icons.XMakeIconProvider"/>
+
+    <!-- module configurations -->
+    <sdkType implementation="org.tboox.xmake.project.XMakeSdkType"/>
+    <moduleType id="XMake.Module" implementationClass="org.tboox.xmake.project.XMakeModuleType"/>
+    <!--<moduleConfigurationEditorProvider implementation="org.tboox.xmake.project.XMakeModuleConfigurationEditorProvider"/>-->
 
     <!-- project configurations -->
     <projectConfigurable instance="org.tboox.xmake.project.XMakeProjectConfigurable" displayName="XMake" groupId="language"/>

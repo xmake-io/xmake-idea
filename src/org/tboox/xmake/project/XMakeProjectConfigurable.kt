@@ -45,16 +45,16 @@ class XMakeProjectConfigurable(
     val xmakeConfiguration = project.xmakeConfiguration
 
     // the platforms ui
-    private val platformsModels = DefaultComboBoxModel<String>()
-    private val platformsComboBox = ComboBox<String>(platformsModels)
+    private val platformsModel = DefaultComboBoxModel<String>()
+    private val platformsComboBox = ComboBox<String>(platformsModel)
 
     // the architectures ui
-    private val architecturesModels = DefaultComboBoxModel<String>()
-    private val architecturesComboBox = ComboBox<String>(architecturesModels)
+    private val architecturesModel = DefaultComboBoxModel<String>()
+    private val architecturesComboBox = ComboBox<String>(architecturesModel)
 
     // the modes ui
-    private val modesModels = DefaultComboBoxModel<String>()
-    private val modesComboBox = ComboBox<String>(modesModels)
+    private val modesModel = DefaultComboBoxModel<String>()
+    private val modesComboBox = ComboBox<String>(modesModel)
 
     // the additional configuration
     private val additionalConfiguration = RawCommandLineEditor()
@@ -140,11 +140,11 @@ class XMakeProjectConfigurable(
         }
         configurationCommandText.setEditable(false)
 
-        platformsModels.addListDataListener(object: ListDataListener {
+        platformsModel.addListDataListener(object: ListDataListener {
             override fun contentsChanged(e: ListDataEvent) {
-                architecturesModels.removeAllElements()
-                for (architecture in XMakeConfiguration.getArchitecturesByPlatform(platformsModels.selectedItem.toString())) {
-                    architecturesModels.addElement(architecture)
+                architecturesModel.removeAllElements()
+                for (architecture in XMakeConfiguration.getArchitecturesByPlatform(platformsModel.selectedItem.toString())) {
+                    architecturesModel.addElement(architecture)
                 }
                 configurationCommandText.text = previewConfigurationCommand
             }
@@ -154,7 +154,7 @@ class XMakeProjectConfigurable(
             }
         })
 
-        architecturesModels.addListDataListener(object: ListDataListener {
+        architecturesModel.addListDataListener(object: ListDataListener {
             override fun contentsChanged(e: ListDataEvent) {
                 configurationCommandText.text = previewConfigurationCommand
             }
@@ -164,7 +164,7 @@ class XMakeProjectConfigurable(
             }
         })
 
-        modesModels.addListDataListener(object: ListDataListener {
+        modesModel.addListDataListener(object: ListDataListener {
             override fun contentsChanged(e: ListDataEvent) {
                 configurationCommandText.text = previewConfigurationCommand
             }
@@ -199,25 +199,25 @@ class XMakeProjectConfigurable(
     override fun reset() {
 
         // reset platforms
-        platformsModels.removeAllElements()
+        platformsModel.removeAllElements()
         for (platform in xmakeConfiguration.platforms) {
-            platformsModels.addElement(platform)
+            platformsModel.addElement(platform)
         }
-        platformsModels.selectedItem = xmakeConfiguration.data.currentPlatform
+        platformsModel.selectedItem = xmakeConfiguration.data.currentPlatform
 
         // reset architectures
-        architecturesModels.removeAllElements()
+        architecturesModel.removeAllElements()
         for (architecture in xmakeConfiguration.architectures) {
-            architecturesModels.addElement(architecture)
+            architecturesModel.addElement(architecture)
         }
-        architecturesModels.selectedItem = xmakeConfiguration.data.currentArchitecture
+        architecturesModel.selectedItem = xmakeConfiguration.data.currentArchitecture
 
         // reset modes
-        modesModels.removeAllElements()
+        modesModel.removeAllElements()
         for (mode in xmakeConfiguration.modes) {
-            modesModels.addElement(mode)
+            modesModel.addElement(mode)
         }
-        modesModels.selectedItem = xmakeConfiguration.data.currentMode
+        modesModel.selectedItem = xmakeConfiguration.data.currentMode
 
         // reset additional configuration
         additionalConfiguration.text = xmakeConfiguration.data.additionalConfiguration
@@ -241,9 +241,9 @@ class XMakeProjectConfigurable(
     @Throws(ConfigurationException::class)
     override fun apply() {
 
-        xmakeConfiguration.data.currentPlatform         = platformsModels.selectedItem.toString()
-        xmakeConfiguration.data.currentArchitecture     = architecturesModels.selectedItem.toString()
-        xmakeConfiguration.data.currentMode             = modesModels.selectedItem.toString()
+        xmakeConfiguration.data.currentPlatform         = platformsModel.selectedItem.toString()
+        xmakeConfiguration.data.currentArchitecture     = architecturesModel.selectedItem.toString()
+        xmakeConfiguration.data.currentMode             = modesModel.selectedItem.toString()
         xmakeConfiguration.data.additionalConfiguration = additionalConfiguration.text
         xmakeConfiguration.data.workingDirectory        = workingDirectory.component.text
         xmakeConfiguration.data.buildOutputDirectory    = buildOutputDirectory.component.text
@@ -253,9 +253,9 @@ class XMakeProjectConfigurable(
 
     override fun isModified(): Boolean {
 
-        if (xmakeConfiguration.data.currentPlatform != platformsModels.selectedItem.toString() ||
-            xmakeConfiguration.data.currentArchitecture != architecturesModels.selectedItem.toString() ||
-            xmakeConfiguration.data.currentMode != modesModels.selectedItem.toString() ||
+        if (xmakeConfiguration.data.currentPlatform != platformsModel.selectedItem.toString() ||
+            xmakeConfiguration.data.currentArchitecture != architecturesModel.selectedItem.toString() ||
+            xmakeConfiguration.data.currentMode != modesModel.selectedItem.toString() ||
             xmakeConfiguration.data.additionalConfiguration != additionalConfiguration.text ||
             xmakeConfiguration.data.workingDirectory != workingDirectory.component.text ||
             xmakeConfiguration.data.buildOutputDirectory != buildOutputDirectory.component.text ||
@@ -283,15 +283,15 @@ class XMakeProjectConfigurable(
     private val previewConfigurationCommand: String
         get() {
             var cmd = "xmake f"
-            var platformItem = platformsModels.selectedItem
+            var platformItem = platformsModel.selectedItem
             if (platformItem != null) {
                 cmd += " -p ${platformItem.toString()}"
             }
-            if (architecturesModels.selectedItem != null) {
-                cmd += " -a ${architecturesModels.selectedItem?.toString()}"
+            if (architecturesModel.selectedItem != null) {
+                cmd += " -a ${architecturesModel.selectedItem?.toString()}"
             }
-            if (modesModels.selectedItem != null) {
-                cmd += " -m ${modesModels.selectedItem?.toString()}"
+            if (modesModel.selectedItem != null) {
+                cmd += " -m ${modesModel.selectedItem?.toString()}"
             }
             if (platformItem?.toString() == "android" && androidNDKDirectory.component.text != "") {
                 cmd += " --ndk=\"${androidNDKDirectory.component.text}\""
