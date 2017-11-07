@@ -2,7 +2,7 @@
 <idea-plugin>
   <id>org.tboox.xmake</id>
   <name>XMake</name>
-  <version>1.0.2</version>
+  <version>1.0.3</version>
   <vendor email="waruqi@gmail.com" url="http://www.tboox.org">tboox.org</vendor>
 
   <description><![CDATA[
@@ -18,6 +18,7 @@
             <li><a href="https://github.com/tboox/xmake">More features and info about xmake</a></li>
         </ul>
         <li>Quickstart</li>
+        <li>Create project</li>
         <li>Project configuration</li>
         <li>Run configuration</li>
         <li>Menu tools</li>
@@ -29,6 +30,10 @@
     ]]></description>
 
   <change-notes><![CDATA[
+    <strong>1.0.3</strong>
+    <ul>
+        <li>[NEW]: Improve exit code</li>
+    </ul>
     <strong>1.0.2</strong>
     <ul>
         <li>[NEW]: Create project (c/c++/rust/go/dlang/swift/objc)</li>
