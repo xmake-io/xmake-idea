@@ -6,6 +6,17 @@
   <h1>xmake-idea</h1>
 
   <div>
+    <a href="https://plugins.jetbrains.com/plugin/10156-xmake">
+      <img src="https://img.shields.io/jetbrains/plugin/v/10156-xmake.svg?style=flat-square" alt="Version" />
+    </a>
+    <a href="https://plugins.jetbrains.com/plugin/10156-xmake">
+      <img src="https://img.shields.io/jetbrains/plugin/d/10156-xmake.svg?style=flat-square" alt="Downloads" />
+    </a>
+    <a href="https://github.com/tboox/xmake-idea/blob/master/LICENSE.md">
+      <img src="https://img.shields.io/github/license/tboox/xmake-idea.svg?colorB=f48041&style=flat-square" alt="license" />
+    </a>
+  </div>
+  <div>
     <a href="https://gitter.im/tboox/tboox?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge">
       <img src="https://img.shields.io/gitter/room/tboox/tboox.svg?style=flat-square&colorB=96c312" alt="Gitter" />
     </a>
@@ -17,9 +28,6 @@
     </a>
     <a href="https://jq.qq.com/?_wv=1027&k=5hpwWFv">
       <img src="https://img.shields.io/badge/chat-on%20QQ-ff69b4.svg?style=flat-square" alt="QQ" />
-    </a>
-    <a href="https://github.com/tboox/xmake-idea/blob/master/LICENSE.md">
-      <img src="https://img.shields.io/github/license/tboox/xmake-idea.svg?colorB=f48041&style=flat-square" alt="license" />
     </a>
     <a href="http://xmake.io/pages/donation.html#donate">
       <img src="https://img.shields.io/badge/donate-us-orange.svg?style=flat-square" alt="Donate" />
