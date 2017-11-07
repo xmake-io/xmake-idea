@@ -30,12 +30,12 @@ class RunAction : AnAction() {
             if (xmakeConfiguration.changed) {
                 SystemUtils.runvInConsole(project, xmakeConfiguration.configurationCommandLine).addProcessListener(object: ProcessAdapter() {
                     override fun processTerminated(e: ProcessEvent) {
-                        SystemUtils.runvInConsole(project, runConfiguration.runCommandLine, false)
+                        SystemUtils.runvInConsole(project, runConfiguration.runCommandLine, false, true, true)
                     }
                 })
                 xmakeConfiguration.changed = false
             } else {
-                SystemUtils.runvInConsole(project, runConfiguration.runCommandLine)
+                SystemUtils.runvInConsole(project, runConfiguration.runCommandLine, true, true, true)
             }
 
         } else {

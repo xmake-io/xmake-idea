@@ -24,12 +24,12 @@ class XMakeProjectTasksRunner : ProjectTaskRunner() {
         if (xmakeConfiguration.changed) {
             SystemUtils.runvInConsole(project, xmakeConfiguration.configurationCommandLine).addProcessListener(object: ProcessAdapter() {
                 override fun processTerminated(e: ProcessEvent) {
-                    SystemUtils.runvInConsole(project, xmakeConfiguration.buildCommandLine, false, true)
+                    SystemUtils.runvInConsole(project, xmakeConfiguration.buildCommandLine, false, true, true)
                 }
             })
             xmakeConfiguration.changed = false
         } else {
-            SystemUtils.runvInConsole(project, xmakeConfiguration.buildCommandLine, true, true)
+            SystemUtils.runvInConsole(project, xmakeConfiguration.buildCommandLine, true, true, true)
         }
     }
 

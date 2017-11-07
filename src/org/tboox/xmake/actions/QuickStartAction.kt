@@ -17,6 +17,6 @@ class QuickStartAction : AnAction() {
         project.xmakeConsoleView.clear()
 
         // quick start
-        SystemUtils.runvInConsole(project, project.xmakeConfiguration.quickStartCommandLine)
+        SystemUtils.runvInConsole(project, project.xmakeConfiguration.quickStartCommandLine, true, false, true)
     }
 }

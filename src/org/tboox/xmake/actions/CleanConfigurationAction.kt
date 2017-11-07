@@ -18,7 +18,7 @@ class CleanConfigurationAction : AnAction() {
 
         // clear configure
         val xmakeConfiguration = project.xmakeConfiguration
-        SystemUtils.runvInConsole(project, xmakeConfiguration.cleanConfigurationCommandLine)
+        SystemUtils.runvInConsole(project, xmakeConfiguration.cleanConfigurationCommandLine, true, false, true)
         xmakeConfiguration.changed = false
     }
 }
