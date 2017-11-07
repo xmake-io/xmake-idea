@@ -33,6 +33,10 @@
 
 A XMake integration in IntelliJ IDEA. 
 
+It is deeply integrated with [xmake](https://github.com/tboox/xmake) and Intellij-IDEA to provide a convenient and fast cross-platform c/c++ development and building.
+
+And It also support other Intellij-based platform, like Clion, Android Studio and etc.
+
 You need install [xmake](https://github.com/tboox/xmake) first and a project with `xmake.lua`.
 
 Please see [xmake-github](https://github.com/tboox/xmake) and [website](http://xmake.io) if you want to known more about xmake.
