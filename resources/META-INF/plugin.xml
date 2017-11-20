@@ -2,7 +2,7 @@
 <idea-plugin>
   <id>org.tboox.xmake</id>
   <name>XMake</name>
-  <version>1.0.3</version>
+  <version>1.0.4</version>
   <vendor email="waruqi@gmail.com" url="http://www.tboox.org">tboox.org</vendor>
 
   <description><![CDATA[
@@ -30,6 +30,10 @@
     ]]></description>
 
   <change-notes><![CDATA[
+    <strong>1.0.4</strong>
+    <ul>
+        <li>[NEW]: Modify rebuild icon</li>
+    </ul>
     <strong>1.0.3</strong>
     <ul>
         <li>[NEW]: Improve exit code</li>
