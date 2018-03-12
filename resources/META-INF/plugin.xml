@@ -2,7 +2,7 @@
 <idea-plugin>
   <id>org.tboox.xmake</id>
   <name>XMake</name>
-  <version>1.0.4</version>
+  <version>1.0.5</version>
   <vendor email="waruqi@gmail.com" url="http://www.tboox.org">tboox.org</vendor>
 
   <description><![CDATA[
