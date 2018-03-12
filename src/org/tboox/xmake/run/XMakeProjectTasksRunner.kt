@@ -44,7 +44,7 @@ class XMakeProjectTasksRunner : ProjectTaskRunner() {
         // hook 'Build Artifacts' => package
         if (projectTask is ArtifactBuildTask) {
             return true
-        }
+        }*/
 
         // run configuration?
         if (projectTask is ExecuteRunConfigurationTask) {
@@ -52,7 +52,7 @@ class XMakeProjectTasksRunner : ProjectTaskRunner() {
             if (runProfile is XMakeRunConfiguration) {
                 return true
             }
-        }*/
+        }
 
         return false
     }

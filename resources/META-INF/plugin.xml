@@ -30,6 +30,10 @@
     ]]></description>
 
   <change-notes><![CDATA[
+    <strong>1.0.5</strong>
+    <ul>
+        <li>[FIX]: Fix conflict issues with java</li>
+    </ul>
     <strong>1.0.4</strong>
     <ul>
         <li>[NEW]: Modify rebuild icon</li>
@@ -82,7 +86,7 @@
     <programRunner implementation="org.tboox.xmake.run.XMakeRunner"/>
     <configurationType implementation="org.tboox.xmake.run.XMakeRunConfigurationType"/>
     <runConfigurationProducer implementation="org.tboox.xmake.run.XMakeRunConfigurationProducer"/>
-    <projectTaskRunner implementation="org.tboox.xmake.run.XMakeProjectTasksRunner"/>
+    <!--<projectTaskRunner implementation="org.tboox.xmake.run.XMakeProjectTasksRunner"/>-->
 
   </extensions>
 
