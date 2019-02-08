@@ -7,7 +7,7 @@
 
   <description><![CDATA[
     A XMake integration plugin in Intellij Platform<br>
-    <p><a href="https://github.com/tboox/xmake-idea">Source Code</a> | <a href="https://gitter.im/tboox/tboox?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge">Gitter</a> | <a href="http://xmake.io/pages/donation.html#donate">Donate</a> | <a href="http://xmake.io">XMake Homepage</a></p>
+    <p><a href="https://github.com/xmake-io/xmake-idea">Source Code</a> | <a href="https://gitter.im/tboox/tboox?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge">Gitter</a> | <a href="http://xmake.io/pages/donation.html#donate">Donate</a> | <a href="http://xmake.io">XMake Homepage</a></p>
     Features:
     <ul>
         <li>xmake</li>
@@ -15,7 +15,7 @@
             <li>C/C++/Objc/Swift/Rust/Dlang/Golang ... support</li>
             <li>Cross-platform support</li>
             <li>Lua syntax</li>
-            <li><a href="https://github.com/tboox/xmake">More features and info about xmake</a></li>
+            <li><a href="https://github.com/xmake-io/xmake">More features and info about xmake</a></li>
         </ul>
         <li>Quickstart</li>
         <li>Create project</li>
