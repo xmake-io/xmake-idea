@@ -8,6 +8,7 @@ import org.tboox.xmake.project.xmakeConsoleView
 import org.tboox.xmake.utils.SystemUtils
 import org.tboox.xmake.shared.xmakeConfiguration
 
+
 class BuildAction : AnAction() {
 
     override fun actionPerformed(e: AnActionEvent) {

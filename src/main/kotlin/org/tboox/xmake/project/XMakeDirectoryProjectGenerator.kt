@@ -33,7 +33,6 @@ class XMakeDirectoryProjectGenerator : DirectoryProjectGeneratorBase<XMakeConfig
     }
 
     override fun generateProject(project: Project, baseDir: VirtualFile, data: XMakeConfigData, module: Module) {
-        //TODO:
         // get content entry path
         val contentEntryPath = baseDir.canonicalPath ?: return
         val t =listOf(

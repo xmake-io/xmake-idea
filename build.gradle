@@ -24,13 +24,11 @@ dependencies {
 
 // See https://github.com/JetBrains/gradle-intellij-plugin/
 intellij {
-
-//    version = 'LATEST-EAP-SNAPSHOT'
-    ///////clion 配置////////
+        //clion 配置
         type 'CL'
         version = 'CL-2021.1.2'
         downloadSources false
-    plugins = ["com.intellij.cidr.base", "com.intellij.clion"]
+    plugins = ["com.intellij.cidr.base", "com.intellij.clion", "com.intellij.clion-compdb"]
 }
 
 test {
