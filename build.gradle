@@ -28,7 +28,7 @@ intellij {
         type 'CL'
         version = 'CL-2021.1.2'
         downloadSources false
-    plugins = ["com.intellij.cidr.base", "com.intellij.clion", "com.intellij.clion-compdb"]
+    plugins = ["com.intellij.cidr.base", "com.intellij.clion"]
 }
 
 test {
