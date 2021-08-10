@@ -6,4 +6,4 @@ node_modules
 *.swo
 *.jar
 build
-.gradle
+/.gradle/
