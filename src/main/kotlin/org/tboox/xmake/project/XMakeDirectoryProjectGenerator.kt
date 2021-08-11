@@ -25,24 +25,9 @@ class XMakeDirectoryProjectGenerator : DirectoryProjectGeneratorBase<XMakeConfig
     override fun getLogo(): Icon = XMakeIcons.XMAKE
     override fun createPeer(): ProjectGeneratorPeer<XMakeConfigData> = XMakeProjectGeneratorPeer().also { peer = it }
 
-    override fun validate(baseDirPath: String): ValidationResult {
-        File(baseDirPath).nameWithoutExtension
-        return ValidationResult.OK
-    }
-
     override fun generateProject(project: Project, baseDir: VirtualFile, data: XMakeConfigData, module: Module) {
         // get content entry path
         val contentEntryPath = baseDir.canonicalPath ?: return
-        listOf(
-            SystemUtils.xmakeProgram,
-            "create",
-            "-P",
-            contentEntryPath,
-            "-l",
-            data.languagesModel,
-            "-t",
-            data.kindsModel
-        ).joinToString(separator = " ")
 
         // create empty project
         SystemUtils.Runv(
