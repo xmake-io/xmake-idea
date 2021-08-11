@@ -41,7 +41,7 @@ class XMakeNewProjectPanel : Disposable {
 
     val data: XMakeConfigData
         get() = XMakeConfigData(
-            languagesModel.selectedItem.toString().toLowerCase(),
+            languagesModel.selectedItem.toString().lowercase(),
             template
         )
 
@@ -59,7 +59,7 @@ class XMakeNewProjectPanel : Disposable {
         row("XMake SDK:") {
             val project = ProjectManager.getInstance().defaultProject
             val sdkModel = ProjectSdksModel()
-            sdkModel.addSdk(XMakeSdkType.instance, XMakeSdkType.instance.suggestHomePath()!!, null);
+            sdkModel.addSdk(XMakeSdkType.instance, XMakeSdkType.instance.suggestHomePath()!!, null)
             val myJdkComboBox = SdkComboBox(SdkComboBoxModel.createSdkComboBoxModel(project, sdkModel))
             wrapComponent(myJdkComboBox)(growX, pushX)
         }

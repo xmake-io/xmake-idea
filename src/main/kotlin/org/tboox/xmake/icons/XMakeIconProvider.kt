@@ -1,7 +1,6 @@
 package org.tboox.xmake.icons
 
 import com.intellij.ide.IconProvider
-import com.intellij.openapi.diagnostic.Logger
 import com.intellij.psi.PsiElement
 import javax.swing.Icon
 

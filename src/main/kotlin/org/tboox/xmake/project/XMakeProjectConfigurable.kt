@@ -1,7 +1,6 @@
 package org.tboox.xmake.project
 
 import com.intellij.execution.ExecutionBundle
-import com.intellij.execution.configuration.EnvironmentVariablesComponent
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.options.Configurable
@@ -13,21 +12,14 @@ import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.ui.RawCommandLineEditor
 import com.intellij.ui.components.CheckBox
 import com.intellij.ui.components.Label
-import com.intellij.ui.components.JBLabel
-import com.intellij.ui.layout.CCFlags
 import com.intellij.ui.layout.LayoutBuilder
 import com.intellij.ui.layout.Row
 import com.intellij.ui.layout.panel
 import org.tboox.xmake.shared.XMakeConfiguration
 import org.tboox.xmake.shared.xmakeConfiguration
 import java.awt.Dimension
-import java.nio.file.Path
-import java.nio.file.Paths
 import javax.swing.JComponent
-import javax.swing.JList
 import javax.swing.JPanel
-import javax.swing.JLabel
-import javax.swing.JTextField
 import javax.swing.JTextArea
 import javax.swing.DefaultComboBoxModel
 import javax.swing.event.ListDataEvent
@@ -38,7 +30,7 @@ import java.awt.event.ItemEvent
 import java.awt.event.ItemListener
 
 class XMakeProjectConfigurable(
-        private val project: Project
+        project: Project
 ) : Configurable, Configurable.NoScroll {
 
     // the xmake configuration

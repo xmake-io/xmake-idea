@@ -5,8 +5,6 @@ import com.intellij.ide.util.projectWizard.AbstractNewProjectStep
 import com.intellij.ide.util.projectWizard.CustomStepProjectGenerator
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.io.FileUtil
-import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.wm.impl.welcomeScreen.AbstractActionWithPanel
 import com.intellij.platform.DirectoryProjectGenerator
@@ -28,14 +26,14 @@ class XMakeDirectoryProjectGenerator : DirectoryProjectGeneratorBase<XMakeConfig
     override fun createPeer(): ProjectGeneratorPeer<XMakeConfigData> = XMakeProjectGeneratorPeer().also { peer = it }
 
     override fun validate(baseDirPath: String): ValidationResult {
-        val crateName = File(baseDirPath).nameWithoutExtension
+        File(baseDirPath).nameWithoutExtension
         return ValidationResult.OK
     }
 
     override fun generateProject(project: Project, baseDir: VirtualFile, data: XMakeConfigData, module: Module) {
         // get content entry path
         val contentEntryPath = baseDir.canonicalPath ?: return
-        val t =listOf(
+        listOf(
             SystemUtils.xmakeProgram,
             "create",
             "-P",

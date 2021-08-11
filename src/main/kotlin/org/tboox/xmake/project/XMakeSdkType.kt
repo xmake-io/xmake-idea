@@ -1,6 +1,5 @@
 package org.tboox.xmake.project
 
-import com.intellij.openapi.application.PathManager
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.projectRoots.SdkType
 import com.intellij.openapi.projectRoots.SdkAdditionalData
@@ -11,7 +10,6 @@ import com.intellij.openapi.projectRoots.Sdk
 import org.tboox.xmake.icons.XMakeIcons
 import org.jdom.Element
 import org.tboox.xmake.utils.SystemUtils
-import java.io.File
 import javax.swing.Icon
 
 class XMakeSdkType : SdkType("XMake SDK") {
@@ -32,7 +30,7 @@ class XMakeSdkType : SdkType("XMake SDK") {
         return "XMake"
     }
 
-    override fun getVersionString(sdk: Sdk): String? {
+    override fun getVersionString(sdk: Sdk): String {
         return SystemUtils.xmakeVersion
     }
 
@@ -62,6 +60,6 @@ class XMakeSdkType : SdkType("XMake SDK") {
 
         // the instance
         val instance: XMakeSdkType
-            get() = SdkType.findInstance(XMakeSdkType::class.java)
+            get() = findInstance(XMakeSdkType::class.java)
     }
 }

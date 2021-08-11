@@ -12,7 +12,6 @@ import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.vfs.LocalFileSystem
 import org.tboox.xmake.utils.SystemUtils
 
-import javax.swing.DefaultComboBoxModel
 
 class XMakeModuleBuilder : ModuleBuilder() {
     var configurationData: XMakeConfigData? = null

@@ -1,8 +1,6 @@
 package org.tboox.xmake.project
 
-import com.intellij.openapi.options.ConfigurationException
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
-import com.intellij.openapi.ui.ValidationInfo
 import com.intellij.platform.GeneratorPeerImpl
 import com.intellij.ui.layout.panel
 import javax.swing.JComponent

@@ -1,27 +1,17 @@
 package org.tboox.xmake.run
 
-import com.intellij.execution.ExecutionBundle
 import com.intellij.execution.configuration.EnvironmentVariablesComponent
 import com.intellij.openapi.diagnostic.Logger
-import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
-import com.intellij.openapi.ui.LabeledComponent
-import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.ui.RawCommandLineEditor
-import com.intellij.ui.components.CheckBox
 import com.intellij.ui.layout.*
 import com.intellij.ui.components.Label
-import org.tboox.xmake.shared.XMakeConfiguration
 import org.tboox.xmake.shared.xmakeConfiguration
 import java.awt.Dimension
-import java.nio.file.Path
-import java.nio.file.Paths
 import javax.swing.JComponent
-import javax.swing.JList
 import javax.swing.JPanel
-import javax.swing.JTextField
 import javax.swing.DefaultComboBoxModel
 
 class XMakeRunConfigurationEditor(private val project: Project) : SettingsEditor<XMakeRunConfiguration>() {

@@ -6,8 +6,8 @@ plugins {
 apply plugin: 'org.jetbrains.intellij'
 apply plugin: 'idea'
 
-group 'org.example'
-version '1.0-SNAPSHOT'
+group 'org.tboox.xmake'
+version '1.0.6'
 
 repositories {
     mavenCentral()
@@ -24,10 +24,9 @@ dependencies {
 
 // See https://github.com/JetBrains/gradle-intellij-plugin/
 intellij {
-        //clion 配置
-        type 'CL'
-        version = 'CL-2021.1.2'
-        downloadSources false
+    type 'CL'
+    version = 'CL-2021.1.2'
+    downloadSources false
     plugins = ["com.intellij.cidr.base", "com.intellij.clion"]
 }
 

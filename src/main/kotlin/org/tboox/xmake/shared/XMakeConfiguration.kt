@@ -10,10 +10,9 @@ import com.intellij.openapi.project.Project
 import org.tboox.xmake.utils.SystemUtils
 
 @State(name = "XMakeProjectSettings")
-class XMakeConfiguration(project: Project) : PersistentStateComponent<XMakeConfiguration.State>, ProjectComponent {
-
-    // the project
-    val project = project
+class XMakeConfiguration(// the project
+    val project: Project
+) : PersistentStateComponent<XMakeConfiguration.State>, ProjectComponent {
 
     // the platforms
     val platforms = arrayOf("macosx", "linux", "windows", "android", "iphoneos", "watchos", "mingw")

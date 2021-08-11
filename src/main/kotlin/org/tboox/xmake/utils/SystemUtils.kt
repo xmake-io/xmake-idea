@@ -19,7 +19,6 @@ import java.io.InputStreamReader
 import java.io.File
 import java.util.regex.Pattern
 
-import java.nio.charset.Charset
 
 object SystemUtils {
 

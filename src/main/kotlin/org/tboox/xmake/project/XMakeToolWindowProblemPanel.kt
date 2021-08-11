@@ -18,17 +18,14 @@ import org.tboox.xmake.shared.XMakeProblem
 import java.awt.Font
 import java.awt.event.MouseEvent
 import java.awt.event.MouseAdapter
-import javax.swing.JEditorPane
 import javax.swing.JScrollPane
 import javax.swing.JList
-import javax.swing.JPanel
 import java.io.File
 import javax.swing.ListSelectionModel
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.vfs.LocalFileSystem
 import org.tboox.xmake.shared.xmakeConfiguration
 import com.intellij.openapi.fileEditor.FileEditorManager
-import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.markup.EffectType
 import com.intellij.openapi.editor.markup.TextAttributes
 

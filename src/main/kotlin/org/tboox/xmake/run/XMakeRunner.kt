@@ -1,4 +1,4 @@
-package org.tboox.xmake.run;
+package org.tboox.xmake.run
 
 import com.intellij.execution.configurations.RunProfile
 import com.intellij.execution.executors.DefaultRunExecutor
