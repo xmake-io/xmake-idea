@@ -5,3 +5,6 @@ node_modules
 *.swp
 *.swo
 *.jar
+build
+.gradle
+.idea
