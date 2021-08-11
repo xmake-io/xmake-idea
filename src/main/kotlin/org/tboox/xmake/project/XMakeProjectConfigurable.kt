@@ -106,7 +106,6 @@ class XMakeProjectConfigurable(
 
         labeledRow("Additional configuration:", additionalConfiguration) {
             additionalConfiguration.apply {
-                dialogCaption = "Additional configuration"
                 makeWide()
             }()
         }
