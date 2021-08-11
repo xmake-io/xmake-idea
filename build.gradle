@@ -23,12 +23,13 @@ dependencies {
 }
 
 // See https://github.com/JetBrains/gradle-intellij-plugin/
+/*
 intellij {
     type 'CL'
     version = 'CL-2021.1.2'
     downloadSources false
     plugins = ["com.intellij.cidr.base", "com.intellij.clion"]
-}
+}*/
 
 test {
     useJUnitPlatform()

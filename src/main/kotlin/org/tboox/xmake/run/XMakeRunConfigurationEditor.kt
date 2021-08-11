@@ -63,7 +63,6 @@ class XMakeRunConfigurationEditor(private val project: Project) : SettingsEditor
 
         labeledRow("Run arguments:", runArguments) {
             runArguments.apply {
-                dialogCaption = "Run arguments"
                 makeWide()
             }()
         }
