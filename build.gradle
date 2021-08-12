@@ -6,7 +6,7 @@ plugins {
 apply plugin: 'org.jetbrains.intellij'
 apply plugin: 'idea'
 
-group 'org.tboox.xmake'
+group 'io.xmake'
 version '1.0.6'
 
 repositories {
