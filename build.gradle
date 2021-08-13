@@ -34,3 +34,15 @@ intellij {
 test {
     useJUnitPlatform()
 }
+
+buildPlugin {
+    buildSearchableOptions.enabled = false
+}
+
+/*
+runPluginVerifier {
+    ideVersions(["IC-2018.1.8", "CL-2021.2"])
+    verifierPath("/home/filter-x/Downloads/Programs/verifier-cli-1.266-all.jar")
+    localPaths(["/home/filter-x/program/clion-2021.1.3","/home/filter-x/program/idea-IC-211.7628.21"])
+    runtimeDir("/usr/lib/jvm/java-11-openjdk-amd64")
+}*/
