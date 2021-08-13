@@ -7,7 +7,7 @@ apply plugin: 'org.jetbrains.intellij'
 apply plugin: 'idea'
 
 group 'io.xmake'
-version '1.0.6'
+version '1.0.7'
 
 repositories {
     mavenCentral()
@@ -23,13 +23,12 @@ dependencies {
 }
 
 // See https://github.com/JetBrains/gradle-intellij-plugin/
-/*
 intellij {
     type 'CL'
-    version = 'CL-2021.1.2'
+    version = 'CL-2021.1'
     downloadSources false
     plugins = ["com.intellij.cidr.base", "com.intellij.clion"]
-}*/
+}
 
 test {
     useJUnitPlatform()
