@@ -1,9 +1,9 @@
 <!-- plugin-docs: https://www.jetbrains.org/intellij/sdk/docs/basics.html -->
 <idea-plugin>
-    <id>org.tboox.xmake</id>
+    <id>io.xmake</id>
     <name>XMake</name>
-    <version>1.0.5</version>
-    <vendor email="waruqi@gmail.com" url="http://www.tboox.org">tboox.org</vendor>
+    <version>1.0.6</version>
+    <vendor email="waruqi@gmail.com" url="https://xmake.io">xmake.io</vendor>
 
     <description><![CDATA[
     A XMake integration plugin in Intellij Platform<br>
@@ -30,6 +30,10 @@
     ]]></description>
 
     <change-notes><![CDATA[
+    <strong>1.0.6</strong>
+    <ul>
+        <li>[NEW]: Support latest CLion and IDEA Intellij</li>
+    </ul>
     <strong>1.0.5</strong>
     <ul>
         <li>[FIX]: Fix conflict issues with java</li>
@@ -72,26 +76,26 @@
     <extensions defaultExtensionNs="com.intellij">
 
         <!-- icons -->
-        <iconProvider implementation="org.tboox.xmake.icons.XMakeIconProvider"/>
+        <iconProvider implementation="io.xmake.icons.XMakeIconProvider"/>
 
         <!-- module configurations -->
         <!-- clion not support -->
-        <sdkType implementation="org.tboox.xmake.project.XMakeSdkType"/>
-        <moduleType id="XMake.Module" implementationClass="org.tboox.xmake.project.XMakeModuleType"/>
-        <moduleBuilder builderClass="org.tboox.xmake.project.XMakeModuleBuilder"/>
+        <sdkType implementation="io.xmake.project.XMakeSdkType"/>
+        <moduleType id="XMake.Module" implementationClass="io.xmake.project.XMakeModuleType"/>
+        <moduleBuilder builderClass="io.xmake.project.XMakeModuleBuilder"/>
 
-        <directoryProjectGenerator implementation="org.tboox.xmake.project.XMakeDirectoryProjectGenerator"/>
+        <directoryProjectGenerator implementation="io.xmake.project.XMakeDirectoryProjectGenerator"/>
 
         <!-- project configurations -->
-        <projectConfigurable instance="org.tboox.xmake.project.XMakeProjectConfigurable" displayName="XMake"
+        <projectConfigurable instance="io.xmake.project.XMakeProjectConfigurable" displayName="XMake"
                              groupId="language"/>
-        <toolWindow id="XMake" anchor="bottom" factoryClass="org.tboox.xmake.project.XMakeToolWindowFactory"
+        <toolWindow id="XMake" anchor="bottom" factoryClass="io.xmake.project.XMakeToolWindowFactory"
                     icon="/icons/xmake_13x13.png"/>
 
         <!-- run configurations -->
-        <programRunner implementation="org.tboox.xmake.run.XMakeRunner"/>
-        <configurationType implementation="org.tboox.xmake.run.XMakeRunConfigurationType"/>
-        <runConfigurationProducer implementation="org.tboox.xmake.run.XMakeRunConfigurationProducer"/>
+        <programRunner implementation="io.xmake.run.XMakeRunner"/>
+        <configurationType implementation="io.xmake.run.XMakeRunConfigurationType"/>
+        <runConfigurationProducer implementation="io.xmake.run.XMakeRunConfigurationProducer"/>
 
     </extensions>
 
@@ -103,28 +107,28 @@
     <actions>
         <group id="XMake.Menu" text="XMake" description="XMake Menu">
             <add-to-group group-id="MainMenu" anchor="after" relative-to-action="RunMenu"/>
-            <action id="XMake.Run" class="org.tboox.xmake.actions.RunAction" text="Run Target" icon="/icons/run.png"
+            <action id="XMake.Run" class="io.xmake.actions.RunAction" text="Run Target" icon="/icons/run.png"
                     description="Run the current target."/>
-            <action id="XMake.Build" class="org.tboox.xmake.actions.BuildAction" text="Build Project"
+            <action id="XMake.Build" class="io.xmake.actions.BuildAction" text="Build Project"
                     icon="/icons/build.png" description="Build the current project."/>
-            <action id="XMake.Rebuild" class="org.tboox.xmake.actions.RebuildAction" text="Rebuild Project"
+            <action id="XMake.Rebuild" class="io.xmake.actions.RebuildAction" text="Rebuild Project"
                     icon="/icons/rebuild.png" description="Rebuild the current project."/>
-            <action id="XMake.Clean" class="org.tboox.xmake.actions.CleanAction" text="Clean Project"
+            <action id="XMake.Clean" class="io.xmake.actions.CleanAction" text="Clean Project"
                     icon="/icons/clean.png" description="Clean target and object files."/>
             <separator/>
             <reference id="editRunConfigurations"/>
-            <action id="XMake.CleanConfiguration" class="org.tboox.xmake.actions.CleanConfigurationAction"
+            <action id="XMake.CleanConfiguration" class="io.xmake.actions.CleanConfigurationAction"
                     text="Clean Configuration" icon="/icons/cleanconf.png"
                     description="Clean the current configuration."/>
             <separator/>
-            <action id="XMake.QuickStart" class="org.tboox.xmake.actions.QuickStartAction" text="Quick Start"
+            <action id="XMake.QuickStart" class="io.xmake.actions.QuickStartAction" text="Quick Start"
                     icon="/icons/quickstart.png" description="Quick start a new project."/>
         </group>
     </actions>
 
     <project-components>
         <component>
-            <implementation-class>org.tboox.xmake.shared.XMakeConfiguration</implementation-class>
+            <implementation-class>io.xmake.shared.XMakeConfiguration</implementation-class>
         </component>
     </project-components>
 </idea-plugin>
