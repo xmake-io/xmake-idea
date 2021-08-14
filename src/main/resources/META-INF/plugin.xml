@@ -43,6 +43,10 @@
     ]]></description>
 
     <change-notes><![CDATA[
+    <strong>1.0.8</strong>
+    <ul>
+        <li>[FIX]: Improve compatibility to support more versions</li>
+    </ul>
     <strong>1.0.7</strong>
     <ul>
         <li>[FIX]: Improve compatibility and add usage instruction</li>
