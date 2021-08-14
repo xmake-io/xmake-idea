@@ -13,8 +13,6 @@ apply{
     plugin("idea")
 }
 
-//group("io.xmake")
-//version("1.0.6")
 group = properties("pluginGroup")
 version = properties("pluginVersion")
 
