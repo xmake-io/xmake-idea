@@ -2,12 +2,12 @@
 <idea-plugin>
     <id>io.xmake</id>
     <name>XMake</name>
-    <version>1.0.6</version>
+    <version>1.0.7</version>
     <vendor email="waruqi@gmail.com" url="https://xmake.io">xmake.io</vendor>
 
     <description><![CDATA[
     A XMake integration plugin in Intellij Platform<br>
-    <p><a href="https://github.com/xmake-io/xmake-idea">Source Code</a> | <a href="https://gitter.im/tboox/tboox?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge">Gitter</a> | <a href="http://xmake.io/pages/donation.html#donate">Donate</a> | <a href="http://xmake.io">XMake Homepage</a></p>
+       <p><a href="https://github.com/xmake-io/xmake-idea">Source Code</a> | <a href="https://discord.gg/xmake">Discord</a> | <a href="https://xmake.io/#/about/sponsor">Donate</a> | <a href="http://xmake.io">XMake Homepage</a></p>
     Features:
     <ul>
         <li>xmake</li>
@@ -26,10 +26,27 @@
         <li>Build and run</li>
         <li>Goto error and waring problems</li>
     </ul>
+    Usage instruction:<br><br>
+    1. New project<br>
+    New -> Project -> Select Xmake -> Select project template<br>
+    <br>
+    2. Open existing project<br>
+    Open -> Select project folder with xmake.lua<br>
+    <br>
+    3. Build project<br>
+    Menu -> Xmake -> Click 'Build Project'<br>
+    <br>
+    4. Run Target<br>
+    Add run configuration -> Select Xmake -> Add run target
+    Menu -> Xmake -> Click 'Run Target'<br>
     <p>中国朋友可以加QQ群交流及反馈BUG: 343118190</p>
     ]]></description>
 
     <change-notes><![CDATA[
+    <strong>1.0.7</strong>
+    <ul>
+        <li>[FIX]: Improve compatibility and add usage instruction</li>
+    </ul>
     <strong>1.0.6</strong>
     <ul>
         <li>[NEW]: Support latest CLion and IDEA Intellij</li>
