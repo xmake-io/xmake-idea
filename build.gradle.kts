@@ -1,8 +1,10 @@
-fun properties(key:String) = project.findProperty(key).toString()
+fun properties(key: String) = project.findProperty(key).toString()
 
 plugins {
     id("java")
-    id("org.jetbrains.intellij") version "0.7.3"
+    //gradle-intellij-plugin
+    id("org.jetbrains.intellij") version "1.1.4"
+    //kotlin
     id("org.jetbrains.kotlin.jvm") version "1.5.10"
 }
 
@@ -28,24 +30,27 @@ dependencies {
 }
 
 // See https://github.com/JetBrains/gradle-intellij-plugin/
-/*
 intellij {
-    type "C"L
-    version = "CL-2021.1.2"
-    downloadSources false
-    plugins = ["com.intellij.cidr.base", "com.intellij.clion"]
-}*/
-
-tasks.withType<Test> {
-    useJUnitPlatform()
+    pluginName.set(properties("pluginName"))
+    version.set(properties("platformVersion"))
+    type.set(properties("platformType"))
+    downloadSources.set(true)
+    updateSinceUntilBuild.set(true)
+    plugins.set(properties("platformPlugins").split(',').map(String::trim).filter(String::isNotEmpty))
 }
 
-tasks.getByName("buildSearchableOptions").enabled = false
+tasks {
+    withType<Test> {
+        useJUnitPlatform()
+    }
+    getByName("buildSearchableOptions").enabled = false
+    patchPluginXml {
+        version.set(properties("pluginVersion"))
+        sinceBuild.set(properties("pluginSinceBuild"))
+        untilBuild.set(properties("pluginUntilBuild"))
+    }
 
-/*
-runPluginVerifier {
-    ideVersions(["IC-2018.1.8", "CL-2021.2"])
-    verifierPath("/home/filter-x/Downloads/Programs/verifier-cli-1.266-all.jar")
-    localPaths(["/home/filter-x/program/clion-2021.1.3","/home/filter-x/program/idea-IC-211.7628.21"])
-    runtimeDir("/usr/lib/jvm/java-11-openjdk-amd64")
-}*/
+    runPluginVerifier {
+        ideVersions.set(properties("pluginVerifierIdeVersions").split(',').map(String::trim).filter(String::isNotEmpty))
+    }
+}
