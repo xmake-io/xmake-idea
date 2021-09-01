@@ -1,6 +1,5 @@
 package io.xmake.project
 
-import XMakeSdkSettingsStep
 import com.intellij.ide.util.projectWizard.*
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.diagnostic.Logger

@@ -19,12 +19,13 @@ version = properties("pluginVersion")
 repositories {
     mavenCentral()
     maven("https://oss.sonatype.org/content/repositories/snapshots/")
+    maven("https://cache-redirector.jetbrains.com/intellij-dependencies")
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-stdlib")
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.7.0")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.7.0")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.5.21")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.7.2")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.7.2")
 }
 
 // See https://github.com/JetBrains/gradle-intellij-plugin/

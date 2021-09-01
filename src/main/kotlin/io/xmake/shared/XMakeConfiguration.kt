@@ -45,7 +45,7 @@ class XMakeConfiguration(// the project
         get() {
 
             // make parameters
-            val parameters = mutableListOf<String>("-r")
+            val parameters = mutableListOf("-r")
             if (data.verboseOutput) {
                 parameters.add("-v")
             } else {
@@ -61,7 +61,7 @@ class XMakeConfiguration(// the project
         get() {
 
             // make parameters
-            val parameters = mutableListOf<String>("c")
+            val parameters = mutableListOf("c")
             if (data.verboseOutput) {
                 parameters.add("-v")
             }
@@ -75,7 +75,7 @@ class XMakeConfiguration(// the project
         get() {
 
             // make parameters
-            val parameters = mutableListOf<String>("f", "-c")
+            val parameters = mutableListOf("f", "-c")
             if (data.verboseOutput) {
                 parameters.add("-v")
             }
@@ -93,7 +93,7 @@ class XMakeConfiguration(// the project
         get() {
 
             // make parameters
-            val parameters = mutableListOf<String>("f", "-p", data.currentPlatform, "-a", data.currentArchitecture, "-m", data.currentMode)
+            val parameters = mutableListOf("f", "-p", data.currentPlatform, "-a", data.currentArchitecture, "-m", data.currentMode)
             if (data.currentPlatform == "android" && data.androidNDKDirectory != "") {
                 parameters.add("--ndk=\"${data.androidNDKDirectory}\"")
             }
@@ -114,7 +114,7 @@ class XMakeConfiguration(// the project
         get() {
 
             // make parameters
-            val parameters = mutableListOf<String>("f", "-y")
+            val parameters = mutableListOf("f", "-y")
             if (data.verboseOutput) {
                 parameters.add("-v")
             }
