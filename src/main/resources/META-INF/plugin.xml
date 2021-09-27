@@ -91,7 +91,9 @@
     <!--    <depends>com.intellij.modules.java</depends>-->
     <depends>com.intellij.modules.lang</depends>
     <depends>com.intellij.modules.platform</depends>
-    <depends optional="true" config-file="clion-only.xml">com.intellij.modules.clion</depends>
+    <depends optional="true" config-file="../../../../clion/src/main/resources/META-INF/clion-only.xml">
+        com.intellij.modules.clion
+    </depends>
 
     <extensions defaultExtensionNs="com.intellij">
 
@@ -143,6 +145,13 @@
             <separator/>
             <action id="XMake.QuickStart" class="io.xmake.actions.QuickStartAction" text="Quick Start"
                     icon="/icons/quickstart.png" description="Quick start a new project."/>
+            <action id="XMake.UpdateCmakeLists" class="io.xmake.actions.UpdateCmakeListsAction" text="Update CmakeLists"
+                    description="Create or update the CmakeLists.txt.">
+                <keyboard-shortcut keymap="$default" first-keystroke="ctrl U" second-keystroke="ctrl alt U"/>
+            </action>
+            <action id="XMake.UpdateCompileCommands" class="io.xmake.actions.UpdateCompileCommandsAction"
+                    text="Update Compile Commands" description="Create or update  compile_commands.js.">
+            </action>
         </group>
     </actions>
 
