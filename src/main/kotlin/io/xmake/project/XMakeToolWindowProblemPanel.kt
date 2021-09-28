@@ -11,6 +11,7 @@ import com.intellij.ui.ColoredListCellRenderer
 import com.intellij.ui.JBColor
 import com.intellij.ui.SimpleTextAttributes
 import com.intellij.ui.components.JBList
+import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.layout.CCFlags
 import com.intellij.ui.layout.panel
 import io.xmake.icons.XMakeIcons
@@ -18,7 +19,6 @@ import io.xmake.shared.XMakeProblem
 import java.awt.Font
 import java.awt.event.MouseEvent
 import java.awt.event.MouseAdapter
-import javax.swing.JScrollPane
 import javax.swing.JList
 import java.io.File
 import javax.swing.ListSelectionModel
@@ -80,7 +80,7 @@ class XMakeToolWindowProblemPanel(project: Project) : SimpleToolWindowPanel(fals
     }
 
     // the problem pane
-    val problemPane = JScrollPane(problemList).apply {
+    val problemPane = JBScrollPane(problemList).apply {
         border = null
     }
 

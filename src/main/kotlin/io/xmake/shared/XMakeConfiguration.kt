@@ -45,7 +45,7 @@ class XMakeConfiguration(// the project
         get() {
 
             // make parameters
-            val parameters = mutableListOf<String>("-r")
+            val parameters = mutableListOf("-r")
             if (data.verboseOutput) {
                 parameters.add("-v")
             } else {
@@ -61,7 +61,7 @@ class XMakeConfiguration(// the project
         get() {
 
             // make parameters
-            val parameters = mutableListOf<String>("c")
+            val parameters = mutableListOf("c")
             if (data.verboseOutput) {
                 parameters.add("-v")
             }
@@ -75,7 +75,7 @@ class XMakeConfiguration(// the project
         get() {
 
             // make parameters
-            val parameters = mutableListOf<String>("f", "-c")
+            val parameters = mutableListOf("f", "-c")
             if (data.verboseOutput) {
                 parameters.add("-v")
             }
@@ -93,7 +93,8 @@ class XMakeConfiguration(// the project
         get() {
 
             // make parameters
-            val parameters = mutableListOf<String>("f", "-p", data.currentPlatform, "-a", data.currentArchitecture, "-m", data.currentMode)
+            val parameters =
+                mutableListOf("f", "-p", data.currentPlatform, "-a", data.currentArchitecture, "-m", data.currentMode)
             if (data.currentPlatform == "android" && data.androidNDKDirectory != "") {
                 parameters.add("--ndk=\"${data.androidNDKDirectory}\"")
             }
@@ -114,7 +115,7 @@ class XMakeConfiguration(// the project
         get() {
 
             // make parameters
-            val parameters = mutableListOf<String>("f", "-y")
+            val parameters = mutableListOf("f", "-y")
             if (data.verboseOutput) {
                 parameters.add("-v")
             }
@@ -123,13 +124,26 @@ class XMakeConfiguration(// the project
             return makeCommandLine(parameters)
         }
 
+    val updateCmakeListsCommandLine: GeneralCommandLine
+        get() = makeCommandLine(mutableListOf("project", "-k", "cmake", "-y"))
+
+    val updateCompileCommansLine: GeneralCommandLine
+        get() = makeCommandLine(mutableListOf("project", "-k", "compile_commands"))
+
     // the targets
     val targets: Array<String>
         get() {
 
             // make targets
             var targets = arrayOf("default", "all")
-            val results = SystemUtils.ioRunv(listOf(SystemUtils.xmakeProgram, "l", "-c", "import(\"core.project.config\"); import(\"core.project.project\"); config.load(); for name, _ in pairs((project.targets())) do print(name) end"), data.workingDirectory)
+            val results = SystemUtils.ioRunv(
+                listOf(
+                    SystemUtils.xmakeProgram,
+                    "l",
+                    "-c",
+                    "import(\"core.project.config\"); import(\"core.project.project\"); config.load(); for name, _ in pairs((project.targets())) do print(name) end"
+                ), data.workingDirectory
+            )
             results.split("\n").forEach {
                 if (it.trim() != "") {
                     targets += it
@@ -147,14 +161,14 @@ class XMakeConfiguration(// the project
         get() = _data
         set(value) {
             val newState = State(
-                    currentPlatform = value.currentPlatform,
-                    currentArchitecture = value.currentArchitecture,
-                    currentMode = value.currentMode,
-                    workingDirectory = value.workingDirectory,
-                    androidNDKDirectory = value.androidNDKDirectory,
-                    buildOutputDirectory = value.buildOutputDirectory,
-                    verboseOutput = value.verboseOutput,
-                    additionalConfiguration = value.additionalConfiguration
+                currentPlatform = value.currentPlatform,
+                currentArchitecture = value.currentArchitecture,
+                currentMode = value.currentMode,
+                workingDirectory = value.workingDirectory,
+                androidNDKDirectory = value.androidNDKDirectory,
+                buildOutputDirectory = value.buildOutputDirectory,
+                verboseOutput = value.verboseOutput,
+                additionalConfiguration = value.additionalConfiguration
             )
             if (_data != newState) {
                 _data = newState
@@ -163,18 +177,21 @@ class XMakeConfiguration(// the project
         }
 
     // make command line
-    fun makeCommandLine(parameters: List<String>, environmentVariables: EnvironmentVariablesData = EnvironmentVariablesData.DEFAULT): GeneralCommandLine {
+    fun makeCommandLine(
+        parameters: List<String>,
+        environmentVariables: EnvironmentVariablesData = EnvironmentVariablesData.DEFAULT
+    ): GeneralCommandLine {
 
         // make command
         return GeneralCommandLine(SystemUtils.xmakeProgram)
-                .withParameters(parameters)
-                .withCharset(Charsets.UTF_8)
-                .withWorkDirectory(data.workingDirectory)
-                .withEnvironment(environmentVariables.envs)
-                .withRedirectErrorStream(true)
+            .withParameters(parameters)
+            .withCharset(Charsets.UTF_8)
+            .withWorkDirectory(data.workingDirectory)
+            .withEnvironment(environmentVariables.envs)
+            .withRedirectErrorStream(true)
     }
 
-    data class State (
+    data class State(
         var currentPlatform: String = SystemUtils.platform(),
         var currentArchitecture: String = "",
         var currentMode: String = "release",
@@ -244,5 +261,5 @@ class XMakeConfiguration(// the project
 
 val Project.xmakeConfiguration: XMakeConfiguration
     get() = this.getComponent(XMakeConfiguration::class.java)
-            ?: error("Failed to get XMakeConfiguration for $this")
+        ?: error("Failed to get XMakeConfiguration for $this")
 

@@ -6,8 +6,9 @@ import com.intellij.execution.process.ProcessEvent
 import com.intellij.execution.process.ProcessHandler
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.util.SystemInfo
-import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.vfs.VirtualFile
 import io.xmake.project.xmakeConsoleView
 import io.xmake.project.xmakeOutputPanel
 import io.xmake.project.xmakeProblemList
@@ -17,17 +18,19 @@ import java.io.BufferedReader
 import java.io.IOException
 import java.io.InputStreamReader
 import java.io.File
+import java.nio.file.Path
+import java.nio.file.Paths
 import java.util.regex.Pattern
 
 
 object SystemUtils {
 
     // the log
-    private val Log = Logger.getInstance(SystemUtils::class.java.getName())
+    private val LOG = logger<SystemUtils>()
 
     // the xmake program
-    private var _xmakeProgram:String = ""
-    var xmakeProgram:String
+    private var _xmakeProgram: String = ""
+    var xmakeProgram: String
         get() {
 
             // cached? return it directly
@@ -42,7 +45,12 @@ object SystemUtils {
             }
 
             // attempt to get xmake program
-            val programs = arrayOf("xmake", (System.getenv("HOME") ?: "") + "/.local/bin/xmake", "/usr/local/bin/xmake", "/usr/bin/xmake")
+            val programs = arrayOf(
+                "xmake",
+                (System.getenv("HOME") ?: "") + "/.local/bin/xmake",
+                "/usr/local/bin/xmake",
+                "/usr/bin/xmake"
+            )
             for (program in programs) {
                 if (program == "xmake" || File(program).exists()) {
 
@@ -61,6 +69,7 @@ object SystemUtils {
                         }
 
                     } catch (e: IOException) {
+                        LOG.error(e)
                         e.printStackTrace()
                     }
                 }
@@ -69,11 +78,13 @@ object SystemUtils {
             // ok?
             return _xmakeProgram
         }
-        set(value) { _xmakeProgram = value }
+        set(value) {
+            _xmakeProgram = value
+        }
 
     // the xmake version
-    private var _xmakeVersion:String = ""
-    var xmakeVersion:String
+    private var _xmakeVersion: String = ""
+    var xmakeVersion: String
         get() {
             if (_xmakeVersion == "") {
                 val result = ioRunv(listOf(xmakeProgram, "--version")).split(',')
@@ -83,7 +94,9 @@ object SystemUtils {
             }
             return _xmakeVersion
         }
-        set(value) { _xmakeVersion = value }
+        set(value) {
+            _xmakeVersion = value
+        }
 
     // get platform
     fun platform(): String = when {
@@ -211,7 +224,13 @@ object SystemUtils {
     }
 
     // run process in console
-    fun runvInConsole(project: Project, commandLine: GeneralCommandLine, showConsole: Boolean = true, showProblem: Boolean = false, showExitCode: Boolean = false): ProcessHandler {
+    fun runvInConsole(
+        project: Project,
+        commandLine: GeneralCommandLine,
+        showConsole: Boolean = true,
+        showProblem: Boolean = false,
+        showExitCode: Boolean = false
+    ): ProcessHandler {
 
         // create handler
         val handler = ConsoleProcessHandler(project.xmakeConsoleView, commandLine, showExitCode)
@@ -252,3 +271,5 @@ object SystemUtils {
         return handler
     }
 }
+
+val VirtualFile.pathAsPath: Path get() = Paths.get(path)

@@ -1,3 +1,5 @@
+package io.xmake.project
+
 import com.intellij.ide.util.projectWizard.ModuleBuilder
 import com.intellij.ide.util.projectWizard.ModuleWizardStep
 import com.intellij.ide.util.projectWizard.WizardContext
@@ -6,8 +8,6 @@ import com.intellij.openapi.roots.ModifiableRootModel
 import com.intellij.ui.layout.panel
 import javax.swing.JComponent
 import com.intellij.openapi.util.Disposer
-import io.xmake.project.XMakeModuleBuilder
-import io.xmake.project.XMakeNewProjectPanel
 
 
 class XMakeSdkSettingsStep(

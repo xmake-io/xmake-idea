@@ -2,9 +2,8 @@
 <idea-plugin>
     <id>io.xmake</id>
     <name>XMake</name>
-    <version>1.0.7</version>
+    <version>1.0.8</version>
     <vendor email="waruqi@gmail.com" url="https://xmake.io">xmake.io</vendor>
-
     <description><![CDATA[
     A XMake integration plugin in Intellij Platform<br>
     <p><a href="https://github.com/xmake-io/xmake-idea">Source Code</a> | <a href="https://discord.gg/xmake">Discord</a> | <a href="https://xmake.io/#/about/sponsor">Donate</a> | <a href="http://xmake.io">XMake Homepage</a></p>
@@ -85,14 +84,16 @@
     </change-notes>
 
     <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/build_number_ranges.html for description -->
-    <idea-version since-build="201.0"/>
+    <idea-version since-build="201.0" until-build="212.*"/>
 
     <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/plugin_compatibility.html
          on how to target different products -->
     <!--    <depends>com.intellij.modules.java</depends>-->
     <depends>com.intellij.modules.lang</depends>
     <depends>com.intellij.modules.platform</depends>
-    <depends optional="true" config-file="clion-only.xml">com.intellij.modules.clion</depends>
+    <depends optional="true" config-file="../../../../clion/src/main/resources/META-INF/clion-only.xml">
+        com.intellij.modules.clion
+    </depends>
 
     <extensions defaultExtensionNs="com.intellij">
 
@@ -144,6 +145,13 @@
             <separator/>
             <action id="XMake.QuickStart" class="io.xmake.actions.QuickStartAction" text="Quick Start"
                     icon="/icons/quickstart.png" description="Quick start a new project."/>
+            <action id="XMake.UpdateCmakeLists" class="io.xmake.actions.UpdateCmakeListsAction" text="Update CmakeLists"
+                    description="Create or update the CmakeLists.txt.">
+                <keyboard-shortcut keymap="$default" first-keystroke="ctrl U" second-keystroke="ctrl alt U"/>
+            </action>
+            <action id="XMake.UpdateCompileCommands" class="io.xmake.actions.UpdateCompileCommandsAction"
+                    text="Update Compile Commands" description="Create or update  compile_commands.js.">
+            </action>
         </group>
     </actions>
 

@@ -1,12 +1,16 @@
 package io.xmake.run
 
 import com.intellij.execution.actions.ConfigurationContext
-import com.intellij.execution.actions.RunConfigurationProducer
+import com.intellij.execution.actions.LazyRunConfigurationProducer
+import com.intellij.execution.configurations.ConfigurationFactory
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.util.Ref
 import com.intellij.psi.PsiElement
 
-class XMakeRunConfigurationProducer : RunConfigurationProducer<XMakeRunConfiguration>(XMakeRunConfigurationType()) {
+class XMakeRunConfigurationProducer : LazyRunConfigurationProducer<XMakeRunConfiguration>() {
+    override fun getConfigurationFactory(): ConfigurationFactory {
+        return XMakeRunConfigurationType.getInstance().factory
+    }
 
     override fun isConfigurationFromContext(
             configuration: XMakeRunConfiguration,
