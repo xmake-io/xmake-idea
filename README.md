@@ -6,11 +6,11 @@
   <h1>xmake-idea</h1>
 
   <div>
-    <a href="https://plugins.jetbrains.com/plugin/10156-xmake">
-      <img src="https://img.shields.io/jetbrains/plugin/v/10156-xmake.svg?style=flat-square" alt="Version" />
+    <a href="https://plugins.jetbrains.com/plugin/17406-xmake">
+      <img src="https://img.shields.io/jetbrains/plugin/v/17406-xmake.svg?style=flat-square" alt="Version" />
     </a>
-    <a href="https://plugins.jetbrains.com/plugin/10156-xmake">
-      <img src="https://img.shields.io/jetbrains/plugin/d/10156-xmake.svg?style=flat-square" alt="Downloads" />
+    <a href="https://plugins.jetbrains.com/plugin/17406-xmake">
+      <img src="https://img.shields.io/jetbrains/plugin/d/17406-xmake.svg?style=flat-square" alt="Downloads" />
     </a>
     <a href="https://github.com/xmake-io/xmake-idea/blob/master/LICENSE.md">
       <img src="https://img.shields.io/github/license/tboox/xmake-idea.svg?colorB=f48041&style=flat-square" alt="license" />
