@@ -62,6 +62,8 @@ Please see [xmake-github](https://github.com/xmake-io/xmake) and [website](http:
 * Tool windows
 * Build and run
 * Parse errors and goto file
+* C/C++ intellisense
+* Debug
  
 ## Quickstart
 
@@ -98,6 +100,21 @@ Please see [xmake-github](https://github.com/xmake-io/xmake) and [website](http:
 <div align="center">
 <img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/menu.png" width="80%" />
 </div>
+
+## C/C++ intellisense
+> Only support CLion (>= 2020.1)
+
+1. Click "Update compile commands" to create or update "compile_commands.json" file
+2. Click "File > open..." to choose this file.
+
+## Debug
+> Only support Clion (>= 2020.1)
+
+1. Click "Update CmakeLists" to create or update "CmakeLists.txt" file.
+2. Click "File > open..." to choose this file.
+3. Choose "Run > Debug..." or "Run > Debug 'project name'" into debug mode.
+
+
  
 
   
