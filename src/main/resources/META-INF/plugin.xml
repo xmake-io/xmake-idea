@@ -146,11 +146,11 @@
             <action id="XMake.QuickStart" class="io.xmake.actions.QuickStartAction" text="Quick Start"
                     icon="/icons/quickstart.png" description="Quick start a new project."/>
             <action id="XMake.UpdateCmakeLists" class="io.xmake.actions.UpdateCmakeListsAction" text="Update CmakeLists"
-                    description="Create or update the CmakeLists.txt.">
-                <keyboard-shortcut keymap="$default" first-keystroke="ctrl U" second-keystroke="ctrl alt U"/>
+                    icon="/icons/update.svg" description="Create or update the CmakeLists.txt.">
+                <keyboard-shortcut keymap="$default" first-keystroke="alt U" />
             </action>
             <action id="XMake.UpdateCompileCommands" class="io.xmake.actions.UpdateCompileCommandsAction"
-                    text="Update Compile Commands" description="Create or update  compile_commands.js.">
+                    text="Update Compile Commands" icon="/icons/update.svg" description="Create or update  compile_commands.js.">
             </action>
         </group>
     </actions>
