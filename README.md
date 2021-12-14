@@ -126,7 +126,11 @@ Use IDEA Intellji open this project source code, and click `Build` button.
 
 Open and edit `Run configuration`, and add a gradle run configuration, then write run arguments: `runIde --stacktrace` and save it.
 
+<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/edit_configuration.png" width="100%" />
+
 Select this run configuration and click run button to load it.
+
+<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/run_plugin.png" width="100%" />
 
 For more details, please visit: [CONTRIBUTING](https://github.com/xmake-io/xmake-idea/blob/master/CONTRIBUTING.md)
 
