@@ -1,7 +1,7 @@
 <div align="center">
   <a href="http://xmake.io">
     <img width="200" heigth="200" src="https://github.com/xmake-io/xmake-idea/raw/master/res/logo256.png">
-  </a>  
+  </a>
 
   <h1>xmake-idea</h1>
 
@@ -40,9 +40,9 @@
   <p>A XMake integration in IntelliJ IDEA</p>
 </div>
 
-## Introduction 
+## Introduction
 
-A XMake integration in IntelliJ IDEA. 
+A XMake integration in IntelliJ IDEA.
 
 It is deeply integrated with [xmake](https://github.com/xmake-io/xmake) and Intellij-IDEA to provide a convenient and fast cross-platform c/c++ development and building.
 
@@ -64,7 +64,7 @@ Please see [xmake-github](https://github.com/xmake-io/xmake) and [website](http:
 * Parse errors and goto file
 * C/C++ intellisense
 * Debug
- 
+
 ## Quickstart
 
 <div align="center">
@@ -72,17 +72,15 @@ Please see [xmake-github](https://github.com/xmake-io/xmake) and [website](http:
 </div>
 
 ## Parse errors and goto file
- 
+
 <div align="center">
 <img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/problem.gif" width="80%" />
 </div>
 
-## Tool windows
-
-#### Output panel
+## Output panel
 
 <img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/output_panel.png" width="100%" />
- 
+
 ## Create project
 
 <img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/create_project.png" width="100%" />
@@ -102,19 +100,33 @@ Please see [xmake-github](https://github.com/xmake-io/xmake) and [website](http:
 </div>
 
 ## C/C++ intellisense
+
 > Only support CLion (>= 2020.1)
 
 1. Click "Update compile commands" to create or update "compile_commands.json" file
 2. Click "File > open..." to choose this file.
 
 ## Debug
+
 > Only support Clion (>= 2020.1)
 
 1. Click "Update CmakeLists" to create or update "CmakeLists.txt" file.
 2. Click "File > open..." to choose this file.
 3. Choose "Run > Debug..." or "Run > Debug 'project name'" into debug mode.
 
+## How to contribute?
 
- 
+Due to limited personal time, I cannot maintain this plug-in all the time. If you encounter problems, you are welcome to download the plug-in source code to debug it yourself and open pr to contribute.
 
-  
+### Build this project
+
+Use IDEA Intellji open this project source code, and click `Build` button.
+
+### Run and debug this project
+
+Open and edit `Run configuration`, and add a gradle run configuration, then write run arguments: `runIde --stacktrace` and save it.
+
+Select this run configuration and click run button to load it.
+
+For more details, please visit: [CONTRIBUTING](https://github.com/xmake-io/xmake-idea/blob/master/CONTRIBUTING.md)
+
