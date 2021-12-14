@@ -130,7 +130,7 @@ Open and edit `Run configuration`, and add a gradle run configuration, then writ
 
 Select this run configuration and click run button to load it.
 
-<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/run_plugin.png" width="50%" />
+<img src="https://raw.githubusercontent.com/tboox/xmake-idea/master/res/run_plugin.png" width="20%" />
 
 For more details, please visit: [CONTRIBUTING](https://github.com/xmake-io/xmake-idea/blob/master/CONTRIBUTING.md)
 
