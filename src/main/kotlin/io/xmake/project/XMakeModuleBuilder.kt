@@ -32,8 +32,10 @@ class XMakeModuleBuilder : ModuleBuilder() {
             LocalFileSystem.getInstance().refreshAndFindFileByPath(FileUtil.toSystemIndependentName(contentEntryPath))!!
         contentEntry.addSourceFolder(sourceRoot, false)
 
-        // create empty project
-        SystemUtils.Runv(
+        /* create empty project
+         * @note we muse use ioRunv instead of Runv to read all output, otherwise it will wait forever on windows
+         */
+        SystemUtils.ioRunv(
             listOf(
                 SystemUtils.xmakeProgram,
                 "create",

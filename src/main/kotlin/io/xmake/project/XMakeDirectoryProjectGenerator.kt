@@ -29,8 +29,10 @@ class XMakeDirectoryProjectGenerator : DirectoryProjectGeneratorBase<XMakeConfig
         // get content entry path
         val contentEntryPath = baseDir.canonicalPath ?: return
 
-        // create empty project
-        SystemUtils.Runv(
+        /* create empty project
+         * @note we muse use ioRunv instead of Runv to read all output, otherwise it will wait forever on windows
+         */
+        SystemUtils.ioRunv(
             listOf(
                 SystemUtils.xmakeProgram,
                 "create",
