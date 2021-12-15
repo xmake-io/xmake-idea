@@ -204,7 +204,7 @@ class XMakeConfiguration(// the project
     )
 
     // ensure state
-    fun ensureState() {
+    private fun ensureState() {
         if (data.workingDirectory == "") {
             data.workingDirectory = project.basePath.toString()
         }
@@ -262,4 +262,7 @@ class XMakeConfiguration(// the project
 val Project.xmakeConfiguration: XMakeConfiguration
     get() = this.getComponent(XMakeConfiguration::class.java)
         ?: error("Failed to get XMakeConfiguration for $this")
+
+val Project.xmakeConfigurationOrNull: XMakeConfiguration?
+    get() = this.getComponent(XMakeConfiguration::class.java) ?: null
 

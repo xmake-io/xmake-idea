@@ -10,6 +10,7 @@ import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.vfs.LocalFileSystem
 import io.xmake.utils.SystemUtils
+import java.io.File
 
 
 class XMakeModuleBuilder : ModuleBuilder() {
@@ -35,18 +36,24 @@ class XMakeModuleBuilder : ModuleBuilder() {
         /* create empty project
          * @note we muse use ioRunv instead of Runv to read all output, otherwise it will wait forever on windows
          */
+        val tmpdir = "$contentEntryPath.dir"
         SystemUtils.ioRunv(
             listOf(
                 SystemUtils.xmakeProgram,
                 "create",
                 "-P",
-                contentEntryPath,
+                tmpdir,
                 "-l",
                 configurationData?.languagesModel.toString(),
                 "-t",
                 configurationData?.kindsModel.toString()
             )
         )
+        val tmpFile = File(tmpdir)
+        if (tmpFile.exists()) {
+            tmpFile.copyRecursively(File(contentEntryPath), true)
+            tmpFile.deleteRecursively()
+        }
     }
 
     override fun getModuleType(): ModuleType<*> {

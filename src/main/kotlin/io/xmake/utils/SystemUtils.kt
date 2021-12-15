@@ -6,13 +6,9 @@ import com.intellij.execution.process.ProcessEvent
 import com.intellij.execution.process.ProcessHandler
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.util.SystemInfo
-import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
-import io.xmake.project.xmakeConsoleView
-import io.xmake.project.xmakeOutputPanel
-import io.xmake.project.xmakeProblemList
-import io.xmake.project.xmakeToolWindow
+import io.xmake.project.*
 import io.xmake.shared.XMakeProblem
 import java.io.BufferedReader
 import java.io.IOException
@@ -22,11 +18,7 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.regex.Pattern
 
-
 object SystemUtils {
-
-    // the log
-    private val LOG = logger<SystemUtils>()
 
     // the xmake program
     private var _xmakeProgram: String = ""
@@ -53,29 +45,13 @@ object SystemUtils {
             )
             for (program in programs) {
                 if (program == "xmake" || File(program).exists()) {
-
-                    try {
-
-                        // init process builder
-                        val processBuilder = ProcessBuilder(listOf(program, "--version"))
-
-                        // run process
-                        val process = processBuilder.start()
-
-                        // wait for process
-                        if (process.waitFor() == 0) {
-                            _xmakeProgram = program
-                            break
-                        }
-
-                    } catch (e: IOException) {
-                        LOG.error(e)
-                        e.printStackTrace()
+                    val result = ioRunv(listOf(program, "--version"))
+                    if (result.isNotEmpty()) {
+                        _xmakeProgram = program
+                        break
                     }
                 }
             }
-
-            // ok?
             return _xmakeProgram
         }
         set(value) {
@@ -88,7 +64,7 @@ object SystemUtils {
         get() {
             if (_xmakeVersion == "") {
                 val result = ioRunv(listOf(xmakeProgram, "--version")).split(',')
-                if (result.size > 0) {
+                if (result.isNotEmpty()) {
                     _xmakeVersion = result[0]
                 }
             }
@@ -129,8 +105,6 @@ object SystemUtils {
             e.printStackTrace()
         } finally {
         }
-
-        // ok?
         return code
     }
 
@@ -182,8 +156,6 @@ object SystemUtils {
 
             }
         }
-
-        // ok?
         return result
     }
 

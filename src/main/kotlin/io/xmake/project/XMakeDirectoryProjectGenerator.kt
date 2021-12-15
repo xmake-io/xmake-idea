@@ -32,18 +32,24 @@ class XMakeDirectoryProjectGenerator : DirectoryProjectGeneratorBase<XMakeConfig
         /* create empty project
          * @note we muse use ioRunv instead of Runv to read all output, otherwise it will wait forever on windows
          */
+        val tmpdir = "$contentEntryPath.dir"
         SystemUtils.ioRunv(
             listOf(
                 SystemUtils.xmakeProgram,
                 "create",
                 "-P",
-                contentEntryPath,
+                tmpdir,
                 "-l",
-                data.languagesModel,
+                data?.languagesModel.toString(),
                 "-t",
-                data.kindsModel
+                data?.kindsModel.toString()
             )
         )
+        val tmpFile = File(tmpdir)
+        if (tmpFile.exists()) {
+            tmpFile.copyRecursively(File(contentEntryPath), true)
+            tmpFile.deleteRecursively()
+        }
     }
 
     override fun createStep(

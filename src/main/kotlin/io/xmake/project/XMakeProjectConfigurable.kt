@@ -17,6 +17,7 @@ import com.intellij.ui.layout.Row
 import com.intellij.ui.layout.panel
 import io.xmake.shared.XMakeConfiguration
 import io.xmake.shared.xmakeConfiguration
+import io.xmake.shared.xmakeConfigurationOrNull
 import java.awt.Dimension
 import javax.swing.JComponent
 import javax.swing.JPanel
@@ -28,15 +29,14 @@ import java.awt.event.KeyEvent
 import java.awt.event.KeyListener
 import java.awt.event.ItemEvent
 import java.awt.event.ItemListener
+import java.io.IOException
 
 class XMakeProjectConfigurable(
         project: Project
 ) : Configurable, Configurable.NoScroll {
 
-    // the xmake configuration
-    val xmakeConfiguration = project.xmakeConfiguration
-
     // the platforms ui
+    private val project = project
     private val platformsModel = DefaultComboBoxModel<String>()
     private val platformsComboBox = ComboBox<String>(platformsModel)
 
@@ -188,72 +188,78 @@ class XMakeProjectConfigurable(
     }
 
     override fun reset() {
+        val xmakeConfiguration = project.xmakeConfigurationOrNull
+        if (xmakeConfiguration != null) {
+            // reset platforms
+            platformsModel.removeAllElements()
+            for (platform in xmakeConfiguration.platforms) {
+                platformsModel.addElement(platform)
+            }
+            platformsModel.selectedItem = xmakeConfiguration.data.currentPlatform
 
-        // reset platforms
-        platformsModel.removeAllElements()
-        for (platform in xmakeConfiguration.platforms) {
-            platformsModel.addElement(platform)
+            // reset architectures
+            architecturesModel.removeAllElements()
+            for (architecture in xmakeConfiguration.architectures) {
+                architecturesModel.addElement(architecture)
+            }
+            architecturesModel.selectedItem = xmakeConfiguration.data.currentArchitecture
+
+            // reset modes
+            modesModel.removeAllElements()
+            for (mode in xmakeConfiguration.modes) {
+                modesModel.addElement(mode)
+            }
+            modesModel.selectedItem = xmakeConfiguration.data.currentMode
+
+            // reset additional configuration
+            additionalConfiguration.text = xmakeConfiguration.data.additionalConfiguration
+
+            // reset working directory
+            workingDirectory.component.text = xmakeConfiguration.data.workingDirectory
+
+            // reset build output directory
+            buildOutputDirectory.component.text = xmakeConfiguration.data.buildOutputDirectory
+
+            // reset android ndk directory
+            androidNDKDirectory.component.text = xmakeConfiguration.data.androidNDKDirectory
+
+            // reset verbose output
+            verboseOutput.isSelected = xmakeConfiguration.data.verboseOutput
+
+            // reset configuration command text
+            configurationCommandText.text = previewConfigurationCommand
         }
-        platformsModel.selectedItem = xmakeConfiguration.data.currentPlatform
-
-        // reset architectures
-        architecturesModel.removeAllElements()
-        for (architecture in xmakeConfiguration.architectures) {
-            architecturesModel.addElement(architecture)
-        }
-        architecturesModel.selectedItem = xmakeConfiguration.data.currentArchitecture
-
-        // reset modes
-        modesModel.removeAllElements()
-        for (mode in xmakeConfiguration.modes) {
-            modesModel.addElement(mode)
-        }
-        modesModel.selectedItem = xmakeConfiguration.data.currentMode
-
-        // reset additional configuration
-        additionalConfiguration.text = xmakeConfiguration.data.additionalConfiguration
-
-        // reset working directory
-        workingDirectory.component.text = xmakeConfiguration.data.workingDirectory
-
-        // reset build output directory
-        buildOutputDirectory.component.text = xmakeConfiguration.data.buildOutputDirectory
-
-        // reset android ndk directory
-        androidNDKDirectory.component.text = xmakeConfiguration.data.androidNDKDirectory
-
-        // reset verbose output
-        verboseOutput.isSelected = xmakeConfiguration.data.verboseOutput
-
-        // reset configuration command text
-        configurationCommandText.text = previewConfigurationCommand
     }
 
     @Throws(ConfigurationException::class)
     override fun apply() {
-
-        xmakeConfiguration.data.currentPlatform         = platformsModel.selectedItem.toString()
-        xmakeConfiguration.data.currentArchitecture     = architecturesModel.selectedItem.toString()
-        xmakeConfiguration.data.currentMode             = modesModel.selectedItem.toString()
-        xmakeConfiguration.data.additionalConfiguration = additionalConfiguration.text
-        xmakeConfiguration.data.workingDirectory        = workingDirectory.component.text
-        xmakeConfiguration.data.buildOutputDirectory    = buildOutputDirectory.component.text
-        xmakeConfiguration.data.androidNDKDirectory     = androidNDKDirectory.component.text
-        xmakeConfiguration.data.verboseOutput           = verboseOutput.isSelected
+        val xmakeConfiguration = project.xmakeConfigurationOrNull
+        if (xmakeConfiguration != null) {
+            xmakeConfiguration.data.currentPlatform = platformsModel.selectedItem.toString()
+            xmakeConfiguration.data.currentArchitecture = architecturesModel.selectedItem.toString()
+            xmakeConfiguration.data.currentMode = modesModel.selectedItem.toString()
+            xmakeConfiguration.data.additionalConfiguration = additionalConfiguration.text
+            xmakeConfiguration.data.workingDirectory = workingDirectory.component.text
+            xmakeConfiguration.data.buildOutputDirectory = buildOutputDirectory.component.text
+            xmakeConfiguration.data.androidNDKDirectory = androidNDKDirectory.component.text
+            xmakeConfiguration.data.verboseOutput = verboseOutput.isSelected
+        }
     }
 
     override fun isModified(): Boolean {
-
-        if (xmakeConfiguration.data.currentPlatform != platformsModel.selectedItem.toString() ||
-            xmakeConfiguration.data.currentArchitecture != architecturesModel.selectedItem.toString() ||
-            xmakeConfiguration.data.currentMode != modesModel.selectedItem.toString() ||
-            xmakeConfiguration.data.additionalConfiguration != additionalConfiguration.text ||
-            xmakeConfiguration.data.workingDirectory != workingDirectory.component.text ||
-            xmakeConfiguration.data.buildOutputDirectory != buildOutputDirectory.component.text ||
-            xmakeConfiguration.data.androidNDKDirectory != androidNDKDirectory.component.text ||
-            xmakeConfiguration.data.verboseOutput != verboseOutput.isSelected) {
-            xmakeConfiguration.changed = true
-            return true
+        val xmakeConfiguration = project.xmakeConfigurationOrNull
+        if (xmakeConfiguration != null) {
+            if (xmakeConfiguration.data.currentPlatform != platformsModel.selectedItem.toString() ||
+                xmakeConfiguration.data.currentArchitecture != architecturesModel.selectedItem.toString() ||
+                xmakeConfiguration.data.currentMode != modesModel.selectedItem.toString() ||
+                xmakeConfiguration.data.additionalConfiguration != additionalConfiguration.text ||
+                xmakeConfiguration.data.workingDirectory != workingDirectory.component.text ||
+                xmakeConfiguration.data.buildOutputDirectory != buildOutputDirectory.component.text ||
+                xmakeConfiguration.data.androidNDKDirectory != androidNDKDirectory.component.text ||
+                xmakeConfiguration.data.verboseOutput != verboseOutput.isSelected) {
+                xmakeConfiguration.changed = true
+                return true
+            }
         }
         return false
     }
@@ -298,8 +304,6 @@ class XMakeProjectConfigurable(
         }
 
     companion object {
-
-        // get log
         private val Log = Logger.getInstance(XMakeProjectConfigurable::class.java.getName())
     }
 }
