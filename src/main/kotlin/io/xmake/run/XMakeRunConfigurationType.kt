@@ -33,6 +33,11 @@ class XMakeRunConfigurationType : ConfigurationTypeBase(
 //                }
             }
 
+            // This value gets written to the config file. By default it defers to getName, however,
+            // the value needs to be kept the same even if the display name changes in the future
+            // in order to maintain compatibility with older configs.
+            override fun getId() = "Start and Debug"
+
             override fun isConfigurationSingletonByDefault(): Boolean = true
         })
     }
