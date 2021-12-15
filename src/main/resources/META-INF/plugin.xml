@@ -42,6 +42,10 @@
     ]]></description>
 
     <change-notes><![CDATA[
+    <strong>1.1.3</strong>
+    <ul>
+        <li>[FIX]: Fix deprecated api warning </li>
+    </ul>
     <strong>1.1.2</strong>
     <ul>
         <li>[FIX]: Fix bug for windows </li>
