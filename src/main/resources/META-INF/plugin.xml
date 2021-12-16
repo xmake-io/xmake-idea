@@ -42,6 +42,10 @@
     ]]></description>
 
     <change-notes><![CDATA[
+    <strong>1.1.5</strong>
+    <ul>
+        <li>[FIX]: Fix create project </li>
+    </ul>
     <strong>1.1.4</strong>
     <ul>
         <li>[FIX]: Fix deprecated api warning again </li>
