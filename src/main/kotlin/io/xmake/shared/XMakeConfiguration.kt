@@ -246,7 +246,7 @@ class XMakeConfiguration(// the project
 
         // get architectures by platform
         fun getArchitecturesByPlatform(platform: String) = when (platform) {
-            "macosx", "linux", "mingw" -> arrayOf("x86_64", "i386")
+            "macosx", "linux", "mingw" -> arrayOf("x86_64", "i386", "arm64")
             "windows" -> arrayOf("x86", "x64")
             "iphoneos" -> arrayOf("arm64", "armv7", "armv7s", "x86_64", "i386")
             "watchos" -> arrayOf("armv7s", "i386")
