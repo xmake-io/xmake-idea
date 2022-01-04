@@ -94,7 +94,7 @@ class XMakeConfiguration(// the project
 
             // make parameters
             val parameters =
-                mutableListOf("f", "-p", data.currentPlatform, "-a", data.currentArchitecture, "-m", data.currentMode)
+                mutableListOf("f", "-y", "-p", data.currentPlatform, "-a", data.currentArchitecture, "-m", data.currentMode)
             if (data.currentPlatform == "android" && data.androidNDKDirectory != "") {
                 parameters.add("--ndk=\"${data.androidNDKDirectory}\"")
             }
