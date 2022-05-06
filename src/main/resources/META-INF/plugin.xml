@@ -2,7 +2,7 @@
 <idea-plugin>
     <id>io.xmake</id>
     <name>XMake</name>
-    <version>1.1.2</version>
+    <version>1.1.7</version>
     <vendor email="waruqi@gmail.com" url="https://xmake.io">xmake.io</vendor>
     <description><![CDATA[
     A XMake integration plugin in Intellij Platform<br>
@@ -42,6 +42,10 @@
     ]]></description>
 
     <change-notes><![CDATA[
+    <strong>1.1.7</strong>
+    <ul>
+        <li>[FIX]: Update Clion version </li>
+    </ul>
     <strong>1.1.6</strong>
     <ul>
         <li>[FIX]: Improve configuration </li>
