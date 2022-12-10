@@ -59,7 +59,10 @@ class XMakeNewProjectPanel : Disposable {
         row("XMake SDK:") {
             val project = ProjectManager.getInstance().defaultProject
             val sdkModel = ProjectSdksModel()
-            sdkModel.addSdk(XMakeSdkType.instance, XMakeSdkType.instance.suggestHomePath()!!, null)
+            val xmakeProgram = XMakeSdkType.instance.suggestHomePath()
+            if (xmakeProgram != null) {
+                sdkModel.addSdk(XMakeSdkType.instance, xmakeProgram, null)
+            }
             val myJdkComboBox = SdkComboBox(SdkComboBoxModel.createSdkComboBoxModel(project, sdkModel))
             wrapComponent(myJdkComboBox)(growX, pushX)
         }
