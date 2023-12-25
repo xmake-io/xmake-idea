@@ -29,7 +29,7 @@ class XMakeConfiguration(// the project
         get() {
 
             // make parameters
-            val parameters = mutableListOf<String>()
+            val parameters = mutableListOf<String>("-y")
             if (data.verboseOutput) {
                 parameters.add("-v")
             } else {
@@ -45,7 +45,7 @@ class XMakeConfiguration(// the project
         get() {
 
             // make parameters
-            val parameters = mutableListOf("-r")
+            val parameters = mutableListOf("-r", "-y")
             if (data.verboseOutput) {
                 parameters.add("-v")
             } else {
@@ -75,7 +75,7 @@ class XMakeConfiguration(// the project
         get() {
 
             // make parameters
-            val parameters = mutableListOf("f", "-c")
+            val parameters = mutableListOf("f", "-c", "-y")
             if (data.verboseOutput) {
                 parameters.add("-v")
             }
