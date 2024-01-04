@@ -13,12 +13,12 @@ class XMakeToolWindowFactory : ToolWindowFactory {
 
         // add output tab/panel
         val toolwindowOutputPanel = XMakeToolWindowOutputPanel(project)
-        val outputTab = ContentFactory.SERVICE.getInstance().createContent(toolwindowOutputPanel, "Output", false)
+        val outputTab = ContentFactory.getInstance().createContent(toolwindowOutputPanel, "Output", false)
         toolWindow.contentManager.addContent(outputTab)
 
         // add problem tab/panel
         val toolwindowProblemPanel = XMakeToolWindowProblemPanel(project)
-        val problemTab = ContentFactory.SERVICE.getInstance().createContent(toolwindowProblemPanel, "Problem", false)
+        val problemTab = ContentFactory.getInstance().createContent(toolwindowProblemPanel, "Problem", false)
         toolWindow.contentManager.addContent(problemTab)
 
         // show the output panel by default
