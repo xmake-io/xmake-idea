@@ -6,11 +6,8 @@ import com.intellij.openapi.roots.ui.configuration.SdkComboBox
 import com.intellij.openapi.roots.ui.configuration.SdkComboBoxModel
 import com.intellij.openapi.roots.ui.configuration.projectRoot.ProjectSdksModel
 import com.intellij.openapi.ui.ComboBox
-import com.intellij.ui.layout.LayoutBuilder
-import java.awt.BorderLayout
+import com.intellij.ui.dsl.builder.*
 import javax.swing.DefaultComboBoxModel
-import javax.swing.JComponent
-import javax.swing.JPanel
 
 class XMakeNewProjectPanel : Disposable {
 
@@ -34,7 +31,7 @@ class XMakeNewProjectPanel : Disposable {
     }
 
     // the module kinds
-    private val kindsComboBox = ComboBox(kindsModel)
+    private val moduleComboBox = ComboBox(kindsModel)
 
     // the module languages
     private val languagesComboBox = ComboBox(languagesModel)
@@ -54,8 +51,7 @@ class XMakeNewProjectPanel : Disposable {
             else -> "console"
         }
 
-
-    fun attachTo(layout: LayoutBuilder) = with(layout) {
+    fun attachTo(layout: Panel) = with(layout) {
         row("XMake SDK:") {
             val project = ProjectManager.getInstance().defaultProject
             val sdkModel = ProjectSdksModel()
@@ -64,22 +60,17 @@ class XMakeNewProjectPanel : Disposable {
                 sdkModel.addSdk(XMakeSdkType.instance, xmakeProgram, null)
             }
             val myJdkComboBox = SdkComboBox(SdkComboBoxModel.createSdkComboBoxModel(project, sdkModel))
-            wrapComponent(myJdkComboBox)(growX, pushX)
+            cell(myJdkComboBox).align(AlignX.FILL)
         }
         row("Module Language:") {
-            wrapComponent(languagesComboBox)(growX, pushX)
+            cell(languagesComboBox).align(AlignX.FILL)
         }
         row("Module Type:") {
-            wrapComponent(kindsComboBox)(growX, pushX)
+            cell(moduleComboBox).align(AlignX.FILL)
         }
 
         update()
     }
-
-    private fun wrapComponent(component: JComponent): JComponent =
-        JPanel(BorderLayout()).apply {
-            add(component, BorderLayout.NORTH)
-        }
 
     fun update() {
 

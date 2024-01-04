@@ -12,8 +12,10 @@ import com.intellij.ui.JBColor
 import com.intellij.ui.SimpleTextAttributes
 import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBScrollPane
-import com.intellij.ui.layout.CCFlags
-import com.intellij.ui.layout.panel
+//import com.intellij.ui.layout.CCFlags
+//import com.intellij.ui.layout.panel
+import com.intellij.ui.dsl.builder.*
+import com.intellij.ui.dsl.builder.Row
 import io.xmake.icons.XMakeIcons
 import io.xmake.shared.XMakeProblem
 import java.awt.Font
@@ -87,9 +89,17 @@ class XMakeToolWindowProblemPanel(project: Project) : SimpleToolWindowPanel(fals
     // the content
     val content = panel {
         row {
+            scrollCell(problemList)
+                .align(AlignX.FILL)
+        }
+    }
+    /*
+    val content = panel {
+        row {
             problemPane(CCFlags.push, CCFlags.grow)
         }
     }
+    */
 
     init {
 

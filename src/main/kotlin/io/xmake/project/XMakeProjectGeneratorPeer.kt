@@ -2,7 +2,7 @@ package io.xmake.project
 
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.platform.GeneratorPeerImpl
-import com.intellij.ui.layout.panel
+import com.intellij.ui.dsl.builder.*
 import javax.swing.JComponent
 
 class XMakeProjectGeneratorPeer : GeneratorPeerImpl<XMakeConfigData>() {
