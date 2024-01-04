@@ -3,9 +3,11 @@ fun properties(key: String) = project.findProperty(key).toString()
 plugins {
     id("java")
     //gradle-intellij-plugin
-    id("org.jetbrains.intellij") version "1.1.4"
+    id("org.jetbrains.intellij") version "1.16.1"
     //kotlin
-    id("org.jetbrains.kotlin.jvm") version "1.5.10"
+    id("org.jetbrains.kotlin.jvm") version "1.9.21"
+
+    id("org.jetbrains.changelog") version "2.2.0"
 }
 
 allprojects {
@@ -16,7 +18,10 @@ allprojects {
     }
 
     repositories {
+        mavenLocal()
         mavenCentral()
+        gradlePluginPortal()
+        maven("https://maven.aliyun.com/repository/public/")
         maven("https://oss.sonatype.org/content/repositories/snapshots/")
         maven("https://cache-redirector.jetbrains.com/intellij-dependencies")
     }
@@ -40,6 +45,14 @@ allprojects {
     }
 
     tasks {
+        withType<JavaCompile> {
+            sourceCompatibility = "17"
+            targetCompatibility = "17"
+        }
+        withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
+            kotlinOptions.jvmTarget = "17"
+        }
+
         test {
             useJUnitPlatform()
         }
@@ -54,14 +67,17 @@ allprojects {
         runPluginVerifier {
             ideVersions.set(properties("pluginVerifierIdeVersions").split(',').map(String::trim).filter(String::isNotEmpty))
         }
+
     }
 
     dependencies {
-        implementation("org.jetbrains.kotlin:kotlin-stdlib:1.5.21")
+        implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.21")
         testImplementation("org.junit.jupiter:junit-jupiter-api:5.7.2")
         testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.7.2")
     }
 }
+
+
 
 val Project.dependencyCachePath
     get(): String {

@@ -2,7 +2,7 @@
 <idea-plugin>
     <id>io.xmake</id>
     <name>XMake</name>
-    <version>1.2.3</version>
+    <version>1.3.0</version>
     <vendor email="waruqi@gmail.com" url="https://xmake.io">xmake.io</vendor>
     <description><![CDATA[
     A XMake integration plugin in Intellij Platform<br>
@@ -42,6 +42,10 @@
     ]]></description>
 
     <change-notes><![CDATA[
+    <strong>1.3.0</strong>
+    <ul>
+        <li>[FIX]: Update version </li>
+    </ul>
     <strong>1.2.3</strong>
     <ul>
         <li>[FIX]: Update version </li>
@@ -144,7 +148,7 @@
     </change-notes>
 
     <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/build_number_ranges.html for description -->
-    <idea-version since-build="201.0" until-build="212.*"/>
+    <idea-version since-build="222.5" until-build="232.*"/>
 
     <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/plugin_compatibility.html
          on how to target different products -->
