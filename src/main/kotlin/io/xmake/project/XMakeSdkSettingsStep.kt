@@ -5,7 +5,7 @@ import com.intellij.ide.util.projectWizard.ModuleWizardStep
 import com.intellij.ide.util.projectWizard.WizardContext
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.roots.ModifiableRootModel
-import com.intellij.ui.layout.panel
+import com.intellij.ui.dsl.builder.*
 import javax.swing.JComponent
 import com.intellij.openapi.util.Disposer
 
