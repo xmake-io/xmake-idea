@@ -32,8 +32,6 @@ class XMakeConfiguration(// the project
             val parameters = mutableListOf<String>("-y")
             if (data.verboseOutput) {
                 parameters.add("-v")
-            } else {
-                parameters.add("-w")
             }
 
             // make command line
@@ -48,8 +46,6 @@ class XMakeConfiguration(// the project
             val parameters = mutableListOf("-r", "-y")
             if (data.verboseOutput) {
                 parameters.add("-v")
-            } else {
-                parameters.add("-w")
             }
 
             // make command line
