@@ -35,10 +35,12 @@ intellij {
     downloadSources.set(false)
     ideaDependencyCachePath.set(dependencyCachePath)
     updateSinceUntilBuild.set(true)
-    plugins.set(listOf(
-        "com.intellij.clion",
-        "com.intellij.cidr.base",
-        "com.intellij.cidr.lang")
+    plugins.set(
+        listOf(
+            "com.intellij.clion",
+            "com.intellij.cidr.base",
+            "com.intellij.cidr.lang"
+        )
     )
 }
 
@@ -63,19 +65,19 @@ tasks {
         description = localDescription
     }
 
-        runPluginVerifier {
-            ideVersions.set(listOf(
+    runPluginVerifier {
+        ideVersions.set(
+            listOf(
                 "2022.2.5",
                 "2022.3",
                 "2023.1",
                 "2023.2",
                 "2023.3",
                 "2024.1 EAP",
-                )
             )
-        }
-
+        )
     }
+}
 
 dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.21")
