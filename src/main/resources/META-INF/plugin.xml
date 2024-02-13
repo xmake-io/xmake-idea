@@ -11,12 +11,13 @@
     <depends>com.intellij.modules.vcs</depends>
     <depends>com.intellij.modules.xdebugger</depends>
     <!--clion and c/cpp language-->
+    <!--
     <depends>com.intellij.clion</depends>
     <depends>com.intellij.modules.cidr.ide</depends>
     <depends>com.intellij.modules.cidr.lang</depends>
     <depends>com.intellij.modules.cidr.modulemap.language</depends>
-    <!--c/cpp tools-->
     <depends>com.intellij.modules.cmake</depends>
+    -->
 
     <extensions defaultExtensionNs="com.intellij">
 

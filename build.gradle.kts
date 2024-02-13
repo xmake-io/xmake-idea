@@ -30,11 +30,12 @@ repositories {
 }
 
 intellij {
-    type.set("CL")
+    type.set("IC")
     version.set("2023.3.3")
-    downloadSources.set(false)
+    downloadSources.set(true)
     ideaDependencyCachePath.set(dependencyCachePath)
     updateSinceUntilBuild.set(true)
+    /*
     plugins.set(
         listOf(
             "com.intellij.clion",
@@ -42,6 +43,7 @@ intellij {
             "com.intellij.cidr.lang"
         )
     )
+     */
 }
 
 tasks {
@@ -68,7 +70,6 @@ tasks {
     runPluginVerifier {
         ideVersions.set(
             listOf(
-                "2022.2.5",
                 "2022.3",
                 "2023.1",
                 "2023.2",
