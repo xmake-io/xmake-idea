@@ -10,9 +10,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import io.xmake.project.*
 import io.xmake.shared.XMakeProblem
-import java.io.BufferedReader
-import java.io.IOException
-import java.io.InputStreamReader
+import io.xmake.utils.interact.kXMakeVersion
 import java.io.File
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -45,7 +43,7 @@ object SystemUtils {
             )
             for (program in programs) {
                 if (program == "xmake" || File(program).exists()) {
-                    val result = runVOutAll(listOf(program, "--version"))
+                    val result = ioRunv(listOf(program, "--version"))
                     if (result.isNotEmpty()) {
                         _xmakeProgram = program
                         break
@@ -63,9 +61,9 @@ object SystemUtils {
     var xmakeVersion: String
         get() {
             if (_xmakeVersion == "") {
-                val result = runVOutAll(listOf(xmakeProgram, "--version"))[0].split(',')
+                val result = kXMakeVersion
                 if (result.isNotEmpty()) {
-                    _xmakeVersion = result[0]
+                    _xmakeVersion = result
                 }
             }
             return _xmakeVersion
