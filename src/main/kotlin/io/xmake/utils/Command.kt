@@ -1,10 +1,15 @@
 package io.xmake.utils
 
 import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.execution.process.ProcessNotCreatedException
 import com.intellij.execution.util.ExecUtil
+import com.jetbrains.rd.util.Callable
 import io.xmake.utils.interact.kSystemEnv
 import io.xmake.utils.interact.kLineSeparator
-
+import java.io.FileNotFoundException
+import java.io.IOException
+import java.util.concurrent.Executors
+import java.util.concurrent.Future
 
 /**
  * [ioRunv]
@@ -14,21 +19,28 @@ import io.xmake.utils.interact.kLineSeparator
  * @return a List<String>, the all output of the command
  */
 fun ioRunv(argv: List<String>, workDir: String? = null): List<String> {
-    var ret: List<String> = listOf("")
-    try {
-        val commandLine: GeneralCommandLine = GeneralCommandLine(argv)
-            .withWorkDirectory(workDir)
-            .withCharset(Charsets.UTF_8)
-            .withEnvironment(kSystemEnv)
-            .withParentEnvironmentType(GeneralCommandLine.ParentEnvironmentType.CONSOLE)
-        commandLine.withEnvironment("COLORTERM", "nocolor")
-        val commandOutput = ExecUtil.execAndGetOutput(commandLine)
-        ret = commandOutput.stdout.split(kLineSeparator)
-    } catch (e: Exception) {
-        e.printStackTrace()
-        return ret
+    val call = Callable {
+        val ret: List<String> = emptyList()
+        try {
+            val commandLine: GeneralCommandLine = GeneralCommandLine(argv)
+                .withWorkDirectory(workDir)
+                .withCharset(Charsets.UTF_8)
+                .withEnvironment(kSystemEnv)
+                .withParentEnvironmentType(GeneralCommandLine.ParentEnvironmentType.CONSOLE)
+            commandLine.withEnvironment("COLORTERM", "nocolor")
+            val output = ExecUtil.execAndGetOutput(commandLine)
+            output.stdout.split(kLineSeparator)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            ret
+        }
     }
-    return ret
+
+    val executor = Executors.newSingleThreadExecutor()
+    val commandOutput: Future<List<String>> = executor.submit(call)
+    val result = commandOutput.get()
+    executor.shutdown()
+    return result
 }
 
 
