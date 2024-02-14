@@ -1,6 +1,5 @@
 package io.xmake.project
 
-import com.intellij.facet.ui.ValidationResult
 import com.intellij.ide.util.projectWizard.AbstractNewProjectStep
 import com.intellij.ide.util.projectWizard.CustomStepProjectGenerator
 import com.intellij.openapi.module.Module
@@ -14,7 +13,7 @@ import io.xmake.icons.XMakeIcons
 import io.xmake.utils.SystemUtils
 import java.io.File
 import javax.swing.Icon
-import io.xmake.utils.runVOutAll
+import io.xmake.utils.ioRunv
 
 
 class XMakeDirectoryProjectGenerator : DirectoryProjectGeneratorBase<XMakeConfigData>(),
@@ -34,7 +33,7 @@ class XMakeDirectoryProjectGenerator : DirectoryProjectGeneratorBase<XMakeConfig
          * @note we muse use ioRunv instead of Runv to read all output, otherwise it will wait forever on windows
          */
         val tmpdir = "$contentEntryPath.dir"
-        runVOutAll(
+        ioRunv(
             listOf(
                 SystemUtils.xmakeProgram,
                 "create",

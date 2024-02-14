@@ -4,23 +4,30 @@ import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.util.ExecUtil
 import io.xmake.utils.interact.kSystemEnv
 import io.xmake.utils.interact.kLineSeparator
+
+
 /**
- * [runVOutAll]
+ * [ioRunv]
  *
  * @param argv the command arguments
  * @param workDir the working directory
  * @return a List<String>, the all output of the command
  */
-fun runVOutAll(argv: List<String>, workDir: String? = null): List<String> {
-    val ret: List<String>
-    val commandLine: GeneralCommandLine = GeneralCommandLine(argv)
-        .withWorkDirectory(workDir)
-        .withCharset(Charsets.UTF_8)
-        .withEnvironment(kSystemEnv)
-        .withParentEnvironmentType(GeneralCommandLine.ParentEnvironmentType.CONSOLE)
-    commandLine.withEnvironment("COLORTERM", "nocolor")
-    val commandOutput = ExecUtil.execAndGetOutput(commandLine).stdout
-    ret = commandOutput.split(kLineSeparator)
+fun ioRunv(argv: List<String>, workDir: String? = null): List<String> {
+    var ret: List<String> = listOf("")
+    try {
+        val commandLine: GeneralCommandLine = GeneralCommandLine(argv)
+            .withWorkDirectory(workDir)
+            .withCharset(Charsets.UTF_8)
+            .withEnvironment(kSystemEnv)
+            .withParentEnvironmentType(GeneralCommandLine.ParentEnvironmentType.CONSOLE)
+        commandLine.withEnvironment("COLORTERM", "nocolor")
+        val commandOutput = ExecUtil.execAndGetOutput(commandLine)
+        ret = commandOutput.stdout.split(kLineSeparator)
+    } catch (e: Exception) {
+        e.printStackTrace()
+        return ret
+    }
     return ret
 }
 
@@ -39,7 +46,7 @@ fun runVOutAll(argv: List<String>, workDir: String? = null): List<String> {
  * Lines are returned as a single string, with each line separated by the system's line separator.
  */
 
-inline fun runVOutLine(argv: List<String>, minLine: Int, maxLine: Int = minLine, workDir: String? = null): String {
+fun ioRunvOutLine(argv: List<String>, minLine: Int, maxLine: Int = minLine, workDir: String? = null): String {
     TODO()
 }
 
