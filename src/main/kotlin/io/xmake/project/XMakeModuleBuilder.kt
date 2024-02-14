@@ -10,6 +10,7 @@ import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.vfs.LocalFileSystem
 import io.xmake.utils.SystemUtils
+import io.xmake.utils.runVOutAll
 import java.io.File
 
 
@@ -37,7 +38,7 @@ class XMakeModuleBuilder : ModuleBuilder() {
          * @note we muse use ioRunv instead of Runv to read all output, otherwise it will wait forever on windows
          */
         val tmpdir = "$contentEntryPath.dir"
-        SystemUtils.ioRunv(
+        runVOutAll(
             listOf(
                 SystemUtils.xmakeProgram,
                 "create",
