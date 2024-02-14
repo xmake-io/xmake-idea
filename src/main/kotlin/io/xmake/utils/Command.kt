@@ -20,7 +20,7 @@ import java.util.concurrent.Future
  */
 fun ioRunv(argv: List<String>, workDir: String? = null): List<String> {
     val call = Callable {
-        val ret: List<String> = emptyList()
+        val ret: List<String> = listOf("")
         try {
             val commandLine: GeneralCommandLine = GeneralCommandLine(argv)
                 .withWorkDirectory(workDir)
@@ -31,7 +31,6 @@ fun ioRunv(argv: List<String>, workDir: String? = null): List<String> {
             val output = ExecUtil.execAndGetOutput(commandLine)
             output.stdout.split(kLineSeparator)
         } catch (e: Exception) {
-            e.printStackTrace()
             ret
         }
     }
