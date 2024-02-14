@@ -8,11 +8,13 @@ val kXMakeFind:Boolean
 
 val kXMakeVersion:String
     get() {
-        val verTemp: String = ioRunv(listOf(SystemUtils.xmakeProgram, "--version"))[0]
-        if (verTemp.isNotEmpty()) {
-            return verTemp.split(' ')[1].substring(0, verTemp.length - 1)
+        val ioTemp: String = ioRunv(listOf(SystemUtils.xmakeProgram, "--version"))[0]
+        if (ioTemp.isNotEmpty()) {
+            val verTemp = ioTemp.split(' ')[1]
+            return verTemp.substring(1, verTemp.length - 1)
+
         }
-        return verTemp
+        return ioTemp
     }
 
 val kXMakeInstallDir:String
