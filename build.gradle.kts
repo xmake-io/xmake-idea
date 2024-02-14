@@ -6,14 +6,14 @@ fun properties(key: String) = project.findProperty(key).toString()
 val localChangeNotes: String = file("${projectDir}/change-notes.html").readText(Charsets.UTF_8)
 val localDescription: String = file("${projectDir}/description.html").readText(Charsets.UTF_8)
 
+//testing ide (true : clion , false : intellij)
+val testIde:String = if(properties("testInClion").toBoolean()) "CL" else "IC"
+
 
 plugins {
     id("java")
-    //gradle-intellij-plugin
     id("org.jetbrains.intellij") version "1.17.1"
-    //kotlin
     id("org.jetbrains.kotlin.jvm") version "1.9.21"
-
     id("org.jetbrains.changelog") version "2.2.0"
 }
 
@@ -30,7 +30,7 @@ repositories {
 }
 
 intellij {
-    type.set("IC")
+    type.set(testIde)
     version.set("2023.3.3")
     downloadSources.set(true)
     ideaDependencyCachePath.set(dependencyCachePath)
