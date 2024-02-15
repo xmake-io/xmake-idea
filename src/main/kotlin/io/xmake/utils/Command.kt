@@ -44,7 +44,7 @@ fun ioRunv(argv: List<String>, workDir: String? = null): List<String> {
 
 
 /**
- * [runVOutLine]
+ * [ioRunvLine]
  *
  * @param argv the command arguments
  * @param minLine return begin line
@@ -57,12 +57,12 @@ fun ioRunv(argv: List<String>, workDir: String? = null): List<String> {
  * Lines are returned as a single string, with each line separated by the system's line separator.
  */
 
-fun ioRunvOutLine(argv: List<String>, minLine: Int, maxLine: Int = minLine, workDir: String? = null): String {
+fun ioRunvLine(argv: List<String>, minLine: Int, maxLine: Int = minLine, workDir: String? = null): String {
     TODO()
 }
 
 /**
- * [vRunV]
+ * [vRunv]
  *
  * output on console
  * @param console the console
@@ -70,6 +70,6 @@ fun ioRunvOutLine(argv: List<String>, minLine: Int, maxLine: Int = minLine, work
  * @param workDir the working directory
  * @return void
  */
-inline fun vRunV(console: String/*TODO()*/, argv: List<String>, workDir: String? = null) {
+inline fun vRunv(console: String/*TODO()*/, argv: List<String>, workDir: String? = null) {
     TODO()
 }
