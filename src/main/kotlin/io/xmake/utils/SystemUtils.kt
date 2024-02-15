@@ -10,9 +10,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import io.xmake.project.*
 import io.xmake.shared.XMakeProblem
-import java.io.BufferedReader
-import java.io.IOException
-import java.io.InputStreamReader
+import io.xmake.utils.interact.kXMakeVersion
 import java.io.File
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -63,9 +61,9 @@ object SystemUtils {
     var xmakeVersion: String
         get() {
             if (_xmakeVersion == "") {
-                val result = ioRunv(listOf(xmakeProgram, "--version")).split(',')
+                val result = kXMakeVersion
                 if (result.isNotEmpty()) {
-                    _xmakeVersion = result[0]
+                    _xmakeVersion = result
                 }
             }
             return _xmakeVersion
@@ -79,84 +77,6 @@ object SystemUtils {
         SystemInfo.isWindows -> "windows"
         SystemInfo.isMac -> "macosx"
         else -> "linux"
-    }
-
-    // run command with arguments
-    fun Runv(argv: List<String>, workingDirectory: String? = null): Int {
-
-        var code = -1
-        try {
-
-            // init process builder
-            val processBuilder = ProcessBuilder(argv)
-
-            // init working directory
-            if (workingDirectory !== null) {
-                processBuilder.directory(File(workingDirectory))
-            }
-
-            // run process
-            val process = processBuilder.start()
-
-            // wait for process
-            code = process.waitFor()
-
-        } catch (e: IOException) {
-            e.printStackTrace()
-        } finally {
-        }
-        return code
-    }
-
-    // run command with arguments and return output
-    fun ioRunv(argv: List<String>, workingDirectory: String? = null): String {
-
-        var result = ""
-        var bufferReader: BufferedReader? = null
-        try {
-
-            // init process builder
-            val processBuilder = ProcessBuilder(argv)
-
-            // init working directory
-            if (workingDirectory !== null) {
-                processBuilder.directory(File(workingDirectory))
-            }
-
-            // disable color for xmake
-            processBuilder.environment().put("COLORTERM", "nocolor")
-
-            // run process
-            val process = processBuilder.start()
-
-            // get input buffer reader
-            bufferReader = BufferedReader(InputStreamReader(process.getInputStream()))
-
-            // get io output
-            var line: String? = bufferReader.readLine()
-            while (line != null) {
-                result += line + "\n"
-                line = bufferReader.readLine()
-            }
-
-            // wait for process
-            if (process.waitFor() != 0)
-                result = ""
-
-        } catch (e: IOException) {
-            e.printStackTrace()
-        } finally {
-
-            if (bufferReader != null) {
-                try {
-                    bufferReader.close()
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-
-            }
-        }
-        return result
     }
 
     // parse problems for the given line

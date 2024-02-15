@@ -8,6 +8,7 @@ import com.intellij.openapi.components.ProjectComponent
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import io.xmake.utils.SystemUtils
+import io.xmake.utils.ioRunv
 
 @State(name = "XMakeProjectSettings")
 class XMakeConfiguration(// the project
@@ -132,7 +133,7 @@ class XMakeConfiguration(// the project
 
             // make targets
             var targets = arrayOf("default", "all")
-            val results = SystemUtils.ioRunv(
+            val results = ioRunv(
                 listOf(
                     SystemUtils.xmakeProgram,
                     "l",
@@ -140,7 +141,7 @@ class XMakeConfiguration(// the project
                     "import(\"core.project.config\"); import(\"core.project.project\"); config.load(); for name, _ in pairs((project.targets())) do print(name) end"
                 ), data.workingDirectory
             )
-            results.split("\n").forEach {
+            results.forEach {
                 if (it.trim() != "") {
                     targets += it
                 }

@@ -6,8 +6,8 @@ import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.ui.RawCommandLineEditor
-import com.intellij.ui.layout.*
-import com.intellij.ui.components.Label
+import com.intellij.ui.dsl.builder.AlignX
+import com.intellij.ui.dsl.builder.panel
 import io.xmake.shared.xmakeConfiguration
 import java.awt.Dimension
 import javax.swing.JComponent
@@ -56,27 +56,20 @@ class XMakeRunConfigurationEditor(private val project: Project) : SettingsEditor
 
     // create editor
     override fun createEditor(): JComponent = panel {
-
-        labeledRow("Default target:", targetsComboBox) {
-            targetsComboBox(CCFlags.push)
+        row("Default target:") {
+            cell(targetsComboBox).align(AlignX.FILL)
         }
 
-        labeledRow("Run arguments:", runArguments) {
-            runArguments.apply {
-                makeWide()
-            }()
+        row("Environment variables:") {
+            cell(runArguments).align(AlignX.FILL)
         }
-        row(environmentVariables.label) { environmentVariables.apply { makeWide() }() }
+        row(environmentVariables.label) {
+            cell(environmentVariables).align(AlignX.FILL)
+        }
     }
 
     private fun JPanel.makeWide() {
         preferredSize = Dimension(1000, height)
-    }
-
-    private fun LayoutBuilder.labeledRow(labelText: String, component: JComponent, init: Row.() -> Unit) {
-        val label = Label(labelText)
-        label.labelFor = component
-        row(label) { init() }
     }
 
     companion object {

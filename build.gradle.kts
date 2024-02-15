@@ -1,80 +1,89 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 fun properties(key: String) = project.findProperty(key).toString()
+
+//read local workspace file to string
+val localChangeNotes: String = file("${projectDir}/change-notes.html").readText(Charsets.UTF_8)
+val localDescription: String = file("${projectDir}/description.html").readText(Charsets.UTF_8)
+
+//testing ide (true : clion , false : intellij)
+val testIde:String = if(properties("testInClion").toBoolean()) "CL" else "IC"
+
 
 plugins {
     id("java")
-    //gradle-intellij-plugin
-    id("org.jetbrains.intellij") version "1.16.1"
-    //kotlin
+    id("org.jetbrains.intellij") version "1.17.1"
     id("org.jetbrains.kotlin.jvm") version "1.9.21"
-
     id("org.jetbrains.changelog") version "2.2.0"
 }
 
-allprojects {
-    apply {
-        plugin("idea")
-        plugin("kotlin")
-        plugin("org.jetbrains.intellij")
+group = "io.xmake"
+
+repositories {
+    maven("https://cache-redirector.jetbrains.com/www.jetbrains.com/intellij-repository")
+    mavenLocal()
+    mavenCentral()
+    gradlePluginPortal()
+    maven("https://maven.aliyun.com/repository/public/")
+    maven("https://oss.sonatype.org/content/repositories/snapshots/")
+    maven("https://cache-redirector.jetbrains.com/intellij-dependencies")
+}
+
+intellij {
+    type.set(testIde)
+    version.set("2023.3.3")
+    downloadSources.set(true)
+    ideaDependencyCachePath.set(dependencyCachePath)
+    updateSinceUntilBuild.set(true)
+    /*
+    plugins.set(
+        listOf(
+            "com.intellij.clion",
+            "com.intellij.cidr.base",
+            "com.intellij.cidr.lang"
+        )
+    )
+     */
+}
+
+tasks {
+    withType<JavaCompile> {
+        sourceCompatibility = "17"
+        targetCompatibility = "17"
+    }
+    withType<KotlinCompile> {
+        kotlinOptions.jvmTarget = "17"
     }
 
-    repositories {
-        mavenLocal()
-        mavenCentral()
-        gradlePluginPortal()
-        maven("https://maven.aliyun.com/repository/public/")
-        maven("https://oss.sonatype.org/content/repositories/snapshots/")
-        maven("https://cache-redirector.jetbrains.com/intellij-dependencies")
+    test {
+        useJUnitPlatform()
     }
 
-    configurations {
-        all {
-            // Allows using project dependencies instead of IDE dependencies during compilation running
-            resolutionStrategy.sortArtifacts(ResolutionStrategy.SortOrder.DEPENDENCY_FIRST)
-        }
+    patchPluginXml {
+        version = properties("pluginVersion")
+        sinceBuild = properties("pluginSinceBuild")
+        untilBuild = properties("pluginUntilBuild")
+        changeNotes = localChangeNotes
+        description = localDescription
     }
 
-    // See https://github.com/JetBrains/gradle-intellij-plugin/
-    intellij {
-        pluginName.set(properties("pluginName"))
-        version.set(properties("baseVersion"))
-        //type.set(properties("platformType"))
-        downloadSources.set(properties("platformDownloadSources").toBoolean())
-        ideaDependencyCachePath.set(dependencyCachePath)
-        updateSinceUntilBuild.set(true)
-        plugins.set(properties("platformPlugins").split(',').map(String::trim).filter(String::isNotEmpty))
+    runPluginVerifier {
+        ideVersions.set(
+            listOf(
+                "2022.3",
+                "2023.1",
+                "2023.2",
+                "2023.3",
+                "2024.1 EAP",
+            )
+        )
     }
+}
 
-    tasks {
-        withType<JavaCompile> {
-            sourceCompatibility = "17"
-            targetCompatibility = "17"
-        }
-        withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
-            kotlinOptions.jvmTarget = "17"
-        }
-
-        test {
-            useJUnitPlatform()
-        }
-        getByName("buildSearchableOptions").enabled = false
-
-        patchPluginXml {
-            version.set(properties("pluginVersion"))
-            sinceBuild.set(properties("pluginSinceBuild"))
-            untilBuild.set(properties("pluginUntilBuild"))
-        }
-
-        runPluginVerifier {
-            ideVersions.set(properties("pluginVerifierIdeVersions").split(',').map(String::trim).filter(String::isNotEmpty))
-        }
-
-    }
-
-    dependencies {
-        implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.21")
-        testImplementation("org.junit.jupiter:junit-jupiter-api:5.7.2")
-        testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.7.2")
-    }
+dependencies {
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.21")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.7.2")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.7.2")
 }
 
 
@@ -87,14 +96,3 @@ val Project.dependencyCachePath
         }
         return cachePath.absolutePath
     }
-
-
-project(":clion") {
-    intellij {
-        version.set(properties("clionVersion"))
-        plugins.set(properties("clionPlugins").split(',').map(String::trim).filter(String::isNotEmpty))
-    }
-    dependencies {
-        implementation(project(":"))
-    }
-}
