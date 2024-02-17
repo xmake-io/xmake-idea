@@ -64,7 +64,7 @@ tasks {
         sinceBuild = properties("pluginSinceBuild")
         untilBuild = properties("pluginUntilBuild")
         changeNotes = localChangeNotes
-        description = localDescription
+        pluginDescription = localDescription
     }
 
     runPluginVerifier {
