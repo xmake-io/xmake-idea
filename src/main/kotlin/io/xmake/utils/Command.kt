@@ -3,36 +3,79 @@ package io.xmake.utils
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.process.ProcessNotCreatedException
 import com.intellij.execution.util.ExecUtil
-import com.jetbrains.rd.util.Callable
-import io.xmake.utils.interact.kSystemEnv
-import io.xmake.utils.interact.kLineSeparator
-import java.io.FileNotFoundException
-import java.io.IOException
+import com.intellij.openapi.application.ApplicationManager
+import com.jetbrains.rd.util.Runnable
+import io.xmake.utils.interact.kSysEnv
+import io.xmake.utils.interact.kLineSep
+import java.util.concurrent.Callable
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
 
 /**
  * [ioRunv]
  *
+ * don't use it easily, it will block the main thread
+ *
  * @param argv the command arguments
  * @param workDir the working directory
  * @return a List<String>, the all output of the command
+ *
+ * error: return empty list -> emptyList()
  */
 fun ioRunv(argv: List<String>, workDir: String? = null): List<String> {
+    val commandLine: GeneralCommandLine = GeneralCommandLine(argv)
+        .withWorkDirectory(workDir)
+        .withCharset(Charsets.UTF_8)
+        .withEnvironment(kSysEnv)
+        .withParentEnvironmentType(GeneralCommandLine.ParentEnvironmentType.CONSOLE)
+    commandLine.withEnvironment("COLORTERM", "nocolor")
+    try {
+        val output = ExecUtil.execAndGetOutput(commandLine)
+        return output.stdout.split(kLineSep)
+    } catch (e: ProcessNotCreatedException) {
+        return emptyList()
+    }
+}
+
+fun ioRunvInPool(argv: List<String>, workDir: String? = null): List<String> {
+    val callable: Callable<List<String>> = Callable {
+        return@Callable ioRunv(argv, workDir)
+    }
+    return ApplicationManager.getApplication().executeOnPooledThread(callable).get()
+}
+
+/**
+ * [ioRunvBackground]
+ *
+ * processing in background
+ * @param argv the command arguments
+ * @param workDir the working directory
+ * @return Unit (void)
+ *
+ * error: pop up prompt in the lower right corner if the operation fails
+ */
+fun ioRunvBackground(argv: List<String>, workDir: String? = null): Unit {
+    TODO()
+}
+
+/**
+ * [ioRunvNonBlock]
+ *
+ * will not block the main thread, will poll for return
+ *
+ * @param argv the command arguments
+ * @param workDir the working directory
+ * @return a List<String>, the all output of the command
+ *
+ * error: return empty list -> emptyList()
+ */
+fun ioRunvNonBlock(argv: List<String>, workDir: String? = null): List<String>{
+    TODO()
+}
+
+fun ioRunvSingle(argv: List<String>, workDir: String? = null): List<String> {
     val call = Callable {
-        val ret: List<String> = listOf("")
-        try {
-            val commandLine: GeneralCommandLine = GeneralCommandLine(argv)
-                .withWorkDirectory(workDir)
-                .withCharset(Charsets.UTF_8)
-                .withEnvironment(kSystemEnv)
-                .withParentEnvironmentType(GeneralCommandLine.ParentEnvironmentType.CONSOLE)
-            commandLine.withEnvironment("COLORTERM", "nocolor")
-            val output = ExecUtil.execAndGetOutput(commandLine)
-            output.stdout.split(kLineSeparator)
-        } catch (e: Exception) {
-            ret
-        }
+        return@Callable ioRunv(argv, workDir)
     }
 
     val executor = Executors.newSingleThreadExecutor()
@@ -40,25 +83,6 @@ fun ioRunv(argv: List<String>, workDir: String? = null): List<String> {
     val result = commandOutput.get()
     executor.shutdown()
     return result
-}
-
-
-/**
- * [ioRunvLine]
- *
- * @param argv the command arguments
- * @param minLine return begin line
- * @param maxLine return end line
- * @param workDir the working directory
- * @return a string containing the lines of output from the command,
- * starting from the line number specified by `minLine` and ending at the line number specified by `maxLine`.
- * If the command produces fewer lines than `minLine`, the return will be an empty string.
- * If the command produces lines but fewer than `maxLine`, all lines from `minLine` to the end of output will be returned.
- * Lines are returned as a single string, with each line separated by the system's line separator.
- */
-
-fun ioRunvLine(argv: List<String>, minLine: Int, maxLine: Int = minLine, workDir: String? = null): String {
-    TODO()
 }
 
 /**

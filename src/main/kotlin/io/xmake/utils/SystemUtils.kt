@@ -43,7 +43,7 @@ object SystemUtils {
             )
             for (program in programs) {
                 if (program == "xmake" || File(program).exists()) {
-                    val result = ioRunv(listOf(program, "--version"))
+                    val result = ioRunvInPool(listOf(program, "--version"))
                     if (result.isNotEmpty()) {
                         _xmakeProgram = program
                         break
