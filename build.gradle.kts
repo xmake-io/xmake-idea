@@ -13,7 +13,7 @@ val testIde:String = if(properties("testInClion").toBoolean()) "CL" else "IC"
 plugins {
     id("java")
     id("org.jetbrains.intellij") version "1.17.1"
-    id("org.jetbrains.kotlin.jvm") version "1.9.21"
+    id("org.jetbrains.kotlin.jvm") version "1.9.22"
     id("org.jetbrains.changelog") version "2.2.0"
 }
 
@@ -53,10 +53,12 @@ tasks {
     }
     withType<KotlinCompile> {
         kotlinOptions.jvmTarget = "17"
+        kotlinOptions.languageVersion = "2.0"
     }
 
     test {
-        useJUnitPlatform()
+        useJUnit()
+        include("io/xmake/**/**")
     }
 
     patchPluginXml {
@@ -81,9 +83,8 @@ tasks {
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.21")
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.7.2")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.7.2")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.22")
+    testImplementation("io.mockk:mockk:1.13.9")
 }
 
 
