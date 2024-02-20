@@ -2,10 +2,9 @@ package io.xmake.utils.interact
 
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import io.mockk.every
-import io.mockk.impl.annotations.MockK
 import io.mockk.junit4.MockKRule
-import io.mockk.mockk
 import io.mockk.mockkStatic
+import io.xmake.TestData
 import io.xmake.utils.ioRunv
 import org.junit.Before
 import org.junit.Rule
@@ -15,7 +14,7 @@ import org.junit.runners.JUnit4
 
 @RunWith(JUnit4::class)
 class XMakeVersion:BasePlatformTestCase(){
-    val xmakeVersion = this::class.java.classLoader.getResource("utils/xmake --version.txt").readText()
+    val xmakeVersion = TestData.xmakeVersion
 
     @get:Rule
     val mockkRule = MockKRule(this)
@@ -44,7 +43,7 @@ class XMakeVersion:BasePlatformTestCase(){
 
 @RunWith(JUnit4::class)
 class XMakeFH:BasePlatformTestCase() {
-    val xmakeFHelp = this::class.java.classLoader.getResource("utils/xmake f -h.txt").readText()
+    val xmakeFHelp = TestData.xmakeFHelp
 
     @get:Rule
     val mockkRule = MockKRule(this)
