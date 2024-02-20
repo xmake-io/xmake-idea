@@ -43,11 +43,11 @@ val kXMakeInstallDir:String
  *
  * error: return empty list -> emptyList()
  */
-val kPlatList:List<String>
+val kPlatList: List<String>
     get() {
-        //TODO("可能使用xmake完整路径作为输入")
+        //TODO("Add: xmake full path as input")
         val ioTemp: List<String> = ioRunvInPool(listOf("xmake", "f", "config"))
-        if(ioTemp.isEmpty()) return emptyList()
+        if (ioTemp.isEmpty()) return emptyList()
 
         val ret: List<String>
         val regex: Regex = Regex("""-\s(\w+)""")
@@ -56,8 +56,8 @@ val kPlatList:List<String>
         var indexBegin: Int = 0
         var indexEnd: Int = 0
 
-        for(index in ioTemp.indices) {
-            if(!ioTemp[index].contains(searchBegin)) {
+        for (index in ioTemp.indices) {
+            if (!ioTemp[index].contains(searchBegin)) {
                 continue
             } else {
                 indexBegin = index
@@ -65,8 +65,8 @@ val kPlatList:List<String>
             }
         }
 
-        for(index in indexBegin until ioTemp.size) {
-            if(!ioTemp[index].contains(searchEnd)) {
+        for (index in indexBegin until ioTemp.size) {
+            if (!ioTemp[index].contains(searchEnd)) {
                 continue
             } else {
                 indexEnd = index
@@ -90,9 +90,9 @@ val kPlatList:List<String>
  */
 val kPlatArchMap:Map<String, List<String>>
     get() {
-        //TODO("可能使用xmake完整路径作为输入")
+        //TODO("Add: xmake full path as input")
         val ioTemp: List<String> = ioRunvInPool(listOf("xmake", "f", "config"))
-        if(ioTemp.isEmpty()) return emptyMap()
+        if (ioTemp.isEmpty()) return emptyMap()
 
         val ret: Map<String, List<String>>
         val regex: Regex = Regex("""-\s(\w+): (.+)""")
@@ -101,8 +101,8 @@ val kPlatArchMap:Map<String, List<String>>
         var indexBegin: Int = 0
         var indexEnd: Int = 0
 
-        for(index in ioTemp.indices) {
-            if(!ioTemp[index].contains(searchBegin)) {
+        for (index in ioTemp.indices) {
+            if (!ioTemp[index].contains(searchBegin)) {
                 continue
             } else {
                 indexBegin = index
@@ -110,8 +110,8 @@ val kPlatArchMap:Map<String, List<String>>
             }
         }
 
-        for(index in indexBegin until ioTemp.size) {
-            if(!ioTemp[index].contains(searchEnd)) {
+        for (index in indexBegin until ioTemp.size) {
+            if (!ioTemp[index].contains(searchEnd)) {
                 continue
             } else {
                 indexEnd = index
