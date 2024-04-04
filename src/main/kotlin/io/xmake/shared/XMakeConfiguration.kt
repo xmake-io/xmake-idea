@@ -102,6 +102,9 @@ class XMakeConfiguration(// the project
                 parameters.add("-o")
                 parameters.add(data.buildOutputDirectory)
             }
+            if(data.additionalConfiguration != "") {
+                parameters.add(data.additionalConfiguration)
+            }
 
             // make command line
             return makeCommandLine(parameters)
