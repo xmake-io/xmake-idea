@@ -102,7 +102,7 @@ class XMakeConfiguration(// the project
                 parameters.add("-o")
                 parameters.add(data.buildOutputDirectory)
             }
-            if(data.additionalConfiguration != "") {
+            if (data.additionalConfiguration != "") {
                 parameters.add(data.additionalConfiguration)
             }
 
