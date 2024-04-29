@@ -39,7 +39,8 @@ object SystemUtils {
                 "xmake",
                 (System.getenv("HOME") ?: "") + "/.local/bin/xmake",
                 "/usr/local/bin/xmake",
-                "/usr/bin/xmake"
+                "/usr/bin/xmake",
+                "/opt/homebrew/bin/xmake"
             )
             for (program in programs) {
                 if (program == "xmake" || File(program).exists()) {
