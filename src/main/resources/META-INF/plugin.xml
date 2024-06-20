@@ -82,9 +82,4 @@
         </group>
     </actions>
 
-    <project-components>
-        <component>
-            <implementation-class>io.xmake.shared.XMakeConfiguration</implementation-class>
-        </component>
-    </project-components>
 </idea-plugin>
