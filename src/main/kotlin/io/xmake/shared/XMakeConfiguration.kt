@@ -158,9 +158,7 @@ class XMakeConfiguration(// the project
     var changed = true
 
     // the state data
-    var _data: State = State()
-    var data: State
-        get() = _data
+    var data: State = State()
         set(value) {
             val newState = State(
                 currentPlatform = value.currentPlatform,
@@ -172,8 +170,8 @@ class XMakeConfiguration(// the project
                 verboseOutput = value.verboseOutput,
                 additionalConfiguration = value.additionalConfiguration
             )
-            if (_data != newState) {
-                _data = newState
+            if (field != newState) {
+                field = newState
                 changed = true
             }
         }

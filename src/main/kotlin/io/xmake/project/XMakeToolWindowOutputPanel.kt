@@ -34,7 +34,7 @@ class XMakeToolWindowOutputPanel(// the project
 
         // init toolbar
         setToolbar(toolbar.component)
-        toolbar.setTargetComponent(this)
+        toolbar.targetComponent = this
 
         // init content
         setContent(consoleView.component)
