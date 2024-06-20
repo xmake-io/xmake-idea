@@ -60,7 +60,7 @@ class XMakeRunConfigurationEditor(private val project: Project) : SettingsEditor
             cell(targetsComboBox).align(AlignX.FILL)
         }
 
-        row("Environment variables:") {
+        row("Program arguments:") {
             cell(runArguments).align(AlignX.FILL)
         }
         row(environmentVariables.label) {
