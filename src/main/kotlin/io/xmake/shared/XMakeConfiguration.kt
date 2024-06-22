@@ -4,16 +4,18 @@ import com.intellij.execution.configuration.EnvironmentVariablesData
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.State
-import com.intellij.openapi.components.ProjectComponent
+import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.startup.ProjectActivity
 import io.xmake.utils.SystemUtils
 import io.xmake.utils.ioRunvInPool
 
+@Service(Service.Level.PROJECT)
 @State(name = "XMakeProjectSettings")
 class XMakeConfiguration(// the project
     val project: Project
-) : PersistentStateComponent<XMakeConfiguration.State>, ProjectComponent {
+) : PersistentStateComponent<XMakeConfiguration.State>, ProjectActivity {
 
     // the platforms
     val platforms = arrayOf("macosx", "linux", "windows", "android", "iphoneos", "watchos", "mingw")
@@ -156,9 +158,7 @@ class XMakeConfiguration(// the project
     var changed = true
 
     // the state data
-    var _data: State = State()
-    var data: State
-        get() = _data
+    var data: State = State()
         set(value) {
             val newState = State(
                 currentPlatform = value.currentPlatform,
@@ -170,8 +170,8 @@ class XMakeConfiguration(// the project
                 verboseOutput = value.verboseOutput,
                 additionalConfiguration = value.additionalConfiguration
             )
-            if (_data != newState) {
-                _data = newState
+            if (field != newState) {
+                field = newState
                 changed = true
             }
         }
@@ -224,22 +224,12 @@ class XMakeConfiguration(// the project
         ensureState()
     }
 
-    override fun initComponent() {
+    override fun initializeComponent() {
         ensureState()
     }
 
-    override fun disposeComponent() {
-    }
-
-    override fun getComponentName(): String {
-        return "XMakeConfiguration"
-    }
-
-    override fun projectOpened() {
+    override suspend fun execute(project: Project) {
         ensureState()
-    }
-
-    override fun projectClosed() {
     }
 
     companion object {
@@ -260,9 +250,9 @@ class XMakeConfiguration(// the project
 }
 
 val Project.xmakeConfiguration: XMakeConfiguration
-    get() = this.getComponent(XMakeConfiguration::class.java)
+    get() = this.getService(XMakeConfiguration::class.java)
         ?: error("Failed to get XMakeConfiguration for $this")
 
 val Project.xmakeConfigurationOrNull: XMakeConfiguration?
-    get() = this.getComponent(XMakeConfiguration::class.java) ?: null
+    get() = this.getService(XMakeConfiguration::class.java) ?: null
 
