@@ -36,7 +36,7 @@
         <projectConfigurable instance="io.xmake.project.XMakeProjectConfigurable" displayName="XMake"
                              groupId="language"/>
         <toolWindow id="XMake" anchor="bottom" factoryClass="io.xmake.project.XMakeToolWindowFactory"
-                    icon="/icons/xmake_13x13.png"/>
+                    icon="/icons/xmake-dark.svg"/>
 
         <!-- run configurations -->
         <programRunner implementation="io.xmake.run.XMakeRunner"/>
@@ -54,30 +54,52 @@
         <group id="XMake.Menu" text="XMake" popup="true" description="XMake Menu">
             <add-to-group group-id="MainMenu"
                           anchor="after"
-                          relative-to-action="RunMenu"
-            />
-            <action id="XMake.Run" class="io.xmake.actions.RunAction" text="Run Target" icon="/icons/run.png"
+                          relative-to-action="RunMenu"/>
+            <action id="AllIcons.Actions.G"
+                    class="io.xmake.actions.RunAction"
+                    text="Run Target"
+                    icon="com.intellij.icons.ExpUiIcons.Run.Run"
                     description="Run the current target."/>
-            <action id="XMake.Build" class="io.xmake.actions.BuildAction" text="Build Project"
-                    icon="/icons/build.png" description="Build the current project."/>
-            <action id="XMake.Rebuild" class="io.xmake.actions.RebuildAction" text="Rebuild Project"
-                    icon="/icons/rebuild.png" description="Rebuild the current project."/>
-            <action id="XMake.Clean" class="io.xmake.actions.CleanAction" text="Clean Project"
-                    icon="/icons/clean.png" description="Clean target and object files."/>
+            <action id="XMake.Build"
+                    class="io.xmake.actions.BuildAction"
+                    text="Build Project"
+                    icon="com.intellij.icons.ExpUiIcons.Build.Build"
+                    description="Build the current project."/>
+            <action id="XMake.Rebuild"
+                    class="io.xmake.actions.RebuildAction"
+                    text="Rebuild Project"
+                    icon="com.intellij.icons.ExpUiIcons.Run.Restart"
+                    description="Rebuild the current project."/>
+            <action id="XMake.Clean"
+                    class="io.xmake.actions.CleanAction"
+                    text="Clean Project"
+                    icon="com.intellij.icons.ExpUiIcons.Actions.ClearCash"
+                    description="Clean target and object files."/>
             <separator/>
             <reference id="editRunConfigurations"/>
-            <action id="XMake.CleanConfiguration" class="io.xmake.actions.CleanConfigurationAction"
-                    text="Clean Configuration" icon="/icons/cleanconf.png"
+            <action id="XMake.CleanConfiguration"
+                    class="io.xmake.actions.CleanConfigurationAction"
+                    text="Clean Configuration"
+                    icon="com.intellij.icons.ExpUiIcons.Vcs.Revert"
                     description="Clean the current configuration."/>
             <separator/>
-            <action id="XMake.QuickStart" class="io.xmake.actions.QuickStartAction" text="Quick Start"
-                    icon="/icons/quickstart.png" description="Quick start a new project."/>
-            <action id="XMake.UpdateCmakeLists" class="io.xmake.actions.UpdateCmakeListsAction" text="Update CmakeLists"
-                    icon="/icons/update.svg" description="Create or update the CmakeLists.txt.">
+            <action id="XMake.QuickStart"
+                    class="io.xmake.actions.QuickStartAction"
+                    text="Quick Start"
+                    icon="com.intellij.icons.ExpUiIcons.Actions.Lightning"
+                    description="Quick start a new project."/>
+            <action id="XMake.UpdateCmakeLists"
+                    class="io.xmake.actions.UpdateCmakeListsAction"
+                    text="Update CmakeLists"
+                    icon="com.intellij.icons.ExpUiIcons.FileTypes.Less"
+                    description="Create or update the CmakeLists.txt.">
                 <keyboard-shortcut keymap="$default" first-keystroke="alt U" />
             </action>
-            <action id="XMake.UpdateCompileCommands" class="io.xmake.actions.UpdateCompileCommandsAction"
-                    text="Update Compile Commands" icon="/icons/update.svg" description="Create or update  compile_commands.js.">
+            <action id="XMake.UpdateCompileCommands"
+                    class="io.xmake.actions.UpdateCompileCommandsAction"
+                    text="Update Compile Commands"
+                    icon="com.intellij.icons.ExpUiIcons.FileTypes.SourceMap"
+                    description="Create or update  compile_commands.js.">
             </action>
         </group>
     </actions>
