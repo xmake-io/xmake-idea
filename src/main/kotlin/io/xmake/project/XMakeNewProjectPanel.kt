@@ -59,7 +59,12 @@ class XMakeNewProjectPanel : Disposable {
             if (xmakeProgram != null) {
                 sdkModel.addSdk(XMakeSdkType.instance, xmakeProgram, null)
             }
-            val myJdkComboBox = SdkComboBox(SdkComboBoxModel.createSdkComboBoxModel(project, sdkModel))
+            val myJdkComboBox = SdkComboBox(SdkComboBoxModel.createSdkComboBoxModel(
+                project,
+                sdkModel,
+                {sdk -> sdk is XMakeSdkType},
+                {sdk -> sdk is XMakeSdkType},)
+            )
             cell(myJdkComboBox).align(AlignX.FILL)
         }
         row("Module Language:") {
