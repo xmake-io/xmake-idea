@@ -38,6 +38,7 @@
 
         <!-- project configurations -->
         <projectConfigurable instance="io.xmake.project.XMakeProjectConfigurable" displayName="XMake" groupId="build">
+            <configurable instance="io.xmake.project.XmakeProjectToolkitConfigurable" displayName="XMake Toolkit"/>
         </projectConfigurable>
         <toolWindow id="XMake" anchor="bottom" factoryClass="io.xmake.project.XMakeToolWindowFactory"
                     icon="/icons/xmake-dark.svg"/>
