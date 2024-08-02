@@ -9,6 +9,7 @@ import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.vcs.RemoteFilePath
 import com.intellij.util.xmlb.XmlSerializer
 import com.intellij.util.xmlb.annotations.OptionTag
 import com.intellij.util.xmlb.annotations.Transient
@@ -34,6 +35,9 @@ class XMakeRunConfiguration(
     @get:Transient
     var runEnvironment: EnvironmentVariablesData = EnvironmentVariablesData.DEFAULT
 
+    @OptionTag(tag = "workingDirectory")
+    var runWorkingDir: String = ""
+
     // the run command line
     val runCommandLine: GeneralCommandLine
         get() {
@@ -52,7 +56,10 @@ class XMakeRunConfiguration(
             }
 
             // make command line
-            return project.xmakeConfiguration.makeCommandLine(parameters, runEnvironment)
+            return project.xmakeConfiguration
+                .makeCommandLine(parameters, runEnvironment)
+                .withWorkDirectory(RemoteFilePath(runWorkingDir, true).ioFile)
+                .withCharset(Charsets.UTF_8)
         }
 
     // save configuration
@@ -72,6 +79,11 @@ class XMakeRunConfiguration(
     }
 
     override fun checkConfiguration() {
+
+        // Todo: Check whether working directory is valid.
+        if (runWorkingDir.isBlank()){
+            throw RuntimeConfigurationError("Working directory is not set!")
+        }
     }
 
     override fun getConfigurationEditor(): SettingsEditor<out RunConfiguration> = XMakeRunConfigurationEditor(project)

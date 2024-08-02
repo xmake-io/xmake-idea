@@ -48,17 +48,6 @@ class XMakeProjectConfigurable(
     // the configuration command text
     private val configurationCommandText = JTextArea(10, 10)
 
-    // the working directory
-    private val workingDirectory = run {
-        val textField = TextFieldWithBrowseButton().apply {
-            val fileChooser = FileChooserDescriptorFactory.createSingleFolderDescriptor().apply {
-                title = ExecutionBundle.message("select.working.directory.message")
-            }
-            addBrowseFolderListener(null, null, null, fileChooser)
-        }
-        LabeledComponent.create(textField, ExecutionBundle.message("run.configuration.working.directory.label"))
-    }
-
     // the android NDK directory
     private val androidNDKDirectory = run {
         val textField = TextFieldWithBrowseButton().apply {
@@ -104,10 +93,6 @@ class XMakeProjectConfigurable(
 
             row {
                 cell(verboseOutput)
-            }
-
-            row(workingDirectory.label) {
-                cell(workingDirectory).align(AlignX.FILL)
             }
 
             row(buildOutputDirectory.label) {
@@ -217,9 +202,6 @@ class XMakeProjectConfigurable(
             // reset additional configuration
             additionalConfiguration.text = xmakeConfiguration.data.additionalConfiguration
 
-            // reset working directory
-            workingDirectory.component.text = xmakeConfiguration.data.workingDirectory
-
             // reset build output directory
             buildOutputDirectory.component.text = xmakeConfiguration.data.buildOutputDirectory
 
@@ -242,7 +224,6 @@ class XMakeProjectConfigurable(
             xmakeConfiguration.data.currentArchitecture = architecturesModel.selectedItem.toString()
             xmakeConfiguration.data.currentMode = modesModel.selectedItem.toString()
             xmakeConfiguration.data.additionalConfiguration = additionalConfiguration.text
-            xmakeConfiguration.data.workingDirectory = workingDirectory.component.text
             xmakeConfiguration.data.buildOutputDirectory = buildOutputDirectory.component.text
             xmakeConfiguration.data.androidNDKDirectory = androidNDKDirectory.component.text
             xmakeConfiguration.data.verboseOutput = verboseOutput.isSelected
@@ -256,7 +237,6 @@ class XMakeProjectConfigurable(
                 xmakeConfiguration.data.currentArchitecture != architecturesModel.selectedItem.toString() ||
                 xmakeConfiguration.data.currentMode != modesModel.selectedItem.toString() ||
                 xmakeConfiguration.data.additionalConfiguration != additionalConfiguration.text ||
-                xmakeConfiguration.data.workingDirectory != workingDirectory.component.text ||
                 xmakeConfiguration.data.buildOutputDirectory != buildOutputDirectory.component.text ||
                 xmakeConfiguration.data.androidNDKDirectory != androidNDKDirectory.component.text ||
                 xmakeConfiguration.data.verboseOutput != verboseOutput.isSelected) {

@@ -1,36 +1,33 @@
 package io.xmake.project
 
+import com.intellij.execution.RunManager
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.ActionToolbar
 import com.intellij.openapi.actionSystem.DefaultActionGroup
-import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.editor.markup.EffectType
+import com.intellij.openapi.editor.markup.TextAttributes
+import com.intellij.openapi.fileEditor.FileEditorManager
+import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.SimpleToolWindowPanel
+import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.ui.ColoredListCellRenderer
 import com.intellij.ui.JBColor
 import com.intellij.ui.SimpleTextAttributes
 import com.intellij.ui.components.JBList
 import com.intellij.ui.components.JBScrollPane
-//import com.intellij.ui.layout.CCFlags
-//import com.intellij.ui.layout.panel
-import com.intellij.ui.dsl.builder.*
-import com.intellij.ui.dsl.builder.Row
+import com.intellij.ui.dsl.builder.AlignX
+import com.intellij.ui.dsl.builder.panel
 import io.xmake.icons.XMakeIcons
+import io.xmake.run.XMakeRunConfiguration
 import io.xmake.shared.XMakeProblem
 import java.awt.Font
-import java.awt.event.MouseEvent
 import java.awt.event.MouseAdapter
-import javax.swing.JList
+import java.awt.event.MouseEvent
 import java.io.File
+import javax.swing.JList
 import javax.swing.ListSelectionModel
-import com.intellij.openapi.fileEditor.OpenFileDescriptor
-import com.intellij.openapi.vfs.LocalFileSystem
-import io.xmake.shared.xmakeConfiguration
-import com.intellij.openapi.fileEditor.FileEditorManager
-import com.intellij.openapi.editor.markup.EffectType
-import com.intellij.openapi.editor.markup.TextAttributes
-
 
 class XMakeToolWindowProblemPanel(project: Project) : SimpleToolWindowPanel(false) {
 
@@ -39,7 +36,7 @@ class XMakeToolWindowProblemPanel(project: Project) : SimpleToolWindowPanel(fals
     var problems: List<XMakeProblem>
         get() = _problems
         set(value) {
-            check(ApplicationManager.getApplication().isDispatchThread)
+//            check(ApplicationManager.getApplication().isDispatchThread)
             _problems = value
             problemList.setListData(problems.toTypedArray())
         }
@@ -125,7 +122,10 @@ class XMakeToolWindowProblemPanel(project: Project) : SimpleToolWindowPanel(fals
                         if (File(filename).exists()) {
                             filename = File(filename).getAbsolutePath()
                         } else {
-                            filename = File(project.xmakeConfiguration.data.workingDirectory, filename).getAbsolutePath()
+                            filename = File(
+                                // Todo: Check if correct
+                                (RunManager.getInstance(project).selectedConfiguration?.configuration as XMakeRunConfiguration).runWorkingDir
+                                , filename).getAbsolutePath()
                         }
 
                         // open this file

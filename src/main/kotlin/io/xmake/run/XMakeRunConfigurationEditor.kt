@@ -5,6 +5,7 @@ import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
+import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.ui.RawCommandLineEditor
 import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.panel
@@ -29,6 +30,8 @@ class XMakeRunConfigurationEditor(private val project: Project) : SettingsEditor
     // the environment variables
     private val environmentVariables = EnvironmentVariablesComponent()
 
+    private val browser = TextFieldWithBrowseButton()
+
     // reset editor from configuration
     override fun resetEditorFrom(configuration: XMakeRunConfiguration) {
 
@@ -44,6 +47,8 @@ class XMakeRunConfigurationEditor(private val project: Project) : SettingsEditor
 
         // reset environment variables
         environmentVariables.envData = configuration.runEnvironment
+
+        browser.text = configuration.runWorkingDir
     }
 
     // apply editor to configuration
@@ -52,6 +57,7 @@ class XMakeRunConfigurationEditor(private val project: Project) : SettingsEditor
         configuration.runTarget         = targetsModel.selectedItem.toString()
         configuration.runArguments      = runArguments.text
         configuration.runEnvironment    = environmentVariables.envData
+        configuration.runWorkingDir = browser.text
     }
 
     // create editor
@@ -65,6 +71,10 @@ class XMakeRunConfigurationEditor(private val project: Project) : SettingsEditor
         }
         row(environmentVariables.label) {
             cell(environmentVariables).align(AlignX.FILL)
+        }
+        row("Working directory") {
+            cell(browser).applyToComponent {
+            }.align(AlignX.FILL)
         }
     }
 
