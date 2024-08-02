@@ -2,14 +2,15 @@ package io.xmake.run
 
 import com.intellij.execution.configuration.EnvironmentVariablesComponent
 import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.observable.util.whenItemSelected
 import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
-import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.ui.PopupMenuListenerAdapter
 import com.intellij.ui.RawCommandLineEditor
 import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.panel
+import io.xmake.project.directory.ui.DirectoryBrowser
 import io.xmake.project.target.TargetManager
 import io.xmake.project.toolkit.ToolkitHostType.*
 import io.xmake.project.toolkit.ui.ToolkitComboBox
@@ -38,7 +39,7 @@ class XMakeRunConfigurationEditor(
     // the environment variables
     private val environmentVariables = EnvironmentVariablesComponent()
 
-    private val browser = TextFieldWithBrowseButton()
+    private val browser = DirectoryBrowser(project)
 
     // reset editor from configuration
     override fun resetEditorFrom(configuration: XMakeRunConfiguration) {
@@ -69,7 +70,17 @@ class XMakeRunConfigurationEditor(
     override fun createEditor(): JComponent = panel {
 
         row("Xmake Toolkit:") {
-            cell(toolkitComboBox).align(AlignX.FILL)
+            cell(toolkitComboBox).align(AlignX.FILL).applyToComponent {
+
+                // Todo: Store previously selected toolkit to restore it if not applied.
+                whenItemSelected { item ->
+                    browser.removeBrowserAllListener()
+                    (item as? ToolkitListItem.ToolkitItem)?.toolkit?.let {
+                        browser.addBrowserListenerByToolkit(it)
+                    }
+                }
+                activatedToolkit?.let { browser.addBrowserListenerByToolkit(it) }
+            }
         }
 
         row("Target:") {
