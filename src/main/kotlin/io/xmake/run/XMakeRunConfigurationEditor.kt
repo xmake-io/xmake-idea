@@ -1,20 +1,29 @@
 package io.xmake.run
 
 import com.intellij.execution.configuration.EnvironmentVariablesComponent
+import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.observable.util.whenItemSelected
 import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
+import com.intellij.ssh.config.unified.SshConfig
 import com.intellij.ui.PopupMenuListenerAdapter
 import com.intellij.ui.RawCommandLineEditor
 import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.panel
+import com.intellij.ui.layout.ComboBoxPredicate
 import io.xmake.project.directory.ui.DirectoryBrowser
 import io.xmake.project.target.TargetManager
 import io.xmake.project.toolkit.ToolkitHostType.*
 import io.xmake.project.toolkit.ui.ToolkitComboBox
 import io.xmake.project.toolkit.ui.ToolkitListItem
+import io.xmake.utils.execute.SyncDirection
+import io.xmake.utils.execute.syncProjectBySftp
+import io.xmake.utils.execute.syncProjectByWslSync
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.awt.Dimension
 import javax.swing.DefaultComboBoxModel
 import javax.swing.JComponent
@@ -26,6 +35,7 @@ class XMakeRunConfigurationEditor(
     private val runConfiguration: XMakeRunConfiguration,
 ) : SettingsEditor<XMakeRunConfiguration>() {
 
+    private val scope = CoroutineScope(Dispatchers.Default)
 
     private val toolkitComboBox = ToolkitComboBox(runConfiguration::runToolkit)
 
@@ -112,6 +122,33 @@ class XMakeRunConfigurationEditor(
             cell(browser).applyToComponent {
             }.align(AlignX.FILL)
         }
+
+        row("Sync Directory:") {
+            button("Upload") {
+                toolkitComboBox.activatedToolkit?.let { toolkit ->
+                    val workingDirectoryPath = browser.text
+
+                    scope.launch(Dispatchers.IO) {
+                        when (toolkit.host.type) {
+                            LOCAL -> {}
+                            WSL -> {
+                                val wslDistribution = toolkit.host.target as? WSLDistribution
+                                syncProjectByWslSync(scope, project, wslDistribution!!, workingDirectoryPath, SyncDirection.LOCAL_TO_UPSTREAM)
+                            }
+
+                            SSH -> {
+                                val sshConfig = toolkit.host.target as? SshConfig
+                                syncProjectBySftp(scope, project, sshConfig!!, workingDirectoryPath, SyncDirection.LOCAL_TO_UPSTREAM)
+                            }
+                        }
+                    }
+                }
+            }
+        }.visibleIf(ComboBoxPredicate<ToolkitListItem>(toolkitComboBox) {
+            val toolkit = (it as? ToolkitListItem.ToolkitItem)?.toolkit
+            if (toolkit == null) false
+            else toolkit.host.type == WSL || toolkit.host.type == SSH
+        })
     }
 
     private fun JPanel.makeWide() {
