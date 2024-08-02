@@ -56,11 +56,11 @@
          https://github.com/centic9/IntelliJ-Action-IDs
     -->
     <actions>
-        <group id="XMake.Menu" text="XMake" popup="true" description="XMake Menu">
+        <group id="XMake.Menu" text="XMake" popup="true" description="XMake menu">
             <add-to-group group-id="MainMenu"
                           anchor="after"
                           relative-to-action="RunMenu"/>
-            <action id="AllIcons.Actions.G"
+            <action id="XMake.Run"
                     class="io.xmake.actions.RunAction"
                     text="Run Target"
                     icon="com.intellij.icons.ExpUiIcons.Run.Run"

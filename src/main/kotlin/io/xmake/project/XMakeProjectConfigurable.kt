@@ -6,41 +6,36 @@ import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.options.ConfigurationException
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.LabeledComponent
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
+import com.intellij.ui.*
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.components.JBTextField
 import com.intellij.ui.dsl.builder.*
+import com.intellij.util.ui.JBFont
+import com.intellij.util.ui.JBUI
+import com.intellij.util.ui.UIUtil
 import io.xmake.shared.XMakeConfiguration
 import io.xmake.shared.xmakeConfigurationOrNull
 import java.awt.Dimension
-import javax.swing.JComponent
-import javax.swing.JPanel
-import javax.swing.JTextArea
-import javax.swing.DefaultComboBoxModel
-import javax.swing.event.ListDataEvent
-import javax.swing.event.ListDataListener
-import java.awt.event.KeyEvent
-import java.awt.event.KeyListener
 import java.awt.event.ItemEvent
 import java.awt.event.ItemListener
+import java.awt.event.KeyEvent
+import java.awt.event.KeyListener
+import javax.swing.*
+import javax.swing.event.ListDataEvent
+import javax.swing.event.ListDataListener
 
 class XMakeProjectConfigurable(
-        project: Project
+    private val project: Project
 ) : Configurable, Configurable.NoScroll {
-    // the platforms ui
-    private val project = project
     private val platformsModel = DefaultComboBoxModel<String>()
-    private val platformsComboBox = ComboBox<String>(platformsModel)
 
     // the architectures ui
     private val architecturesModel = DefaultComboBoxModel<String>()
-    private val architecturesComboBox = ComboBox<String>(architecturesModel)
 
     // the modes ui
     private val modesModel = DefaultComboBoxModel<String>()
-    private val modesComboBox = ComboBox<String>(modesModel)
 
     // the additional configuration
     private val additionalConfiguration = JBTextField()
@@ -71,10 +66,10 @@ class XMakeProjectConfigurable(
     }
 
     // verbose output
-    private var verboseOutput = JBCheckBox("Show verbose output", true);
+    private var verboseOutput = JBCheckBox("Show verbose output", true)
 
     override fun createComponent(): JComponent {
-        return panel{
+        return panel {
             row("Platform:") {
                 comboBox(platformsModel)
             }
@@ -83,7 +78,7 @@ class XMakeProjectConfigurable(
                 comboBox(architecturesModel)
             }
 
-            row("Mode:"){
+            row("Mode:") {
                 comboBox(modesModel)
             }
 
@@ -106,9 +101,20 @@ class XMakeProjectConfigurable(
             androidNDKDirectory.label.text = "Android NDK directory: "
 
             row {
-                cell(configurationCommandText).align(AlignX.FILL)
+                cell(SeparatorComponent())
             }
-            configurationCommandText.setEditable(false)
+
+            row {
+                cell(configurationCommandText).applyToComponent {
+                    isEditable = false
+                    font = JBFont.label().asItalic()
+                    foreground = UIUtil.getTextAreaForeground()
+                    background = UIUtil.getFocusedBoundsColor()
+                    border = JBUI.Borders.empty(8)
+                }
+                    .align(AlignY.BOTTOM)
+                    .align(AlignX.FILL)
+            }
 
             platformsModel.addListDataListener(object : ListDataListener {
                 override fun contentsChanged(e: ListDataEvent) {
@@ -239,7 +245,8 @@ class XMakeProjectConfigurable(
                 xmakeConfiguration.data.additionalConfiguration != additionalConfiguration.text ||
                 xmakeConfiguration.data.buildOutputDirectory != buildOutputDirectory.component.text ||
                 xmakeConfiguration.data.androidNDKDirectory != androidNDKDirectory.component.text ||
-                xmakeConfiguration.data.verboseOutput != verboseOutput.isSelected) {
+                xmakeConfiguration.data.verboseOutput != verboseOutput.isSelected
+            ) {
                 xmakeConfiguration.changed = true
                 return true
             }
@@ -257,7 +264,7 @@ class XMakeProjectConfigurable(
     private val previewConfigurationCommand: String
         get() {
             var cmd = "xmake f"
-            var platformItem = platformsModel.selectedItem
+            val platformItem = platformsModel.selectedItem
             if (platformItem != null) {
                 cmd += " -p ${platformItem.toString()}"
             }
