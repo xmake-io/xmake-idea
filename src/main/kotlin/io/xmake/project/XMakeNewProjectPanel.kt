@@ -2,11 +2,11 @@ package io.xmake.project
 
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.ProjectManager
-import com.intellij.openapi.roots.ui.configuration.SdkComboBox
-import com.intellij.openapi.roots.ui.configuration.SdkComboBoxModel
-import com.intellij.openapi.roots.ui.configuration.projectRoot.ProjectSdksModel
-import com.intellij.openapi.ui.ComboBox
 import com.intellij.ui.dsl.builder.*
+import io.xmake.project.toolkit.Toolkit
+import io.xmake.project.toolkit.ToolkitHostType.*
+import io.xmake.project.toolkit.ui.ToolkitComboBox
+import io.xmake.project.toolkit.ui.ToolkitListItem
 import javax.swing.DefaultComboBoxModel
 
 class XMakeNewProjectPanel : Disposable {
@@ -30,11 +30,8 @@ class XMakeNewProjectPanel : Disposable {
         addElement("Objc++")
     }
 
-    // the module kinds
-    private val moduleComboBox = ComboBox(kindsModel)
-
-    // the module languages
-    private val languagesComboBox = ComboBox(languagesModel)
+    private var toolkit: Toolkit? = null
+    private val toolkitComboBox = ToolkitComboBox(::toolkit)
 
     val data: XMakeConfigData
         get() = XMakeConfigData(
@@ -52,26 +49,15 @@ class XMakeNewProjectPanel : Disposable {
         }
 
     fun attachTo(layout: Panel) = with(layout) {
-        row("XMake SDK:") {
-            val project = ProjectManager.getInstance().defaultProject
-            val sdkModel = ProjectSdksModel()
-            val xmakeProgram = XMakeSdkType.instance.suggestHomePath()
-            if (xmakeProgram != null) {
-                sdkModel.addSdk(XMakeSdkType.instance, xmakeProgram, null)
-            }
-            val myJdkComboBox = SdkComboBox(SdkComboBoxModel.createSdkComboBoxModel(
-                project,
-                sdkModel,
-                {sdk -> sdk is XMakeSdkType},
-                {sdk -> sdk is XMakeSdkType},)
-            )
-            cell(myJdkComboBox).align(AlignX.FILL)
+        row("Xmake Toolkit:") {
+            cell(toolkitComboBox)
+                .align(AlignX.FILL)
         }
         row("Module Language:") {
-            cell(languagesComboBox).align(AlignX.FILL)
+            comboBox(languagesModel).align(AlignX.FILL)
         }
         row("Module Type:") {
-            cell(moduleComboBox).align(AlignX.FILL)
+            comboBox(kindsModel).align(AlignX.FILL)
         }
 
         update()
