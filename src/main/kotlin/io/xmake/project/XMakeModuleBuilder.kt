@@ -1,5 +1,6 @@
 package io.xmake.project
 
+import com.intellij.execution.RunManager
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.process.ProcessNotCreatedException
 import com.intellij.execution.wsl.WSLDistribution
@@ -101,6 +102,17 @@ class XMakeModuleBuilder : ModuleBuilder() {
                 }
             }
         }
+
+        val runManager = RunManager.getInstance(rootModel.project)
+
+        val configSettings = runManager.createConfiguration(rootModel.project.name, XMakeRunConfigurationType.getInstance().factory)
+        runManager.addConfiguration(configSettings.apply {
+            (configuration as XMakeRunConfiguration).apply {
+                runToolkit = configurationData.toolkit
+                runWorkingDir = dir ?: ""
+            }
+        })
+        runManager.selectedConfiguration = runManager.allSettings.first()
     }
 
     override fun getModuleType(): ModuleType<*> {
