@@ -1,8 +1,11 @@
 package io.xmake.project
 
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.observable.util.whenItemSelected
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.ui.dsl.builder.*
+import com.intellij.ui.layout.ComboBoxPredicate
+import io.xmake.project.directory.ui.DirectoryBrowser
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHostType.*
 import io.xmake.project.toolkit.ui.ToolkitComboBox
@@ -33,6 +36,8 @@ class XMakeNewProjectPanel : Disposable {
     private var toolkit: Toolkit? = null
     private val toolkitComboBox = ToolkitComboBox(::toolkit)
 
+    private val browser = DirectoryBrowser(ProjectManager.getInstance().defaultProject)
+
     val data: XMakeConfigData
         get() = XMakeConfigData(
             languagesModel.selectedItem.toString().lowercase(),
@@ -51,6 +56,15 @@ class XMakeNewProjectPanel : Disposable {
     fun attachTo(layout: Panel) = with(layout) {
         row("Xmake Toolkit:") {
             cell(toolkitComboBox)
+                .applyToComponent {
+                    whenItemSelected { item ->
+                        browser.removeBrowserAllListener()
+                        (item as? ToolkitListItem.ToolkitItem)?.toolkit?.let {
+                            browser.addBrowserListenerByToolkit(it)
+                        }
+                    }
+                    activatedToolkit?.let { browser.addBrowserListenerByToolkit(it) }
+                }
                 .align(AlignX.FILL)
         }
         row("Module Language:") {
@@ -59,12 +73,13 @@ class XMakeNewProjectPanel : Disposable {
         row("Module Type:") {
             comboBox(kindsModel).align(AlignX.FILL)
         }
-
-        update()
-    }
-
-    fun update() {
-
+        row("Remote Project Dir:") {
+            cell(browser).align(AlignX.FILL)
+        }.visibleIf(ComboBoxPredicate<ToolkitListItem>(toolkitComboBox) {
+            val toolkit = (it as? ToolkitListItem.ToolkitItem)?.toolkit
+            if (toolkit == null) false
+            else toolkit.host.type == WSL || toolkit.host.type == SSH
+        })
     }
 
     override fun dispose() {
