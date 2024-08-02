@@ -1,17 +1,20 @@
 package io.xmake.project.toolkit
 
+import com.intellij.execution.RunManager
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.execution.wsl.WSLUtil
 import com.intellij.execution.wsl.WslDistributionManager
 import com.intellij.openapi.components.*
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.ssh.config.unified.SshConfig
 import com.intellij.ssh.config.unified.SshConfigManager
 import com.intellij.util.PlatformUtils
 import com.intellij.util.xmlb.annotations.XCollection
 import io.xmake.project.toolkit.ToolkitHostType.*
+import io.xmake.run.XMakeRunConfiguration
 import io.xmake.utils.execute.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
@@ -188,7 +191,16 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
 
     // Todo: Increase robustness of this method
     fun unregisterToolkit(toolkit: Toolkit) {
-        state.registeredToolkits.remove(toolkit)
+        if(state.registeredToolkits.remove(toolkit)) {
+            ProjectManager.getInstance().openProjects.forEach { project ->
+                RunManager.getInstance(project).allConfigurationsList.forEach {
+                    if (it is XMakeRunConfiguration) {
+                        if (it.runToolkit?.id == toolkit.id)
+                            it.runToolkit = null
+                    }
+                }
+            }
+        }
     }
 
     fun findRegisteredToolkitById(id: String): Toolkit? {

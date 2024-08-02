@@ -9,10 +9,13 @@ import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.project.Project
-import org.jdom.Element
+import com.intellij.util.xmlb.XmlSerializer
+import com.intellij.util.xmlb.annotations.OptionTag
+import com.intellij.util.xmlb.annotations.Transient
 import io.xmake.project.xmakeConsoleView
 import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.SystemUtils
+import org.jdom.Element
 
 class XMakeRunConfiguration(
     project: Project, name: String, factory: ConfigurationFactory
@@ -20,12 +23,15 @@ class XMakeRunConfiguration(
     RunConfigurationWithSuppressedDefaultDebugAction {
 
     // the run target
+    @OptionTag(tag = "target")
     var runTarget: String = "default"
 
     // the run arguments
+    @OptionTag(tag = "arguments")
     var runArguments: String = ""
 
-    // the run environment
+    // the run environmen
+    @get:Transient
     var runEnvironment: EnvironmentVariablesData = EnvironmentVariablesData.DEFAULT
 
     // the run command line
@@ -52,16 +58,16 @@ class XMakeRunConfiguration(
     // save configuration
     override fun writeExternal(element: Element) {
         super.writeExternal(element)
-        element.writeString("runTarget", runTarget)
-        element.writeString("runArguments", runArguments)
+
+        XmlSerializer.serializeInto(this, element)
         runEnvironment.writeExternal(element)
     }
 
     // load configuration
     override fun readExternal(element: Element) {
         super.readExternal(element)
-        runTarget = element.readString("runTarget") ?: "default"
-        runArguments = element.readString("runArguments") ?: ""
+
+        XmlSerializer.deserializeInto(this, element)
         runEnvironment = EnvironmentVariablesData.readExternal(element)
     }
 
@@ -97,21 +103,3 @@ class XMakeRunConfiguration(
         private val Log = Logger.getInstance(XMakeRunConfiguration::class.java.getName())
     }
 }
-
-
-private fun Element.writeString(name: String, value: String) {
-    val opt = org.jdom.Element("option")
-    opt.setAttribute("name", name)
-    opt.setAttribute("value", value)
-    addContent(opt)
-}
-
-private fun Element.readString(name: String): String? =
-    children.find { it.name == "option" && it.getAttributeValue("name") == name }?.getAttributeValue("value")
-
-
-private fun Element.writeBool(name: String, value: Boolean) {
-    writeString(name, value.toString())
-}
-
-private fun Element.readBool(name: String) = readString(name)?.toBoolean()
