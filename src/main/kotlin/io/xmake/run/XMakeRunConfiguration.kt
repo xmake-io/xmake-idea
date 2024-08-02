@@ -86,7 +86,8 @@ class XMakeRunConfiguration(
         }
     }
 
-    override fun getConfigurationEditor(): SettingsEditor<out RunConfiguration> = XMakeRunConfigurationEditor(project)
+    override fun getConfigurationEditor(): SettingsEditor<out RunConfiguration> =
+        XMakeRunConfigurationEditor(project, this)
 
     override fun getState(executor: Executor, environment: ExecutionEnvironment): RunProfileState? {
 

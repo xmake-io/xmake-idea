@@ -9,16 +9,17 @@ import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.ui.RawCommandLineEditor
 import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.panel
-import io.xmake.shared.xmakeConfiguration
 import java.awt.Dimension
 import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.DefaultComboBoxModel
 
-class XMakeRunConfigurationEditor(private val project: Project) : SettingsEditor<XMakeRunConfiguration>() {
+class XMakeRunConfigurationEditor(
+    private val project: Project,
+    private val runConfiguration: XMakeRunConfiguration,
+) : SettingsEditor<XMakeRunConfiguration>() {
 
-    // the xmake configuration
-    val xmakeConfiguration = project.xmakeConfiguration
+
 
     // the targets ui
     private val targetsModel = DefaultComboBoxModel<String>()
