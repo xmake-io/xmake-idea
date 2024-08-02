@@ -6,16 +6,19 @@ import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
+import com.intellij.ui.PopupMenuListenerAdapter
 import com.intellij.ui.RawCommandLineEditor
 import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.panel
+import io.xmake.project.target.TargetManager
 import io.xmake.project.toolkit.ToolkitHostType.*
 import io.xmake.project.toolkit.ui.ToolkitComboBox
 import io.xmake.project.toolkit.ui.ToolkitListItem
 import java.awt.Dimension
+import javax.swing.DefaultComboBoxModel
 import javax.swing.JComponent
 import javax.swing.JPanel
-import javax.swing.DefaultComboBoxModel
+import javax.swing.event.PopupMenuEvent
 
 class XMakeRunConfigurationEditor(
     private val project: Project,
@@ -27,7 +30,7 @@ class XMakeRunConfigurationEditor(
 
     // the targets ui
     private val targetsModel = DefaultComboBoxModel<String>()
-    private val targetsComboBox = ComboBox<String>(targetsModel)
+    private val targetsComboBox = ComboBox(targetsModel)
 
     // the run arguments
     private val runArguments = RawCommandLineEditor()
@@ -42,9 +45,6 @@ class XMakeRunConfigurationEditor(
 
         // reset targets
         targetsModel.removeAllElements()
-        for (target in xmakeConfiguration.targets) {
-            targetsModel.addElement(target)
-        }
         targetsModel.selectedItem = configuration.runTarget
 
         // reset run arguments
@@ -59,19 +59,36 @@ class XMakeRunConfigurationEditor(
     // apply editor to configuration
     override fun applyEditorTo(configuration: XMakeRunConfiguration) {
 
-        configuration.runTarget         = targetsModel.selectedItem.toString()
-        configuration.runArguments      = runArguments.text
-        configuration.runEnvironment    = environmentVariables.envData
+        configuration.runTarget = (targetsModel.selectedItem ?: "").toString()
+        configuration.runArguments = runArguments.text
+        configuration.runEnvironment = environmentVariables.envData
         configuration.runWorkingDir = browser.text
     }
 
     // create editor
     override fun createEditor(): JComponent = panel {
-        row("Default target:") {
-            cell(targetsComboBox).align(AlignX.FILL)
-        }
+
         row("Xmake Toolkit:") {
             cell(toolkitComboBox).align(AlignX.FILL)
+        }
+
+        row("Target:") {
+            cell(targetsComboBox).applyToComponent {
+                addPopupMenuListener(object : PopupMenuListenerAdapter() {
+                    override fun popupMenuWillBecomeVisible(e: PopupMenuEvent?) {
+                        super.popupMenuWillBecomeVisible(e)
+                        targetsModel.removeAllElements()
+                        with(runConfiguration){
+                            if (runToolkit != null && runWorkingDir.isNotEmpty()){
+                                TargetManager.getInstance(project)
+                                    .detectXmakeTarget(runToolkit!!, runConfiguration.runWorkingDir).forEach { target ->
+                                        targetsModel.addElement(target)
+                                    }
+                            }
+                        }
+                    }
+                })
+            }.align(AlignX.FILL)
         }
 
         row("Program arguments:") {
