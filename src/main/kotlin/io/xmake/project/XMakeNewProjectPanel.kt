@@ -41,8 +41,10 @@ class XMakeNewProjectPanel : Disposable {
     val data: XMakeConfigData
         get() = XMakeConfigData(
             languagesModel.selectedItem.toString().lowercase(),
-            template
-        )
+            template,
+            toolkit,
+            browser.text
+        ).also { println("XMakeConfigData: ${it.toolkit}, ${it.remotePath}") }
 
     // get template
     private val template: String
