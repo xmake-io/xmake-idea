@@ -1,16 +1,16 @@
 package io.xmake.utils
 
 import com.intellij.execution.configurations.GeneralCommandLine
-import com.intellij.execution.process.ProcessAdapter
-import com.intellij.execution.process.ProcessEvent
-import com.intellij.execution.process.ProcessHandler
-import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
-import io.xmake.project.*
+import io.xmake.project.toolkit.activatedToolkit
 import io.xmake.shared.XMakeProblem
+import io.xmake.utils.execute.createProcess
+import io.xmake.utils.execute.runProcessWithHandler
 import io.xmake.utils.interact.kXMakeVersion
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -81,7 +81,7 @@ object SystemUtils {
     }
 
     // parse problems for the given line
-    private fun parseProblem(info: String): XMakeProblem? {
+    fun parseProblem(info: String): XMakeProblem? {
 
         if (SystemInfo.isWindows) {
 
@@ -116,7 +116,21 @@ object SystemUtils {
         return null
     }
 
-    // run process in console
+    fun runvInConsole(
+        project: Project,
+        commandLine: GeneralCommandLine,
+        showConsole: Boolean = true,
+        showProblem: Boolean = false,
+        showExitCode: Boolean = false
+    ) = runProcessWithHandler(project, commandLine, showConsole, showProblem, showExitCode) {
+        println("runvInConsole: ${it.workDirectory}")
+        // Todo: ssh method blocking thread
+        runBlocking(Dispatchers.Default) {
+            commandLine.createProcess(project.activatedToolkit!!)
+        }
+    }
+
+/*    // run process in console
     fun runvInConsole(
         project: Project,
         commandLine: GeneralCommandLine,
@@ -162,7 +176,7 @@ object SystemUtils {
 
         // failed
         return handler
-    }
+    }*/
 }
 
 val VirtualFile.pathAsPath: Path get() = Paths.get(path)

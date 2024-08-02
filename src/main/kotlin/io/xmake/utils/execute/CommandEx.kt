@@ -82,3 +82,46 @@ suspend fun runProcess(process: Process): Pair<Result<String>, Int>{
     val exitCode = process.awaitExit()
     return Pair(result, exitCode)
 }
+
+fun runProcessWithHandler(project: Project,
+                          command: GeneralCommandLine,
+                          showConsole: Boolean = true,
+                          showProblem: Boolean = false,
+                          showExitCode: Boolean = false,
+                          createProcess: (GeneralCommandLine) -> Process): ProcessHandler {
+
+    val process = createProcess(command)
+    val processHandler = KillableColoredProcessHandler(process, command.commandLineString, Charset.forName("UTF-8"))
+    var content = ""
+
+    processHandler.addProcessListener(object : ProcessAdapter() {
+        override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {
+            super.onTextAvailable(event, outputType)
+            project.xmakeConsoleView.print(event.text, ConsoleViewContentType.getConsoleViewType(outputType))
+            content += event.text
+        }
+    })
+
+    // show problem?
+    if (showProblem) {
+        processHandler.addProcessListener(object : ProcessAdapter() {
+            override fun processTerminated(e: ProcessEvent) {
+                runBlocking(Dispatchers.Default) {
+                    val problems = mutableListOf<XMakeProblem>()
+                    println("Content: $content")
+                    content.split(Regex("\\r\\n|\\n|\\r")).forEach {
+                        val problem = parseProblem(it.trim())
+                        if (problem !== null) {
+                            problems.add(problem)
+                        }
+                    }
+                    project.xmakeProblemList = problems
+                }
+            }
+        })
+    }
+
+    processHandler.startNotify()
+    ProcessTerminatedListener.attach(processHandler, project)
+    return processHandler
+}
