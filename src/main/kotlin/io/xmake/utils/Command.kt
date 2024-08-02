@@ -2,11 +2,12 @@ package io.xmake.utils
 
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.process.ProcessNotCreatedException
-import com.intellij.execution.util.ExecUtil
 import com.intellij.openapi.application.ApplicationManager
-import com.jetbrains.rd.util.Runnable
-import io.xmake.utils.interact.kSysEnv
-import io.xmake.utils.interact.kLineSep
+import com.intellij.openapi.project.ProjectManager
+import io.xmake.project.toolkit.activatedToolkit
+import io.xmake.utils.execute.createProcess
+import io.xmake.utils.execute.runProcess
+import kotlinx.coroutines.runBlocking
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
@@ -26,12 +27,13 @@ fun ioRunv(argv: List<String>, workDir: String? = null): List<String> {
     val commandLine: GeneralCommandLine = GeneralCommandLine(argv)
         .withWorkDirectory(workDir)
         .withCharset(Charsets.UTF_8)
-        .withEnvironment(kSysEnv)
         .withParentEnvironmentType(GeneralCommandLine.ParentEnvironmentType.CONSOLE)
-    commandLine.withEnvironment("COLORTERM", "nocolor")
     try {
-        val output = ExecUtil.execAndGetOutput(commandLine)
-        return output.stdout.split(kLineSep)
+        val (result, exitCode) = runBlocking {
+            val project = ProjectManager.getInstance().defaultProject
+            return@runBlocking runProcess(commandLine.createProcess(project.activatedToolkit!!))
+        }
+        return result.getOrDefault("").split(Regex("\\s+"))
     } catch (e: ProcessNotCreatedException) {
         return emptyList()
     }
