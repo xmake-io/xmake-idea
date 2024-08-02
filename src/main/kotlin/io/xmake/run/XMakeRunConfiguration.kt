@@ -13,6 +13,8 @@ import com.intellij.openapi.vcs.RemoteFilePath
 import com.intellij.util.xmlb.XmlSerializer
 import com.intellij.util.xmlb.annotations.OptionTag
 import com.intellij.util.xmlb.annotations.Transient
+import io.xmake.project.toolkit.Toolkit
+import io.xmake.project.toolkit.ToolkitManager
 import io.xmake.project.xmakeConsoleView
 import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.SystemUtils
@@ -22,6 +24,9 @@ class XMakeRunConfiguration(
     project: Project, name: String, factory: ConfigurationFactory
 ) : LocatableConfigurationBase<RunProfileState>(project, factory, name),
     RunConfigurationWithSuppressedDefaultDebugAction {
+
+    @OptionTag(tag = "activatedToolkit")
+    var runToolkit: Toolkit? = null
 
     // the run target
     @OptionTag(tag = "target")
@@ -76,9 +81,15 @@ class XMakeRunConfiguration(
 
         XmlSerializer.deserializeInto(this, element)
         runEnvironment = EnvironmentVariablesData.readExternal(element)
+        runToolkit = runToolkit?.let { toolkit ->
+            ToolkitManager.getInstance().findRegisteredToolkitById(toolkit.id)
+        }
     }
 
     override fun checkConfiguration() {
+        if (runToolkit == null) {
+            throw RuntimeConfigurationError("Xmake toolkit is not set!")
+        }
 
         // Todo: Check whether working directory is valid.
         if (runWorkingDir.isBlank()){

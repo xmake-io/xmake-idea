@@ -9,6 +9,9 @@ import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.ui.RawCommandLineEditor
 import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.panel
+import io.xmake.project.toolkit.ToolkitHostType.*
+import io.xmake.project.toolkit.ui.ToolkitComboBox
+import io.xmake.project.toolkit.ui.ToolkitListItem
 import java.awt.Dimension
 import javax.swing.JComponent
 import javax.swing.JPanel
@@ -20,6 +23,7 @@ class XMakeRunConfigurationEditor(
 ) : SettingsEditor<XMakeRunConfiguration>() {
 
 
+    private val toolkitComboBox = ToolkitComboBox(runConfiguration::runToolkit)
 
     // the targets ui
     private val targetsModel = DefaultComboBoxModel<String>()
@@ -65,6 +69,9 @@ class XMakeRunConfigurationEditor(
     override fun createEditor(): JComponent = panel {
         row("Default target:") {
             cell(targetsComboBox).align(AlignX.FILL)
+        }
+        row("Xmake Toolkit:") {
+            cell(toolkitComboBox).align(AlignX.FILL)
         }
 
         row("Program arguments:") {
