@@ -37,8 +37,8 @@
         <directoryProjectGenerator implementation="io.xmake.project.XMakeDirectoryProjectGenerator"/>
 
         <!-- project configurations -->
-        <projectConfigurable instance="io.xmake.project.XMakeProjectConfigurable" displayName="XMake"
-                             groupId="language"/>
+        <projectConfigurable instance="io.xmake.project.XMakeProjectConfigurable" displayName="XMake" groupId="build">
+        </projectConfigurable>
         <toolWindow id="XMake" anchor="bottom" factoryClass="io.xmake.project.XMakeToolWindowFactory"
                     icon="/icons/xmake-dark.svg"/>
 
