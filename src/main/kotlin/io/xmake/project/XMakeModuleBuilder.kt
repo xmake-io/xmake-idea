@@ -53,8 +53,12 @@ class XMakeModuleBuilder : ModuleBuilder() {
 
         val dir = when(configurationData.toolkit!!.host.type) {
             LOCAL -> tmpdir
-            WSL -> configurationData.remotePath
-            SSH -> configurationData.remotePath
+            WSL, SSH -> configurationData.remotePath
+        }
+
+        val workingDir = when(configurationData.toolkit!!.host.type) {
+            LOCAL -> contentEntryPath
+            WSL, SSH -> configurationData.remotePath
         }
 
         Log.debug("dir: $dir")
@@ -71,11 +75,11 @@ class XMakeModuleBuilder : ModuleBuilder() {
         )
 
         val commandLine: GeneralCommandLine = GeneralCommandLine(command)
-//            .withWorkDirectory(workDir)
+            .withWorkDirectory(workingDir)
             .withCharset(Charsets.UTF_8)
             .withParentEnvironmentType(GeneralCommandLine.ParentEnvironmentType.CONSOLE)
         val results = try {
-            val (result, exitCode) = runBlocking(Dispatchers.IO) {
+            val (result, _) = runBlocking(Dispatchers.IO) {
                 return@runBlocking runProcess(commandLine.createProcess(configurationData.toolkit!!))
             }
             result.getOrDefault("").split(Regex("\\s+"))
@@ -109,7 +113,7 @@ class XMakeModuleBuilder : ModuleBuilder() {
         runManager.addConfiguration(configSettings.apply {
             (configuration as XMakeRunConfiguration).apply {
                 runToolkit = configurationData.toolkit
-                runWorkingDir = dir ?: ""
+                runWorkingDir = workingDir ?: ""
             }
         })
         runManager.selectedConfiguration = runManager.allSettings.first()
