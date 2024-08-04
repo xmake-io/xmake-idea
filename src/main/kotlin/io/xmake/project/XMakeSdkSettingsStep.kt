@@ -10,6 +10,7 @@ import com.intellij.ui.dsl.builder.*
 import javax.swing.JComponent
 import com.intellij.openapi.util.Disposer
 import com.intellij.util.ui.JBEmptyBorder
+import io.xmake.project.toolkit.ToolkitHostType.*
 
 
 class XMakeSdkSettingsStep(
@@ -44,13 +45,16 @@ class XMakeSdkSettingsStep(
     }
 
     override fun validate(): Boolean {
-        if (newProjectPanel.data.toolkit == null) {
-            throw RuntimeConfigurationError("Xmake toolkit is not set!")
-        }
 
-        // Todo: Check whether working directory is valid.
-        if (newProjectPanel.data.remotePath.isNullOrBlank()){
-            throw RuntimeConfigurationError("Working directory is not set!")
+        with(newProjectPanel.data) {
+            if (toolkit == null) {
+                throw RuntimeConfigurationError("Xmake toolkit is not set!")
+            }
+
+            // Todo: Check whether working directory is valid.
+            if ((toolkit.host.type == WSL || toolkit.host.type == SSH) && remotePath.isNullOrBlank()) {
+                throw RuntimeConfigurationError("Working directory is not set!")
+            }
         }
 
         return true
