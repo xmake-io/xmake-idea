@@ -8,6 +8,7 @@ import com.intellij.openapi.roots.ModifiableRootModel
 import com.intellij.ui.dsl.builder.*
 import javax.swing.JComponent
 import com.intellij.openapi.util.Disposer
+import com.intellij.util.ui.JBEmptyBorder
 
 
 class XMakeSdkSettingsStep(
@@ -19,7 +20,7 @@ class XMakeSdkSettingsStep(
 
     override fun getComponent(): JComponent = panel {
         newProjectPanel.attachTo(this)
-    }
+    }.withBorder(JBEmptyBorder(20, 20, 20, 20))
 
     override fun disposeUIResources() = Disposer.dispose(newProjectPanel)
 
