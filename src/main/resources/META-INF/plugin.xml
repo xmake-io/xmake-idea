@@ -30,11 +30,13 @@
 
         <!-- module configurations -->
         <!-- clion not support -->
-        <sdkType implementation="io.xmake.project.XMakeSdkType"/>
-        <moduleType id="XMake.Module" implementationClass="io.xmake.project.XMakeModuleType"/>
-        <moduleBuilder builderClass="io.xmake.project.XMakeModuleBuilder"/>
-
-        <directoryProjectGenerator implementation="io.xmake.project.XMakeDirectoryProjectGenerator"/>
+        <!--        <sdkType implementation="io.xmake.project.XMakeSdkType"/>-->
+        <!--        <moduleBuilder builderClass="io.xmake.project.XMakeModuleBuilder"/>-->
+        <!--        <directoryProjectGenerator implementation="io.xmake.project.XMakeDirectoryProjectGenerator"/>-->
+        <!-- module-based IDE-->
+        <moduleBuilder builderClass="io.xmake.project.wizard.XMakeProjectModuleBuilder"/>
+        <!-- directory-based IDE-->
+        <directoryProjectGenerator implementation="io.xmake.project.wizard.XMakeProjectDirectoryGenerator"/>
 
         <!-- project configurations -->
         <projectConfigurable instance="io.xmake.project.XMakeProjectConfigurable" displayName="XMake" groupId="build">

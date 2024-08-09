@@ -4,6 +4,9 @@ import ai.grazie.utils.tryRunWithException
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.ui.ComboBox
+import com.intellij.openapi.ui.validation.DialogValidation
+import com.intellij.openapi.ui.validation.transformParameter
+import com.intellij.openapi.ui.validation.validationErrorIf
 import com.intellij.ui.PopupMenuListenerAdapter
 import com.intellij.ui.SortedComboBoxModel
 import io.xmake.project.toolkit.Toolkit
@@ -147,6 +150,12 @@ class ToolkitComboBox(toolkitProperty: KMutableProperty0<Toolkit?>) : ComboBox<T
 
     companion object {
         private val Log = logger<ToolkitComboBox>()
+
+        fun DialogValidation.WithParameter<() -> Toolkit?>.forToolkitComboBox(): DialogValidation.WithParameter<ToolkitComboBox> =
+            transformParameter { ::activatedToolkit }
+
+        val CHECK_NON_EMPTY_TOOLKIT: DialogValidation.WithParameter<() -> Toolkit?> =
+            validationErrorIf<Toolkit?>("XMake toolkit is not set!") { it == null }
     }
 
 }
