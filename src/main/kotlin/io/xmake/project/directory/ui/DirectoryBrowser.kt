@@ -19,7 +19,7 @@ import kotlinx.coroutines.runBlocking
 import java.awt.event.ActionListener
 
 
-class DirectoryBrowser(val project: Project) : TextFieldWithBrowseButton() {
+class DirectoryBrowser(val project: Project?) : TextFieldWithBrowseButton() {
 
     private val listeners = mutableSetOf<ActionListener>()
 

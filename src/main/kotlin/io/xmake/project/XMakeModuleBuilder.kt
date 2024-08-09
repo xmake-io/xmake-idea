@@ -54,12 +54,12 @@ class XMakeModuleBuilder : ModuleBuilder() {
 
         val dir = when(configurationData.toolkit!!.host.type) {
             LOCAL -> tmpdir
-            WSL, SSH -> configurationData.remotePath
+            WSL, SSH -> configurationData.remotePath!!
         }
 
         val workingDir = when(configurationData.toolkit!!.host.type) {
             LOCAL -> contentEntryPath
-            WSL, SSH -> configurationData.remotePath
+            WSL, SSH -> configurationData.remotePath!!
         }
 
         Log.debug("dir: $dir")
@@ -114,7 +114,7 @@ class XMakeModuleBuilder : ModuleBuilder() {
         runManager.addConfiguration(configSettings.apply {
             (configuration as XMakeRunConfiguration).apply {
                 runToolkit = configurationData.toolkit
-                runWorkingDir = workingDir ?: ""
+                runWorkingDir = workingDir
             }
         })
         runManager.selectedConfiguration = runManager.allSettings.first()
