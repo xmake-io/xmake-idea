@@ -144,8 +144,7 @@ class XMakeRunConfigurationEditor(
             }
         }.visibleIf(ComboBoxPredicate<ToolkitListItem>(toolkitComboBox) {
             val toolkit = (it as? ToolkitListItem.ToolkitItem)?.toolkit
-            if (toolkit == null) false
-            else toolkit.host.type == WSL || toolkit.host.type == SSH
+            toolkit?.isOnRemote ?: false
         })
     }
 

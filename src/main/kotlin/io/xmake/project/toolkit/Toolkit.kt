@@ -23,4 +23,8 @@ data class Toolkit(
     var isRegistered: Boolean = false
     @get:Transient
     var isValid: Boolean = true
+
+    @get:Transient
+    val isOnRemote: Boolean
+        get() = with(host) { type == ToolkitHostType.WSL || type == ToolkitHostType.SSH }
 }

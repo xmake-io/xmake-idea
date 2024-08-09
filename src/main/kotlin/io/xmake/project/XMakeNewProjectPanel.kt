@@ -9,8 +9,6 @@ import com.intellij.ui.dsl.builder.Panel
 import com.intellij.ui.layout.ComboBoxPredicate
 import io.xmake.project.directory.ui.DirectoryBrowser
 import io.xmake.project.toolkit.Toolkit
-import io.xmake.project.toolkit.ToolkitHostType.SSH
-import io.xmake.project.toolkit.ToolkitHostType.WSL
 import io.xmake.project.toolkit.ui.ToolkitComboBox
 import io.xmake.project.toolkit.ui.ToolkitListItem
 import javax.swing.DefaultComboBoxModel
@@ -59,6 +57,11 @@ class XMakeNewProjectPanel : Disposable {
         }
 
     fun attachTo(layout: Panel) = with(layout) {
+        row("Remote Project Dir:") {
+            cell(browser).align(AlignX.FILL)
+        }.visibleIf(ComboBoxPredicate<ToolkitListItem>(toolkitComboBox) {
+            (it as? ToolkitListItem.ToolkitItem)?.toolkit?.isOnRemote ?: false
+        })
         row("Xmake Toolkit:") {
             cell(toolkitComboBox)
                 .applyToComponent {
@@ -78,13 +81,6 @@ class XMakeNewProjectPanel : Disposable {
         row("Module Type:") {
             comboBox(kindsModel).align(AlignX.FILL)
         }
-        row("Remote Project Dir:") {
-            cell(browser).align(AlignX.FILL)
-        }.visibleIf(ComboBoxPredicate<ToolkitListItem>(toolkitComboBox) {
-            val toolkit = (it as? ToolkitListItem.ToolkitItem)?.toolkit
-            if (toolkit == null) false
-            else toolkit.host.type == WSL || toolkit.host.type == SSH
-        })
     }
 
     override fun dispose() {}
