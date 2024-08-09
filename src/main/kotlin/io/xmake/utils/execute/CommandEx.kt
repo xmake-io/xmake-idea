@@ -93,7 +93,11 @@ fun runProcessWithHandler(
     createProcess: (GeneralCommandLine) -> Process,
 ): ProcessHandler? {
 
-    val process = createProcess(command)
+    val process = try {
+        createProcess(command)
+    } catch (e: ProcessNotCreatedException) {
+        return null
+    }
     val processHandler = KillableColoredProcessHandler(process, command.commandLineString, Charset.forName("UTF-8"))
     var content = ""
 

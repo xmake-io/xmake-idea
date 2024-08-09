@@ -109,7 +109,7 @@ class XMakeRunConfiguration(
         val xmakeConfiguration = project.xmakeConfiguration
         if (xmakeConfiguration.changed) {
             SystemUtils.runvInConsole(project, xmakeConfiguration.configurationCommandLine)
-                .addProcessListener(object : ProcessAdapter() {
+                ?.addProcessListener(object : ProcessAdapter() {
                     override fun processTerminated(e: ProcessEvent) {
                         SystemUtils.runvInConsole(project, runCommandLine, false, true, true)
                     }

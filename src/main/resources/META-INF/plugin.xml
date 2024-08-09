@@ -48,6 +48,9 @@
         <configurationType implementation="io.xmake.run.XMakeRunConfigurationType"/>
         <runConfigurationProducer implementation="io.xmake.run.XMakeRunConfigurationProducer"/>
 
+        <!-- notifications -->
+        <notificationGroup id="XMake" displayType="BALLOON"/>
+
     </extensions>
 
     <!--

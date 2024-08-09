@@ -1,11 +1,15 @@
 package io.xmake.utils
 
 import com.intellij.execution.configurations.GeneralCommandLine
-import com.intellij.openapi.util.SystemInfo
+import com.intellij.execution.process.ProcessNotCreatedException
+import com.intellij.notification.NotificationGroupManager
+import com.intellij.notification.NotificationType
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.vfs.VirtualFile
 import io.xmake.project.toolkit.activatedToolkit
 import io.xmake.shared.XMakeProblem
+import io.xmake.utils.exception.XMakeToolkitNotSetException
 import io.xmake.utils.execute.createProcess
 import io.xmake.utils.execute.runProcessWithHandler
 import io.xmake.utils.interact.kXMakeVersion
@@ -124,9 +128,17 @@ object SystemUtils {
         showExitCode: Boolean = false
     ) = runProcessWithHandler(project, commandLine, showConsole, showProblem, showExitCode) {
         println("runvInConsole: ${it.workDirectory}")
-        // Todo: ssh method blocking thread
-        runBlocking(Dispatchers.Default) {
-            commandLine.createProcess(project.activatedToolkit!!)
+        try {
+            val activatedToolkit = project.activatedToolkit ?: throw XMakeToolkitNotSetException()
+            runBlocking(Dispatchers.Default) {
+                commandLine.createProcess(activatedToolkit)
+            }
+        } catch (e: XMakeToolkitNotSetException) {
+            NotificationGroupManager.getInstance()
+                .getNotificationGroup("XMake")
+                .createNotification("Error with XMake Toolkit", e.message ?: "", NotificationType.ERROR)
+                .notify(project)
+            throw ProcessNotCreatedException(e.message ?: "", commandLine)
         }
     }
 

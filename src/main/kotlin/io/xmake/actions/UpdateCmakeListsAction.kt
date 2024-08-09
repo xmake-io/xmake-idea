@@ -23,9 +23,16 @@ class UpdateCmakeListsAction : AnAction() {
         // configure and build it
         val xmakeConfiguration = project.xmakeConfiguration
         if (xmakeConfiguration.changed) {
-            SystemUtils.runvInConsole(project, xmakeConfiguration.configurationCommandLine).addProcessListener(object: ProcessAdapter() {
+            SystemUtils.runvInConsole(project, xmakeConfiguration.configurationCommandLine)
+                ?.addProcessListener(object : ProcessAdapter() {
                 override fun processTerminated(e: ProcessEvent) {
-                    SystemUtils.runvInConsole(project, xmakeConfiguration.updateCmakeListsCommandLine, false, true, true).addProcessListener(
+                    SystemUtils.runvInConsole(
+                        project,
+                        xmakeConfiguration.updateCmakeListsCommandLine,
+                        false,
+                        true,
+                        true
+                    )?.addProcessListener(
                         object: ProcessAdapter() {
                             override fun processTerminated(e: ProcessEvent) {
                                 syncFileByToolkit(GlobalScope, project, project.activatedToolkit!!, "CMakeLists.txt", SyncDirection.UPSTREAM_TO_LOCAL)
@@ -37,7 +44,8 @@ class UpdateCmakeListsAction : AnAction() {
             })
             xmakeConfiguration.changed = false
         } else {
-            SystemUtils.runvInConsole(project, xmakeConfiguration.updateCmakeListsCommandLine, false, true, true).addProcessListener(
+            SystemUtils.runvInConsole(project, xmakeConfiguration.updateCmakeListsCommandLine, false, true, true)
+                ?.addProcessListener(
                 object: ProcessAdapter() {
                     override fun processTerminated(e: ProcessEvent) {
                         syncFileByToolkit(GlobalScope, project, project.activatedToolkit!!, "CMakeLists.txt", SyncDirection.UPSTREAM_TO_LOCAL)

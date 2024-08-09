@@ -2,11 +2,15 @@ package io.xmake.utils
 
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.process.ProcessNotCreatedException
+import com.intellij.notification.NotificationGroupManager
+import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.ProjectManager
 import io.xmake.project.toolkit.activatedToolkit
+import io.xmake.utils.exception.XMakeToolkitNotSetException
 import io.xmake.utils.execute.createProcess
 import io.xmake.utils.execute.runProcess
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
@@ -28,12 +32,19 @@ fun ioRunv(argv: List<String>, workDir: String? = null): List<String> {
         .withWorkDirectory(workDir)
         .withCharset(Charsets.UTF_8)
         .withParentEnvironmentType(GeneralCommandLine.ParentEnvironmentType.CONSOLE)
+    val project = ProjectManager.getInstance().defaultProject
     try {
-        val (result, exitCode) = runBlocking {
-            val project = ProjectManager.getInstance().defaultProject
-            return@runBlocking runProcess(commandLine.createProcess(project.activatedToolkit!!))
+        val activatedToolkit = project.activatedToolkit ?: throw XMakeToolkitNotSetException()
+        val (result, exitCode) = runBlocking(Dispatchers.Default) {
+            runProcess(commandLine.createProcess(activatedToolkit))
         }
         return result.getOrDefault("").split(Regex("\\s+"))
+    } catch (e: XMakeToolkitNotSetException) {
+        NotificationGroupManager.getInstance()
+            .getNotificationGroup("XMake")
+            .createNotification("Error with XMake Toolkit", e.message ?: "", NotificationType.ERROR)
+            .notify(project)
+        return emptyList()
     } catch (e: ProcessNotCreatedException) {
         return emptyList()
     }
