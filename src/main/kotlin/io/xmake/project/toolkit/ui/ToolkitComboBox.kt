@@ -1,22 +1,20 @@
 package io.xmake.project.toolkit.ui
 
 import ai.grazie.utils.tryRunWithException
-
 import com.intellij.openapi.diagnostic.logger
-import com.intellij.openapi.observable.util.whenItemSelected
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.ui.PopupMenuListenerAdapter
 import com.intellij.ui.SortedComboBoxModel
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitManager
+import java.awt.event.ItemEvent
 import javax.swing.event.PopupMenuEvent
 import kotlin.reflect.KMutableProperty0
 
 class ToolkitComboBox(toolkitProperty: KMutableProperty0<Toolkit?>) : ComboBox<ToolkitListItem>(
     SortedComboBoxModel { o1, o2 -> o1 compareTo o2 }
 ) {
-
 
     private val service = ToolkitManager.getInstance()
 
@@ -28,7 +26,7 @@ class ToolkitComboBox(toolkitProperty: KMutableProperty0<Toolkit?>) : ComboBox<T
         private set
 
     override fun getItem(): ToolkitListItem? {
-        return model.selectedItem?:null
+        return model.selectedItem ?: null
     }
 
     override fun setItem(anObject: ToolkitListItem?) {
@@ -56,21 +54,20 @@ class ToolkitComboBox(toolkitProperty: KMutableProperty0<Toolkit?>) : ComboBox<T
         isSwingPopup = false
         maximumRowCount = 30
         renderer = ToolkitComboBoxRenderer(this)
-        this.putClientProperty("ComboBox.jbPopup.supportUpdateModel", true)
-        Log.debug("ComboBox Client Property: " +
-                this.getClientProperty("ComboBox.jbPopup.supportUpdateModel"))
+        putClientProperty("ComboBox.jbPopup.supportUpdateModel", true)
+        Log.debug("ComboBox Client Property: " + getClientProperty("ComboBox.jbPopup.supportUpdateModel"))
 
     }
 
     init {
-        val popupMenuListener = object : PopupMenuListenerAdapter() {
+        addPopupMenuListener(object : PopupMenuListenerAdapter() {
             override fun popupMenuWillBecomeVisible(e: PopupMenuEvent?) {
                 super.popupMenuWillBecomeVisible(e)
 
                 // todo: check whether safe or not
                 val itemToolkit = (item as? ToolkitListItem.ToolkitItem)?.toolkit
 
-                with(model){
+                with(model) {
                     clear()
                     add(ToolkitListItem.NoneItem())
                     service.state.registeredToolkits.forEach {
@@ -87,7 +84,7 @@ class ToolkitComboBox(toolkitProperty: KMutableProperty0<Toolkit?>) : ComboBox<T
                     model.items.first()
                 } else {
                     model.items.find { it.id == itemToolkit.id }.let {
-                        if (it == null){
+                        if (it == null) {
                             val invalidToolkitItem = ToolkitListItem.ToolkitItem(itemToolkit).asInvalid()
                             model.items.add(0, invalidToolkitItem)
                             invalidToolkitItem
@@ -103,9 +100,9 @@ class ToolkitComboBox(toolkitProperty: KMutableProperty0<Toolkit?>) : ComboBox<T
                 super.popupMenuWillBecomeInvisible(e)
                 service.cancelDetection()
             }
-        }
+        })
 
-        val detectListener = object : ToolkitManager.ToolkitDetectedListener {
+        service.addToolkitDetectedListener(object : ToolkitManager.ToolkitDetectedListener {
             override fun onToolkitDetected(e: ToolkitManager.ToolkitDetectEvent) {
                 val toolkit = e.source as Toolkit
                 model.add(ToolkitListItem.ToolkitItem(toolkit))
@@ -115,34 +112,34 @@ class ToolkitComboBox(toolkitProperty: KMutableProperty0<Toolkit?>) : ComboBox<T
             }
 
             override fun onAllToolkitsDetected() {}
-        }
+        })
 
-        this.addPopupMenuListener(popupMenuListener)
-        service.addToolkitDetectedListener(detectListener)
+        addItemListener { it ->
+            if (it.stateChange == ItemEvent.SELECTED) {
+                val toolkitListItem = it.item as ToolkitListItem
+                if (toolkitListItem is ToolkitListItem.ToolkitItem) {
+                    with(service) {
+                        val fetchedToolkit = toolkitSet.find { it.id == toolkitListItem.id }
 
-        // Todo: refactor logic with listener
-        whenItemSelected<ToolkitListItem> { toolkitListItem ->
-            if (toolkitListItem is ToolkitListItem.ToolkitItem) {
-                with(service){
-                    val fetchedToolkit = toolkitSet.find { it.id == toolkitListItem.id }
-
-                    if (fetchedToolkit != null) {
-                        // check whether registered or not
-                        state.registeredToolkits.run {
-                            if (findRegisteredToolkitById(fetchedToolkit.id) == null){
-                                add(fetchedToolkit)
+                        if (fetchedToolkit != null) {
+                            // check whether registered or not
+                            state.registeredToolkits.run {
+                                if (findRegisteredToolkitById(fetchedToolkit.id) == null) {
+                                    add(fetchedToolkit)
+                                }
                             }
+                        } else {
+                            // selectedItem toolkit is not in toolkitSet
                         }
-                    } else {
-                        // selectedItem toolkit is not in toolkitList
+
+                        activatedToolkit = fetchedToolkit
                     }
-
-                    activatedToolkit = fetchedToolkit
                 }
+
+                Log.info("activated toolkit: $activatedToolkit")
+                Log.info("selected item: " + (item?.text ?: "") + " " + (item as? ToolkitListItem.ToolkitItem)?.toolkit)
+
             }
-
-            Log.info("selected Item: " + (item?.text ?: ""))
-
         }
     }
 

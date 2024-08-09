@@ -1,13 +1,16 @@
 package io.xmake.project
 
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.observable.util.whenItemSelected
 import com.intellij.openapi.project.ProjectManager
-import com.intellij.ui.dsl.builder.*
+import com.intellij.ui.dsl.builder.AlignX
+import com.intellij.ui.dsl.builder.Panel
 import com.intellij.ui.layout.ComboBoxPredicate
 import io.xmake.project.directory.ui.DirectoryBrowser
 import io.xmake.project.toolkit.Toolkit
-import io.xmake.project.toolkit.ToolkitHostType.*
+import io.xmake.project.toolkit.ToolkitHostType.SSH
+import io.xmake.project.toolkit.ToolkitHostType.WSL
 import io.xmake.project.toolkit.ui.ToolkitComboBox
 import io.xmake.project.toolkit.ui.ToolkitListItem
 import javax.swing.DefaultComboBoxModel
@@ -84,7 +87,10 @@ class XMakeNewProjectPanel : Disposable {
         })
     }
 
-    override fun dispose() {
+    override fun dispose() {}
+
+    companion object {
+        val Log = logger<XMakeNewProjectPanel>()
     }
 
 }

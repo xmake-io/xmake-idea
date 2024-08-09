@@ -88,7 +88,7 @@ class XMakeRunConfiguration(
 
     override fun checkConfiguration() {
         if (runToolkit == null) {
-            throw RuntimeConfigurationError("Xmake toolkit is not set!")
+            throw RuntimeConfigurationError("XMake toolkit is not set!")
         }
 
         // Todo: Check whether working directory is valid.

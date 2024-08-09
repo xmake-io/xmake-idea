@@ -81,7 +81,6 @@ class XMakeRunConfigurationEditor(
 
         row("Xmake Toolkit:") {
             cell(toolkitComboBox).align(AlignX.FILL).applyToComponent {
-
                 // Todo: Store previously selected toolkit to restore it if not applied.
                 whenItemSelected { item ->
                     browser.removeBrowserAllListener()
@@ -119,8 +118,7 @@ class XMakeRunConfigurationEditor(
             cell(environmentVariables).align(AlignX.FILL)
         }
         row("Working directory") {
-            cell(browser).applyToComponent {
-            }.align(AlignX.FILL)
+            cell(browser).align(AlignX.FILL)
         }
 
         row("Sync Directory:") {

@@ -15,7 +15,7 @@ import javax.swing.DefaultListModel
 import javax.swing.JComponent
 import javax.swing.JList
 
-class XmakeProjectToolkitConfigurable(val project: Project) : Configurable, Configurable.NoScroll {
+class XMakeProjectToolkitConfigurable(val project: Project) : Configurable, Configurable.NoScroll {
     override fun createComponent(): JComponent {
         val registeredToolkit = ToolkitManager.getInstance().state.registeredToolkits
         val listModel = DefaultListModel<ToolkitListItem>().apply { registeredToolkit.forEach {

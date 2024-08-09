@@ -10,9 +10,10 @@ import com.intellij.execution.wsl.WslPath
 import com.intellij.openapi.diagnostic.fileLogger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
-import com.intellij.ssh.*
+import com.intellij.ssh.ConnectionBuilder
 import com.intellij.ssh.config.unified.SshConfig
 import com.intellij.ssh.interaction.PlatformSshPasswordProvider
+import com.intellij.ssh.processBuilder
 import com.intellij.util.io.awaitExit
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHostType.*
@@ -28,7 +29,7 @@ private val Log = fileLogger()
 
 fun GeneralCommandLine.createLocalProcess(): Process{
     return this
-        .also { Log.info("commandOnLocal: $this") }
+        .also { Log.info("commandOnLocal: ${this.commandLineString}") }
         .toProcessBuilder().start()
 }
 
@@ -43,7 +44,7 @@ fun GeneralCommandLine.createWslProcess(wslDistribution: WSLDistribution, projec
             withCharset(charset)
         }
     return commandInWsl
-        .also { Log.info("commandInWsl: $commandInWsl") }
+        .also { Log.info("commandInWsl: ${commandInWsl.commandLineString}") }
         .toProcessBuilder().start()
 }
 
@@ -52,7 +53,7 @@ fun GeneralCommandLine.createSshProcess(sshConfig: SshConfig): Process {
         .withSshPasswordProvider(PlatformSshPasswordProvider(sshConfig.copyToCredentials()))
 
     return builder
-        .also { Log.info("commandOnRemote: $this") }
+        .also { Log.info("commandOnRemote: ${this.commandLineString}") }
         .processBuilder(this).start()
 }
 
@@ -83,12 +84,14 @@ suspend fun runProcess(process: Process): Pair<Result<String>, Int>{
     return Pair(result, exitCode)
 }
 
-fun runProcessWithHandler(project: Project,
-                          command: GeneralCommandLine,
-                          showConsole: Boolean = true,
-                          showProblem: Boolean = false,
-                          showExitCode: Boolean = false,
-                          createProcess: (GeneralCommandLine) -> Process): ProcessHandler {
+fun runProcessWithHandler(
+    project: Project,
+    command: GeneralCommandLine,
+    showConsole: Boolean = true,
+    showProblem: Boolean = false,
+    showExitCode: Boolean = false,
+    createProcess: (GeneralCommandLine) -> Process,
+): ProcessHandler? {
 
     val process = createProcess(command)
     val processHandler = KillableColoredProcessHandler(process, command.commandLineString, Charset.forName("UTF-8"))

@@ -126,6 +126,7 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
                 listenerList.forEach { listener ->
                     listener.onToolkitDetected(ToolkitDetectEvent(toolkit))
                 }
+                Log.info("toolkit added: $toolkit")
             }
             listenerList.forEach { it.onAllToolkitsDetected() }
         }
@@ -186,7 +187,7 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
         if (state.registeredToolkits.add(toolkit)){
             loadToolkit(toolkit)
         }
-        Log.info("Registered toolkit: ${toolkit.name}, ${toolkit.id}")
+        Log.info("load registered toolkit: ${toolkit.name}, ${toolkit.id}")
     }
 
     // Todo: Increase robustness of this method

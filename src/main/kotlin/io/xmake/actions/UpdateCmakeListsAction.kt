@@ -1,14 +1,11 @@
 package io.xmake.actions
 
-import com.intellij.execution.RunManager
 import com.intellij.execution.process.ProcessAdapter
 import com.intellij.execution.process.ProcessEvent
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
-import com.intellij.openapi.vfs.LocalFileSystem
 import io.xmake.project.toolkit.activatedToolkit
 import io.xmake.project.xmakeConsoleView
-import io.xmake.run.XMakeRunConfiguration
 import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.SystemUtils
 import io.xmake.utils.execute.SyncDirection
