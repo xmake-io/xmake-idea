@@ -4,7 +4,9 @@ import com.intellij.execution.RunManager
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.process.ProcessNotCreatedException
 import com.intellij.execution.wsl.WSLDistribution
-import com.intellij.ide.util.projectWizard.*
+import com.intellij.ide.util.projectWizard.ModuleBuilder
+import com.intellij.ide.util.projectWizard.ModuleWizardStep
+import com.intellij.ide.util.projectWizard.WizardContext
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.module.ModuleType
@@ -17,7 +19,6 @@ import com.intellij.ssh.config.unified.SshConfig
 import io.xmake.project.toolkit.ToolkitHostType.*
 import io.xmake.run.XMakeRunConfiguration
 import io.xmake.run.XMakeRunConfigurationType
-import io.xmake.utils.SystemUtils
 import io.xmake.utils.execute.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -64,7 +65,7 @@ class XMakeModuleBuilder : ModuleBuilder() {
         Log.debug("dir: $dir")
 
         val command = listOf(
-            SystemUtils.xmakeProgram,
+            configurationData.toolkit!!.path,
             "create",
             "-P",
             dir,

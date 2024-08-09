@@ -19,7 +19,9 @@ class TargetManager(
 ) {
 
     fun detectXmakeTarget(toolkit: Toolkit, workingDirectory: String): List<String> = runBlocking(Dispatchers.IO) {
-        val process = probeXmakeTargetCommand.withWorkDirectory(workingDirectory)
+        val process = probeXmakeTargetCommand
+            .withExePath(toolkit.path)
+            .withWorkDirectory(workingDirectory)
             .also { Log.debug(it.commandLineString) }
             .createProcess(toolkit)
         val (stdout, exitCode) = runProcess(process)

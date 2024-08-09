@@ -14,11 +14,11 @@ val probeXmakeLocCommand = GeneralCommandLine("which")
     .withParameters("xmake")
     .withCharset(Charsets.UTF_8)
 
-val probeXmakeVersionCommand = GeneralCommandLine("xmake")
+val probeXmakeVersionCommand = GeneralCommandLine()
     .withParameters("--version")
     .withCharset(Charsets.UTF_8)
 
-val probeXmakeTargetCommand = GeneralCommandLine("xmake")
+val probeXmakeTargetCommand = GeneralCommandLine()
     .withParameters("l")
     .withParameters("-c")
     .withParameters("""

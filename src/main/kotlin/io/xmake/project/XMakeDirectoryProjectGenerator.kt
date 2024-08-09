@@ -10,10 +10,9 @@ import com.intellij.platform.DirectoryProjectGenerator
 import com.intellij.platform.DirectoryProjectGeneratorBase
 import com.intellij.platform.ProjectGeneratorPeer
 import io.xmake.icons.XMakeIcons
-import io.xmake.utils.SystemUtils
+import io.xmake.utils.ioRunvInPool
 import java.io.File
 import javax.swing.Icon
-import io.xmake.utils.ioRunvInPool
 
 
 class XMakeDirectoryProjectGenerator : DirectoryProjectGeneratorBase<XMakeConfigData>(),
@@ -35,14 +34,14 @@ class XMakeDirectoryProjectGenerator : DirectoryProjectGeneratorBase<XMakeConfig
         val tmpdir = "$contentEntryPath.dir"
         ioRunvInPool(
             listOf(
-                SystemUtils.xmakeProgram,
+                data.toolkit!!.path,
                 "create",
                 "-P",
                 tmpdir,
                 "-l",
-                data?.languagesModel.toString(),
+                data.languagesModel.toString(),
                 "-t",
-                data?.kindsModel.toString()
+                data.kindsModel.toString()
             )
         )
         val tmpFile = File(tmpdir)

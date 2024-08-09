@@ -4,11 +4,12 @@ import com.intellij.execution.RunManager
 import com.intellij.execution.configuration.EnvironmentVariablesData
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.openapi.components.PersistentStateComponent
-import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Service
+import com.intellij.openapi.components.State
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity
+import io.xmake.project.toolkit.activatedToolkit
 import io.xmake.run.XMakeRunConfiguration
 import io.xmake.utils.SystemUtils
 
@@ -162,7 +163,7 @@ class XMakeConfiguration(// the project
     ): GeneralCommandLine {
 
         // make command
-        return GeneralCommandLine(SystemUtils.xmakeProgram)
+        return GeneralCommandLine(project.activatedToolkit!!.path)
             .withParameters(parameters)
             .withCharset(Charsets.UTF_8)
             // Todo: Check if correct.
