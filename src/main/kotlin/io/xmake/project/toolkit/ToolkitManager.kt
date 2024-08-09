@@ -42,30 +42,37 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
 
     class ToolkitDetectEvent(source: Toolkit) : EventObject(source)
 
-    private suspend fun toolkitHostFlow(project: Project? = null): Flow<Pair<ToolkitHostType, Any>> = flow {
+    init {
+        scope.launch {
+            // Cache the list of installed distributions
+            WslDistributionManager.getInstance().installedDistributions
+        }
+    }
+
+    private fun toolkitHostFlow(project: Project? = null): Flow<ToolkitHost> = flow {
         val wslDistributions = scope.async { WslDistributionManager.getInstance().installedDistributions }
         val sshConfigs = scope.async { SshConfigManager.getInstance(project).configs }
 
-        emit(LOCAL to SystemInfo.getOsName())
+        emit(ToolkitHost(LOCAL).also { host -> Log.info("emit host: $host") })
         if (WSLUtil.isSystemCompatible()) {
-            wslDistributions.await().map {
-                    emit(WSL to it)
+            wslDistributions.await().forEach {
+                emit(ToolkitHost(WSL, it).also { host -> Log.info("emit host: $host") })
             }
         }
 
         if (PlatformUtils.isCommercialEdition()) {
-            sshConfigs.await().map {
-                emit(SSH to it)
+            sshConfigs.await().forEach {
+                emit(ToolkitHost(SSH, it).also { host -> Log.info("emit host: $host") })
             }
         }
     }
 
-    private suspend fun detectToolkitLocation(type: ToolkitHostType, target: Any?): Flow<String> = flow {
+    private fun detectToolkitLocation(host: ToolkitHost): Flow<String> = flow {
         val process = probeXmakeLocCommand.let {
-            when (type) {
+            when (host.type) {
                 LOCAL -> probeXmakeLocCommandOnWin.createLocalProcess()
-                WSL -> it.createWslProcess(target as WSLDistribution)
-                SSH -> it.createSshProcess(target as SshConfig)
+                WSL -> it.createWslProcess(host.target as WSLDistribution)
+                SSH -> it.createSshProcess(host.target as SshConfig)
             }
         }
 
@@ -75,12 +82,12 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
         paths.forEach { emit(it) }
     }
 
-    private suspend fun detectToolkitVersion(type: ToolkitHostType, target: Any?): Flow<String> = flow {
-        val process = probeXmakeVersionCommand.let {
-            when (type) {
+    private fun detectToolkitVersion(host: ToolkitHost, path: String): Flow<String> = flow {
+        val process = probeXmakeVersionCommand.withExePath(path).let {
+            when (host.type) {
                 LOCAL -> it.createLocalProcess()
-                WSL -> it.createWslProcess(target as WSLDistribution)
-                SSH -> it.createSshProcess(target as SshConfig)
+                WSL -> it.createWslProcess(host.target as WSLDistribution)
+                SSH -> it.createSshProcess(host.target as SshConfig)
             }
         }
         val (stdout, exitCode) = runProcess(process)
@@ -93,35 +100,57 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
     fun detectXmakeToolkits(project: Project?) {
         detectionJob = scope.launch {
             val toolkitFlow = toolkitHostFlow(project)
-            toolkitFlow.map { (type, target) ->
-                detectToolkitLocation(type, target).flowOn(Dispatchers.IO).buffer().map { path ->
-                    // Todo: path is not used fot detect version.
-                    detectToolkitVersion(type, target).flowOn(Dispatchers.IO).buffer().map { versionString ->
-                        when (type) {
-                            LOCAL -> {
-                                val name = SystemInfo.getOsName()
-                                val host = ToolkitHost(LOCAL)
-                                Toolkit(name, host, path, versionString)
-                            }
 
-                            WSL -> {
-                                val wslDistribution = target as WSLDistribution
-                                val name = wslDistribution.presentableName
-                                val host = ToolkitHost(WSL, wslDistribution)
-                                Toolkit(name, host, path, versionString)
-                            }
+            val pathFlow = toolkitFlow.flatMapMerge { host ->
+                detectToolkitLocation(host).catch {
+                    println(it.localizedMessage)
+                }.flowOn(Dispatchers.IO).buffer().run {
+                    when {
+                        SystemInfo.isWindows -> {
+                            this
+                        }
 
-                            SSH -> {
-                                val sshConfig = (target as SshConfig)
-                                val name = sshConfig.presentableShortName
-                                val host = ToolkitHost(SSH, sshConfig)
-                                Toolkit(name, host, path, versionString)
-                            }
-                        }.apply { this.isRegistered = true; this.isValid = true }
+                        SystemInfo.isUnix -> {
+                            merge(this, predefinedPath["unix"]?.asFlow() ?: emptyFlow())
+                        }
+
+                        else -> {
+                            this
+                        }
                     }
-                }.flattenMerge().buffer()
-            }.flattenMerge().flowOn(Dispatchers.Default).collect { toolkit ->
-                // Todo: consider cache
+                }.distinctUntilChanged().map { path ->
+                    host to path
+                }
+            }.flowOn(Dispatchers.Default).buffer()
+
+            val versionFlow = pathFlow.flatMapMerge { (host, path) ->
+                Log.info("detecting version: host: $host, path: $path")
+                detectToolkitVersion(host, path).catch {
+                    Log.error(it)
+                }.flowOn(Dispatchers.IO).buffer().filter { it.isNotBlank() }.map { versionString ->
+                    when (host.type) {
+                        LOCAL -> {
+                            val name = SystemInfo.getOsName()
+                            Toolkit(name, host, path, versionString)
+                        }
+
+                        WSL -> {
+                            val wslDistribution = host.target as WSLDistribution
+                            val name = wslDistribution.presentableName
+                            Toolkit(name, host, path, versionString)
+                        }
+
+                        SSH -> {
+                            val sshConfig = (host.target as SshConfig)
+                            val name = sshConfig.presentableShortName
+                            Toolkit(name, host, path, versionString)
+                        }
+                    }.apply { this.isRegistered = true; this.isValid = true }
+                }
+            }.flowOn(Dispatchers.Default).buffer()
+
+            versionFlow.collect { toolkit ->
+                // Todo: Consider cache
                 toolkitSet.add(toolkit)
                 listenerList.forEach { listener ->
                     listener.onToolkitDetected(ToolkitDetectEvent(toolkit))

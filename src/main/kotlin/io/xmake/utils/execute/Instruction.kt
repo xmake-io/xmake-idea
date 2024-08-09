@@ -29,3 +29,14 @@ val probeXmakeTargetCommand = GeneralCommandLine("xmake")
             do print(name) 
         end
     """.trimIndent())
+
+val predefinedPath = mapOf(
+    "windows" to listOf(),
+    "unix" to listOf(
+        // Todo: Add more paths
+        // (System.getenv("HOME") ?: "") + "/.local/bin/xmake",
+        "/usr/local/bin/xmake",
+        "/usr/bin/xmake",
+        "/opt/homebrew/bin/xmake"
+    )
+)

@@ -11,7 +11,7 @@ import com.intellij.util.xmlb.annotations.Tag
 import io.xmake.project.toolkit.ToolkitHostType.*
 import kotlinx.coroutines.coroutineScope
 
-@Tag("toolkitLocation")
+@Tag("toolkitHost")
 data class ToolkitHost(
     @Attribute
     val type: ToolkitHostType = LOCAL,
@@ -47,5 +47,9 @@ data class ToolkitHost(
 
     private suspend fun loadSshTarget(project: Project? = null) = coroutineScope {
         target = SshConfigManager.getInstance(project).findConfigById(id!!)!!
+    }
+
+    override fun toString(): String {
+        return "ToolkitHost(type=$type, id=$id)"
     }
 }
