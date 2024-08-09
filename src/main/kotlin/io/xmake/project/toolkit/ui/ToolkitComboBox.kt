@@ -134,6 +134,8 @@ class ToolkitComboBox(toolkitProperty: KMutableProperty0<Toolkit?>) : ComboBox<T
 
                         activatedToolkit = fetchedToolkit
                     }
+                } else {
+                    activatedToolkit = null
                 }
 
                 Log.info("activated toolkit: $activatedToolkit")

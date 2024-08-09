@@ -12,13 +12,13 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.guessProjectDir
 import com.intellij.openapi.roots.ProjectRootManager
 import com.intellij.openapi.util.text.Formats
-import com.intellij.ssh.*
+import com.intellij.ssh.ConnectionBuilder
+import com.intellij.ssh.SftpChannelConfig
+import com.intellij.ssh.SftpChannelNoSuchFileException
+import com.intellij.ssh.SftpProgressTracker
 import com.intellij.ssh.channels.SftpChannel
 import com.intellij.ssh.config.unified.SshConfig
 import com.intellij.ssh.interaction.PlatformSshPasswordProvider
-import com.intellij.ssh.rsync.RSyncOptions
-import com.intellij.ssh.rsync.RsyncService
-import com.intellij.ssh.rsync.RsyncStatusService
 import com.intellij.util.io.systemIndependentPath
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHostType
@@ -61,21 +61,13 @@ fun syncProjectByWslSync(
 ) {
     scope.launch {
         WslSync.syncWslFolders(
-            WslPath.parseWindowsUncPath(wslPath)?.linuxPath
-                ?: wslPath,
-            ProjectRootManager.getInstance(project).contentRoots.first().toNioPath(),
+            WslPath.parseWindowsUncPath(wslPath)?.linuxPath ?: wslPath,
+            project.guessProjectDir()!!.toNioPath(),
             wslDistribution,
             direction.toBoolean(),
             WslHashFilters.WslHashFiltersBuilder().build()
         )
     }
-}
-
-fun syncProjectByRsync(scope: CoroutineScope, project: Project, config: SshConfig, remotePath: String) {
-    val rsyncService = RsyncService.getInstance()
-    RSyncUtil.checkRsyncInstalled()
-    RSyncOptions()
-    RsyncStatusService.getInstance().cachedRsyncStatus
 }
 
 fun syncProjectBySftp(
