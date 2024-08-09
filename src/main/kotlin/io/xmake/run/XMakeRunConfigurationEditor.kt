@@ -3,7 +3,6 @@ package io.xmake.run
 import com.intellij.execution.configuration.EnvironmentVariablesComponent
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.openapi.diagnostic.Logger
-import com.intellij.openapi.observable.util.whenItemSelected
 import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
@@ -82,9 +81,9 @@ class XMakeRunConfigurationEditor(
         row("Xmake Toolkit:") {
             cell(toolkitComboBox).align(AlignX.FILL).applyToComponent {
                 // Todo: Store previously selected toolkit to restore it if not applied.
-                whenItemSelected { item ->
+                addToolkitChangedListener { toolkit ->
                     browser.removeBrowserAllListener()
-                    (item as? ToolkitListItem.ToolkitItem)?.toolkit?.let {
+                    toolkit?.let {
                         browser.addBrowserListenerByToolkit(it)
                     }
                 }

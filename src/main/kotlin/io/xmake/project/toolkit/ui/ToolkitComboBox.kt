@@ -12,6 +12,7 @@ import com.intellij.ui.SortedComboBoxModel
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitManager
 import java.awt.event.ItemEvent
+import java.util.*
 import javax.swing.event.PopupMenuEvent
 import kotlin.reflect.KMutableProperty0
 
@@ -134,6 +135,16 @@ class ToolkitComboBox(toolkitProperty: KMutableProperty0<Toolkit?>) : ComboBox<T
                         } else {
                             // selectedItem toolkit is not in toolkitSet
                         }
+                        if (fetchedToolkit != null) {
+                            // check whether registered or not
+                            state.registeredToolkits.run {
+                                if (findRegisteredToolkitById(fetchedToolkit.id) == null) {
+                                    add(fetchedToolkit)
+                                }
+                            }
+                        } else {
+                            // selectedItem toolkit is not in toolkitSet
+                        }
 
                         activatedToolkit = fetchedToolkit
                     }
@@ -141,12 +152,39 @@ class ToolkitComboBox(toolkitProperty: KMutableProperty0<Toolkit?>) : ComboBox<T
                     activatedToolkit = null
                 }
 
-                Log.info("activated toolkit: $activatedToolkit")
-                Log.info("selected item: " + (item?.text ?: "") + " " + (item as? ToolkitListItem.ToolkitItem)?.toolkit)
+                toolkitChangedListeners.forEach { listener ->
+                    listener.onToolkitChanged(activatedToolkit)
+                }
 
+                Log.info("activeToolkit: $activatedToolkit")
+                Log.info("selected Item: " + (item?.text ?: ""))
             }
         }
     }
+
+    private val toolkitChangedListeners = mutableListOf<ToolkitChangedListener>()
+
+    interface ToolkitChangedListener : EventListener {
+        fun onToolkitChanged(toolkit: Toolkit?)
+    }
+
+    fun addToolkitChangedListener(listener: ToolkitChangedListener) {
+        toolkitChangedListeners.add(listener)
+    }
+
+    fun addToolkitChangedListener(action: (Toolkit?) -> Unit) {
+        toolkitChangedListeners.add(object : ToolkitChangedListener {
+            override fun onToolkitChanged(toolkit: Toolkit?) {
+                action(toolkit)
+            }
+        })
+    }
+
+    fun removeToolkitChangedListener(listener: ToolkitChangedListener) {
+        toolkitChangedListeners.remove(listener)
+    }
+
+    fun getToolkitChangedListeners(): List<ToolkitChangedListener> = toolkitChangedListeners
 
     companion object {
         private val Log = logger<ToolkitComboBox>()

@@ -2,7 +2,6 @@ package io.xmake.project
 
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.diagnostic.logger
-import com.intellij.openapi.observable.util.whenItemSelected
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.Panel
@@ -65,9 +64,9 @@ class XMakeNewProjectPanel : Disposable {
         row("Xmake Toolkit:") {
             cell(toolkitComboBox)
                 .applyToComponent {
-                    whenItemSelected { item ->
+                    addToolkitChangedListener { toolkit ->
                         browser.removeBrowserAllListener()
-                        (item as? ToolkitListItem.ToolkitItem)?.toolkit?.let {
+                        toolkit?.let {
                             browser.addBrowserListenerByToolkit(it)
                         }
                     }
