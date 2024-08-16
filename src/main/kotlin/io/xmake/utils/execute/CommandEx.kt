@@ -13,7 +13,6 @@ import com.intellij.openapi.util.Key
 import com.intellij.ssh.ConnectionBuilder
 import com.intellij.ssh.config.unified.SshConfig
 import com.intellij.ssh.interaction.PlatformSshPasswordProvider
-import com.intellij.ssh.processBuilder
 import com.intellij.util.io.awaitExit
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHostType.*
@@ -35,14 +34,16 @@ fun GeneralCommandLine.createLocalProcess(): Process{
 
 fun GeneralCommandLine.createWslProcess(wslDistribution: WSLDistribution, project: Project? = null): Process {
     val commandInWsl: GeneralCommandLine = wslDistribution.patchCommandLine(
-        object: GeneralCommandLine(this){}, project, WSLCommandLineOptions().apply {
-            isLaunchWithWslExe = true
-        }).apply{
-            workDirectory?.let {
-                withWorkDirectory(WslPath(wslDistribution.id, workDirectory.path).toWindowsUncPath())
-            }
-            withCharset(charset)
+        object : GeneralCommandLine(this) { init {
+            parametersList.clearAll()
         }
+        }, project, WSLCommandLineOptions()
+    ).apply {
+        workDirectory?.let {
+            withWorkDirectory(WslPath(wslDistribution.id, workDirectory.path).toWindowsUncPath())
+        }
+        parametersList.replaceOrAppend(this@createWslProcess.exePath, this@createWslProcess.commandLineString)
+    }
     return commandInWsl
         .also { Log.info("commandInWsl: ${commandInWsl.commandLineString}") }
         .toProcessBuilder().start()
@@ -54,7 +55,7 @@ fun GeneralCommandLine.createSshProcess(sshConfig: SshConfig): Process {
 
     return builder
         .also { Log.info("commandOnRemote: ${this.commandLineString}") }
-        .processBuilder(this).start()
+        .execBuilder(this.commandLineString).execute()
 }
 
 fun GeneralCommandLine.createProcess(toolkit: Toolkit): Process {

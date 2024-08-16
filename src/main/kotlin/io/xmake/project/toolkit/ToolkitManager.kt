@@ -1,6 +1,7 @@
 package io.xmake.project.toolkit
 
 import com.intellij.execution.RunManager
+import com.intellij.execution.processTools.getBareExecutionResult
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.execution.wsl.WSLUtil
 import com.intellij.execution.wsl.WslDistributionManager
@@ -70,16 +71,20 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
     private fun detectToolkitLocation(host: ToolkitHost): Flow<String> = flow {
         val process = probeXmakeLocCommand.let {
             when (host.type) {
-                LOCAL -> probeXmakeLocCommandOnWin.createLocalProcess()
+                LOCAL -> (if (SystemInfo.isWindows) probeXmakeLocCommandOnWin else it).createLocalProcess()
                 WSL -> it.createWslProcess(host.target as WSLDistribution)
                 SSH -> it.createSshProcess(host.target as SshConfig)
             }
         }
 
-        val (stdout, exitCode) = runProcess(process)
-        val paths = stdout.getOrElse { "" }.split(Regex("\\r\\n|\\n|\\r"))
-        Log.debug("ExitCode: $exitCode Output: $stdout")
-        paths.forEach { emit(it) }
+        with(process.getBareExecutionResult()){
+            Log.info("Host: ${host.type} ExitCode: $exitCode Output: ${stdOut.toString(Charsets.UTF_8)}")
+            val paths = stdOut.toString(Charsets.UTF_8)
+                .split(Regex("\\r\\n|\\n|\\r"))
+                .filterNot { it.isBlank() || it.contains("not found") }
+                .distinct()
+            paths.forEach { emit(it); println("emit path on ${host.type}: $it") }
+        }
     }
 
     private fun detectToolkitVersion(host: ToolkitHost, path: String): Flow<String> = flow {
@@ -92,7 +97,7 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
         }
         val (stdout, exitCode) = runProcess(process)
         val versionString = stdout.getOrElse { "" }.split(Regex(",")).first().split(" ").last()
-        Log.debug("ExitCode: $exitCode Version: $versionString")
+        Log.info("ExitCode: $exitCode Version: $versionString")
         emit(versionString)
     }
 
@@ -103,31 +108,19 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
 
             val pathFlow = toolkitFlow.flatMapMerge { host ->
                 detectToolkitLocation(host).catch {
-                    println(it.localizedMessage)
-                }.flowOn(Dispatchers.IO).buffer().run {
-                    when {
-                        SystemInfo.isWindows -> {
-                            this
-                        }
-
-                        SystemInfo.isUnix -> {
-                            merge(this, predefinedPath["unix"]?.asFlow() ?: emptyFlow())
-                        }
-
-                        else -> {
-                            this
-                        }
-                    }
-                }.distinctUntilChanged().map { path ->
-                    host to path
-                }
+                    Log.warn(it.message)
+                }.flowOn(Dispatchers.IO).buffer()
+                    .distinctUntilChanged()
+                    .filterNot { it.isBlank() }
+                    .onEach { println("output path: $it") }
+                    .map { path -> host to path }
             }.flowOn(Dispatchers.Default).buffer()
 
             val versionFlow = pathFlow.flatMapMerge { (host, path) ->
                 Log.info("detecting version: host: $host, path: $path")
                 detectToolkitVersion(host, path).catch {
-                    Log.error(it)
-                }.flowOn(Dispatchers.IO).buffer().filter { it.isNotBlank() }.map { versionString ->
+                    Log.warn(it.message)
+                }.flowOn(Dispatchers.IO).buffer().filterNot { it.isBlank() }.map { versionString ->
                     when (host.type) {
                         LOCAL -> {
                             val name = SystemInfo.getOsName()

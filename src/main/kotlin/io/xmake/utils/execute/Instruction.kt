@@ -1,6 +1,18 @@
 package io.xmake.utils.execute
 
 import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.util.containers.map2Array
+
+val predefinedPath = mapOf(
+    "windows" to arrayOf(),
+    "unix" to arrayOf(
+        // Todo: Add more paths
+        "\${HOME}/.local/bin",
+        "/usr/local/bin",
+        "/usr/bin",
+        "/opt/homebrew/bin"
+    )
+)
 
 val probeEnvCommand = GeneralCommandLine("uname")
     .withParameters("-a")
@@ -11,7 +23,10 @@ val probeXmakeLocCommandOnWin = GeneralCommandLine("where.exe")
     .withCharset(Charsets.UTF_8)
 
 val probeXmakeLocCommand = GeneralCommandLine("which")
-    .withParameters("xmake")
+    .withParameters(*arrayOf("xmake")
+        .plus(predefinedPath["unix"]?.map2Array { "$it/xmake" } ?: emptyArray())
+    )
+    .withParentEnvironmentType(GeneralCommandLine.ParentEnvironmentType.NONE)
     .withCharset(Charsets.UTF_8)
 
 val probeXmakeVersionCommand = GeneralCommandLine()
@@ -30,13 +45,3 @@ val probeXmakeTargetCommand = GeneralCommandLine()
         end
     """.trimIndent())
 
-val predefinedPath = mapOf(
-    "windows" to listOf(),
-    "unix" to listOf(
-        // Todo: Add more paths
-        "~/.local/bin/xmake",
-        "/usr/local/bin/xmake",
-        "/usr/bin/xmake",
-        "/opt/homebrew/bin/xmake"
-    )
-)
