@@ -17,7 +17,9 @@ import com.intellij.util.io.awaitExit
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHostType.*
 import io.xmake.project.xmakeConsoleView
+import io.xmake.project.xmakeOutputPanel
 import io.xmake.project.xmakeProblemList
+import io.xmake.project.xmakeToolWindow
 import io.xmake.shared.XMakeProblem
 import io.xmake.utils.SystemUtils.parseProblem
 import kotlinx.coroutines.Dispatchers
@@ -113,7 +115,12 @@ fun runProcessWithHandler(
         }
     })
 
-    // show problem?
+    if (showConsole) {
+        project.xmakeToolWindow?.show {
+            project.xmakeOutputPanel.showPanel()
+        }
+    }
+
     if (showProblem) {
         processHandler.addProcessListener(object : ProcessAdapter() {
             override fun processTerminated(e: ProcessEvent) {
@@ -130,6 +137,10 @@ fun runProcessWithHandler(
                 }
             }
         })
+    }
+
+    if (showExitCode) {
+        ProcessTerminatedListener.attach(processHandler)
     }
 
     processHandler.startNotify()

@@ -142,53 +142,6 @@ object SystemUtils {
         }
     }
 
-/*    // run process in console
-    fun runvInConsole(
-        project: Project,
-        commandLine: GeneralCommandLine,
-        showConsole: Boolean = true,
-        showProblem: Boolean = false,
-        showExitCode: Boolean = false
-    ): ProcessHandler {
-
-        // create handler
-        val handler = ConsoleProcessHandler(project.xmakeConsoleView, commandLine, showExitCode)
-
-        // show console?
-        if (showConsole) {
-
-            // show tool window first
-            project.xmakeToolWindow?.show {
-                project.xmakeOutputPanel.showPanel()
-            }
-        }
-
-        // show problem?
-        if (showProblem) {
-            handler.addProcessListener(object : ProcessAdapter() {
-
-                override fun processTerminated(e: ProcessEvent) {
-                    val content = handler.outputContent
-                    ApplicationManager.getApplication().invokeLater {
-                        val problems = mutableListOf<XMakeProblem>()
-                        content.split('\n').forEach {
-                            val problem = parseProblem(it.trim())
-                            if (problem !== null) {
-                                problems.add(problem)
-                            }
-                        }
-                        project.xmakeProblemList = problems
-                    }
-                }
-            })
-        }
-
-        // start process
-        handler.startNotify()
-
-        // failed
-        return handler
-    }*/
 }
 
 val VirtualFile.pathAsPath: Path get() = Paths.get(path)
