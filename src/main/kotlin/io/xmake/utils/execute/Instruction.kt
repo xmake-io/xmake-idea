@@ -26,7 +26,6 @@ val probeXmakeLocCommand = GeneralCommandLine("which")
     .withParameters(*arrayOf("xmake")
         .plus(predefinedPath["unix"]?.map2Array { "$it/xmake" } ?: emptyArray())
     )
-    .withParentEnvironmentType(GeneralCommandLine.ParentEnvironmentType.NONE)
     .withCharset(Charsets.UTF_8)
 
 val probeXmakeVersionCommand = GeneralCommandLine()
