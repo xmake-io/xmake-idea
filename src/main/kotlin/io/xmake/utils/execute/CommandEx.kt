@@ -37,7 +37,10 @@ fun GeneralCommandLine.createWslProcess(wslDistribution: WSLDistribution, projec
         object : GeneralCommandLine(this) { init {
             parametersList.clearAll()
         }
-        }, project, WSLCommandLineOptions()
+        }, project,
+        WSLCommandLineOptions().apply {
+            isLaunchWithWslExe = true
+        }
     ).apply {
         workDirectory?.let {
             withWorkDirectory(WslPath(wslDistribution.id, workDirectory.path).toWindowsUncPath())
