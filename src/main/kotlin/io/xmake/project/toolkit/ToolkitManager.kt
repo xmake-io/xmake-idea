@@ -34,6 +34,7 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
     class State{
         @XCollection(propertyElementName = "registeredToolKits")
         val registeredToolkits = mutableSetOf<Toolkit>()
+        var lastSelectedToolkitId: String? = null
     }
 
     interface ToolkitDetectedListener : EventListener {

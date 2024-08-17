@@ -22,19 +22,18 @@ import com.intellij.openapi.roots.ModuleRootModificationUtil
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.openapi.ui.getCanonicalPath
 import com.intellij.openapi.ui.shortenTextWithEllipsis
-import com.intellij.openapi.ui.validation.CHECK_DIRECTORY
-import com.intellij.openapi.ui.validation.CHECK_NON_EMPTY
-import com.intellij.openapi.ui.validation.WHEN_PROPERTY_CHANGED
-import com.intellij.openapi.ui.validation.validationErrorIf
+import com.intellij.openapi.ui.validation.*
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.project.stateStore
 import com.intellij.ssh.config.unified.SshConfig
 import com.intellij.ui.UIBundle
 import com.intellij.ui.dsl.builder.*
 import com.intellij.ui.util.getTextWidth
+import com.intellij.util.containers.map2Array
 import io.xmake.project.directory.ui.DirectoryBrowser
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHostType.*
+import io.xmake.project.toolkit.ToolkitManager
 import io.xmake.project.toolkit.ui.ToolkitComboBox
 import io.xmake.project.toolkit.ui.ToolkitComboBox.Companion.CHECK_NON_EMPTY_TOOLKIT
 import io.xmake.project.toolkit.ui.ToolkitComboBox.Companion.forToolkitComboBox
@@ -50,22 +49,29 @@ import java.nio.file.Path
 import javax.swing.DefaultComboBoxModel
 import kotlin.io.path.Path
 
-class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) : AbstractNewProjectWizardStep(parent),
-    NewProjectWizardBaseData by parent.baseData!!, XMakeNewProjectWizardData {
+class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
+    AbstractNewProjectWizardStep(parent),
+    NewProjectWizardBaseData by parent.baseData!!,
+    XMakeNewProjectWizardData {
+
+    private val toolkitManager = ToolkitManager.getInstance()
+    private val scope = CoroutineScope(Dispatchers.IO)
 
     override val remotePathProperty: GraphProperty<String> = propertyGraph.lazyProperty { "" }
     override val languagesProperty: GraphProperty<String> =
         propertyGraph.lazyProperty { languagesModel.selectedItem.toString() }
     override val kindsProperty: GraphProperty<String> =
         propertyGraph.lazyProperty { kindsModel.selectedItem.toString() }
-    override val toolkitProperty: GraphProperty<Toolkit?> = propertyGraph.property(null)
+    override val toolkitProperty: GraphProperty<Toolkit?> = propertyGraph.lazyProperty {
+        toolkitManager.state.lastSelectedToolkitId?.let { toolkitManager.findRegisteredToolkitById(it) }
+    }
+    private val isOnRemoteProperty: GraphProperty<Boolean> =
+        propertyGraph.lazyProperty { toolkit?.isOnRemote == true }
 
     override var remotePath: String by remotePathProperty
     override var language: String by languagesProperty
     override var kind: String by kindsProperty
     override var toolkit: Toolkit? by toolkitProperty
-
-    private val isOnRemoteProperty: GraphProperty<Boolean> = propertyGraph.property(false)
     private var isOnRemote by isOnRemoteProperty
 
     private val kindOptions = listOf(
@@ -98,12 +104,6 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) : AbstractNewProj
     private val browser = DirectoryBrowser(context.project)
     private val toolkitComboBox = ToolkitComboBox(::toolkit)
 
-
-    private val scope = CoroutineScope(Dispatchers.IO)
-
-    private val remoteDirectoryValidations
-        get() = if (isOnRemote) arrayOf(CHECK_NON_EMPTY, CHECK_DIRECTORY) else arrayOf()
-
     @Suppress("UnstableApiUsage")
     override fun setupUI(builder: Panel) {
         val locationProperty = remotePathProperty.joinCanonicalPath(nameProperty)
@@ -113,7 +113,7 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) : AbstractNewProj
                 cell(browser)
                     .bindText(remotePathProperty.toUiPathProperty())
                     .align(AlignX.FILL)
-                    .trimmedTextValidation(*remoteDirectoryValidations)
+                    .trimmedTextValidation(*validationsIf(CHECK_NON_EMPTY, CHECK_DIRECTORY) { !isOnRemote })
                     .whenTextChangedFromUi { logLocationChanged() }
                     .remoteLocationComment(context, locationProperty)
             }.enabledIf(isOnRemoteProperty).visibleIf(isOnRemoteProperty).bottomGap(BottomGap.SMALL)
@@ -146,11 +146,10 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) : AbstractNewProj
                     .align(AlignX.FILL)
             }.bottomGap(BottomGap.SMALL)
 
-            validationErrorIf<Toolkit?>("Toolkit not set!") { it == null }
-
             onApply {
                 context.projectName = name
                 context.setProjectFileDirectory(Path.of(path).resolve(name), false)
+                toolkitManager.state.lastSelectedToolkitId = toolkit?.id
 
                 Log.info("wizard apply base data: ${baseData?.name}, ${baseData?.path}")
                 Log.info(
@@ -302,6 +301,13 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) : AbstractNewProj
                 )
             }
             comment.bind(commentProperty)
+        }
+
+        private fun <T> validationsIf(
+            vararg validations: DialogValidation.WithParameter<T>,
+            predicate: () -> Boolean,
+        ): Array<DialogValidation.WithParameter<T>> {
+            return validations.map2Array { it.transformResult { if (predicate()) withOKEnabled() else this } }
         }
 
         private val Log = logger<XMakeProjectWizardStep>()
