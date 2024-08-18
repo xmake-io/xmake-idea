@@ -1,12 +1,15 @@
 package io.xmake.project
 
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.ProjectManager
-import com.intellij.openapi.roots.ui.configuration.SdkComboBox
-import com.intellij.openapi.roots.ui.configuration.SdkComboBoxModel
-import com.intellij.openapi.roots.ui.configuration.projectRoot.ProjectSdksModel
-import com.intellij.openapi.ui.ComboBox
-import com.intellij.ui.dsl.builder.*
+import com.intellij.ui.dsl.builder.AlignX
+import com.intellij.ui.dsl.builder.Panel
+import com.intellij.ui.layout.ComboBoxPredicate
+import io.xmake.project.directory.ui.DirectoryBrowser
+import io.xmake.project.toolkit.Toolkit
+import io.xmake.project.toolkit.ui.ToolkitComboBox
+import io.xmake.project.toolkit.ui.ToolkitListItem
 import javax.swing.DefaultComboBoxModel
 
 class XMakeNewProjectPanel : Disposable {
@@ -30,17 +33,18 @@ class XMakeNewProjectPanel : Disposable {
         addElement("Objc++")
     }
 
-    // the module kinds
-    private val moduleComboBox = ComboBox(kindsModel)
+    private var toolkit: Toolkit? = null
+    private val toolkitComboBox = ToolkitComboBox(::toolkit)
 
-    // the module languages
-    private val languagesComboBox = ComboBox(languagesModel)
+    private val browser = DirectoryBrowser(ProjectManager.getInstance().defaultProject)
 
     val data: XMakeConfigData
         get() = XMakeConfigData(
             languagesModel.selectedItem.toString().lowercase(),
-            template
-        )
+            template,
+            toolkit,
+            browser.text
+        ).also { println("XMakeConfigData: ${it.toolkit}, ${it.remotePath}") }
 
     // get template
     private val template: String
@@ -52,36 +56,36 @@ class XMakeNewProjectPanel : Disposable {
         }
 
     fun attachTo(layout: Panel) = with(layout) {
-        row("XMake SDK:") {
-            val project = ProjectManager.getInstance().defaultProject
-            val sdkModel = ProjectSdksModel()
-            val xmakeProgram = XMakeSdkType.instance.suggestHomePath()
-            if (xmakeProgram != null) {
-                sdkModel.addSdk(XMakeSdkType.instance, xmakeProgram, null)
-            }
-            val myJdkComboBox = SdkComboBox(SdkComboBoxModel.createSdkComboBoxModel(
-                project,
-                sdkModel,
-                {sdk -> sdk is XMakeSdkType},
-                {sdk -> sdk is XMakeSdkType},)
-            )
-            cell(myJdkComboBox).align(AlignX.FILL)
+        row("Remote Project Dir:") {
+            cell(browser).align(AlignX.FILL)
+        }.visibleIf(ComboBoxPredicate<ToolkitListItem>(toolkitComboBox) {
+            (it as? ToolkitListItem.ToolkitItem)?.toolkit?.isOnRemote ?: false
+        })
+        row("Xmake Toolkit:") {
+            cell(toolkitComboBox)
+                .applyToComponent {
+                    addToolkitChangedListener { toolkit ->
+                        browser.removeBrowserAllListener()
+                        toolkit?.let {
+                            browser.addBrowserListenerByToolkit(it)
+                        }
+                    }
+                    activatedToolkit?.let { browser.addBrowserListenerByToolkit(it) }
+                }
+                .align(AlignX.FILL)
         }
         row("Module Language:") {
-            cell(languagesComboBox).align(AlignX.FILL)
+            comboBox(languagesModel).align(AlignX.FILL)
         }
         row("Module Type:") {
-            cell(moduleComboBox).align(AlignX.FILL)
+            comboBox(kindsModel).align(AlignX.FILL)
         }
-
-        update()
     }
 
-    fun update() {
+    override fun dispose() {}
 
-    }
-
-    override fun dispose() {
+    companion object {
+        val Log = logger<XMakeNewProjectPanel>()
     }
 
 }

@@ -1,6 +1,12 @@
 package io.xmake.project
 
-import com.intellij.ide.util.projectWizard.*
+import com.intellij.execution.RunManager
+import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.execution.process.ProcessNotCreatedException
+import com.intellij.execution.wsl.WSLDistribution
+import com.intellij.ide.util.projectWizard.ModuleBuilder
+import com.intellij.ide.util.projectWizard.ModuleWizardStep
+import com.intellij.ide.util.projectWizard.WizardContext
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.module.ModuleType
@@ -9,14 +15,21 @@ import com.intellij.openapi.roots.ModifiableRootModel
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.vfs.LocalFileSystem
-import io.xmake.utils.SystemUtils
-import io.xmake.utils.ioRunvInPool
+import com.intellij.ssh.config.unified.SshConfig
+import io.xmake.project.toolkit.ToolkitHostType.*
+import io.xmake.run.XMakeRunConfiguration
+import io.xmake.run.XMakeRunConfigurationType
+import io.xmake.utils.execute.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import java.io.File
 
 
 class XMakeModuleBuilder : ModuleBuilder() {
-    var configurationData: XMakeConfigData? = null
+    lateinit var configurationData: XMakeConfigData
 
+    private val scope = CoroutineScope(Dispatchers.Default)
 
     override fun isSuitableSdkType(sdkType: SdkTypeId?): Boolean = true
 
@@ -38,23 +51,73 @@ class XMakeModuleBuilder : ModuleBuilder() {
          * @note we muse use ioRunv instead of Runv to read all output, otherwise it will wait forever on windows
          */
         val tmpdir = "$contentEntryPath.dir"
-        ioRunvInPool(
-            listOf(
-                SystemUtils.xmakeProgram,
-                "create",
-                "-P",
-                tmpdir,
-                "-l",
-                configurationData?.languagesModel.toString(),
-                "-t",
-                configurationData?.kindsModel.toString()
-            )
-        )
-        val tmpFile = File(tmpdir)
-        if (tmpFile.exists()) {
-            tmpFile.copyRecursively(File(contentEntryPath), true)
-            tmpFile.deleteRecursively()
+
+        val dir = when(configurationData.toolkit!!.host.type) {
+            LOCAL -> tmpdir
+            WSL, SSH -> configurationData.remotePath!!
         }
+
+        val workingDir = when(configurationData.toolkit!!.host.type) {
+            LOCAL -> contentEntryPath
+            WSL, SSH -> configurationData.remotePath!!
+        }
+
+        Log.debug("dir: $dir")
+
+        val command = listOf(
+            configurationData.toolkit!!.path,
+            "create",
+            "-P",
+            dir,
+            "-l",
+            configurationData.languagesModel,
+            "-t",
+            configurationData.kindsModel
+        )
+
+        val commandLine: GeneralCommandLine = GeneralCommandLine(command)
+            .withWorkDirectory(workingDir)
+            .withCharset(Charsets.UTF_8)
+            .withParentEnvironmentType(GeneralCommandLine.ParentEnvironmentType.CONSOLE)
+        val results = try {
+            val (result, _) = runBlocking(Dispatchers.IO) {
+                return@runBlocking runProcess(commandLine.createProcess(configurationData.toolkit!!))
+            }
+            result.getOrDefault("").split(Regex("\\s+"))
+        } catch (e: ProcessNotCreatedException) {
+            emptyList()
+        }
+
+        Log.info("results: $results")
+
+        with(configurationData.toolkit!!) {
+            when(host.type) {
+                LOCAL -> {
+                    val tmpFile = File(tmpdir)
+                    if (tmpFile.exists()) {
+                        tmpFile.copyRecursively(File(contentEntryPath), true)
+                        tmpFile.deleteRecursively()
+                    }
+                }
+                WSL -> {
+                    syncProjectByWslSync(scope, rootModel.project, host.target as WSLDistribution, configurationData.remotePath!!, SyncDirection.UPSTREAM_TO_LOCAL)
+                }
+                SSH -> {
+                    syncProjectBySftp(scope, rootModel.project, host.target as SshConfig, configurationData.remotePath!!, SyncDirection.UPSTREAM_TO_LOCAL)
+                }
+            }
+        }
+
+        val runManager = RunManager.getInstance(rootModel.project)
+
+        val configSettings = runManager.createConfiguration(rootModel.project.name, XMakeRunConfigurationType.getInstance().factory)
+        runManager.addConfiguration(configSettings.apply {
+            (configuration as XMakeRunConfiguration).apply {
+                runToolkit = configurationData.toolkit
+                runWorkingDir = workingDir
+            }
+        })
+        runManager.selectedConfiguration = runManager.allSettings.first()
     }
 
     override fun getModuleType(): ModuleType<*> {

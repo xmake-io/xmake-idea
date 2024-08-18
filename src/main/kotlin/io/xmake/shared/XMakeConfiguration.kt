@@ -1,15 +1,17 @@
 package io.xmake.shared
 
+import com.intellij.execution.RunManager
 import com.intellij.execution.configuration.EnvironmentVariablesData
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.openapi.components.PersistentStateComponent
-import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Service
+import com.intellij.openapi.components.State
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity
+import io.xmake.project.toolkit.activatedToolkit
+import io.xmake.run.XMakeRunConfiguration
 import io.xmake.utils.SystemUtils
-import io.xmake.utils.ioRunvInPool
 
 @Service(Service.Level.PROJECT)
 @State(name = "XMakeProjectSettings")
@@ -132,27 +134,6 @@ class XMakeConfiguration(// the project
     val updateCompileCommansLine: GeneralCommandLine
         get() = makeCommandLine(mutableListOf("project", "-k", "compile_commands"))
 
-    // the targets
-    val targets: Array<String>
-        get() {
-
-            // make targets
-            var targets = arrayOf("default", "all")
-            val results = ioRunvInPool(
-                listOf(
-                    SystemUtils.xmakeProgram,
-                    "l",
-                    "-c",
-                    "import(\"core.project.config\"); import(\"core.project.project\"); config.load(); for name, _ in pairs((project.targets())) do print(name) end"
-                ), data.workingDirectory
-            )
-            results.forEach {
-                if (it.trim() != "") {
-                    targets += it
-                }
-            }
-            return targets
-        }
 
     // configuration is changed?
     var changed = true
@@ -164,7 +145,6 @@ class XMakeConfiguration(// the project
                 currentPlatform = value.currentPlatform,
                 currentArchitecture = value.currentArchitecture,
                 currentMode = value.currentMode,
-                workingDirectory = value.workingDirectory,
                 androidNDKDirectory = value.androidNDKDirectory,
                 buildOutputDirectory = value.buildOutputDirectory,
                 verboseOutput = value.verboseOutput,
@@ -183,10 +163,13 @@ class XMakeConfiguration(// the project
     ): GeneralCommandLine {
 
         // make command
-        return GeneralCommandLine(SystemUtils.xmakeProgram)
+        return GeneralCommandLine(project.activatedToolkit!!.path)
             .withParameters(parameters)
             .withCharset(Charsets.UTF_8)
-            .withWorkDirectory(data.workingDirectory)
+            // Todo: Check if correct.
+            .withWorkDirectory(
+                (RunManager.getInstance(project).selectedConfiguration?.configuration as XMakeRunConfiguration).runWorkingDir
+            )
             .withEnvironment(environmentVariables.envs)
             .withRedirectErrorStream(true)
     }
@@ -195,19 +178,14 @@ class XMakeConfiguration(// the project
         var currentPlatform: String = SystemUtils.platform(),
         var currentArchitecture: String = "",
         var currentMode: String = "release",
-        var workingDirectory: String = "",
         var androidNDKDirectory: String = "",
         var buildOutputDirectory: String = "",
         var verboseOutput: Boolean = false,
         var additionalConfiguration: String = ""
-
     )
 
     // ensure state
     private fun ensureState() {
-        if (data.workingDirectory == "") {
-            data.workingDirectory = project.basePath.toString()
-        }
         if (data.currentArchitecture == "" && architectures.isNotEmpty()) {
             data.currentArchitecture = architectures[0]
         }

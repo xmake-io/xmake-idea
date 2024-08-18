@@ -1,5 +1,6 @@
 package io.xmake.project
 
+import com.intellij.execution.configurations.RuntimeConfigurationError
 import com.intellij.ide.util.projectWizard.ModuleBuilder
 import com.intellij.ide.util.projectWizard.ModuleWizardStep
 import com.intellij.ide.util.projectWizard.WizardContext
@@ -9,6 +10,7 @@ import com.intellij.ui.dsl.builder.*
 import javax.swing.JComponent
 import com.intellij.openapi.util.Disposer
 import com.intellij.util.ui.JBEmptyBorder
+import io.xmake.project.toolkit.ToolkitHostType.*
 
 
 class XMakeSdkSettingsStep(
@@ -40,5 +42,21 @@ class XMakeSdkSettingsStep(
 
         override fun update(module: Module, rootModel: ModifiableRootModel) {
         }
+    }
+
+    override fun validate(): Boolean {
+
+        with(newProjectPanel.data) {
+            if (toolkit == null) {
+                throw RuntimeConfigurationError("Xmake toolkit is not set!")
+            }
+
+            // Todo: Check whether working directory is valid.
+            if ((toolkit.host.type == WSL || toolkit.host.type == SSH) && remotePath.isNullOrBlank()) {
+                throw RuntimeConfigurationError("Working directory is not set!")
+            }
+        }
+
+        return true
     }
 }

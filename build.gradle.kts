@@ -7,7 +7,13 @@ val localChangeNotes: String = file("${projectDir}/change-notes.html").readText(
 val localDescription: String = file("${projectDir}/description.html").readText(Charsets.UTF_8)
 
 //testing ide (true : clion , false : intellij)
-val testIde:String = if(properties("testInClion").toBoolean()) "CL" else "IC"
+//val testIde:String = if(properties("testInClion").toBoolean()) "CL" else "IC"
+val testIde:String = when(1) {
+    0-> "IC"
+    1-> "IU"
+    2-> "CL"
+    else -> "IC"
+}
 
 
 plugins {
@@ -31,7 +37,7 @@ repositories {
 
 intellij {
     type.set(testIde)
-    version.set("2023.3.3")
+    version.set("2024.1.4")
     downloadSources.set(true)
     ideaDependencyCachePath.set(dependencyCachePath)
     updateSinceUntilBuild.set(true)
@@ -80,11 +86,14 @@ tasks {
             )
         )
     }
+    runIde {
+        ideDir.set(file("deps/ideaIU-2024.1.4"))
+    }
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.22")
-    testImplementation("io.mockk:mockk:1.13.9")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:2.0.0")
+    testImplementation("io.mockk:mockk:1.13.10")
 }
 
 

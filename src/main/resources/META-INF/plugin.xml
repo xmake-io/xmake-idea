@@ -10,6 +10,10 @@
     <depends>com.intellij.modules.xml</depends>
     <depends>com.intellij.modules.vcs</depends>
     <depends>com.intellij.modules.xdebugger</depends>
+
+    <depends optional="true" config-file="io.xmake-ultimate.xml">
+        com.intellij.modules.ultimate
+    </depends>
     <!--clion and c/cpp language-->
     <!--
     <depends>com.intellij.clion</depends>
@@ -26,15 +30,18 @@
 
         <!-- module configurations -->
         <!-- clion not support -->
-        <sdkType implementation="io.xmake.project.XMakeSdkType"/>
-        <moduleType id="XMake.Module" implementationClass="io.xmake.project.XMakeModuleType"/>
-        <moduleBuilder builderClass="io.xmake.project.XMakeModuleBuilder"/>
-
-        <directoryProjectGenerator implementation="io.xmake.project.XMakeDirectoryProjectGenerator"/>
+        <!--        <sdkType implementation="io.xmake.project.XMakeSdkType"/>-->
+        <!--        <moduleBuilder builderClass="io.xmake.project.XMakeModuleBuilder"/>-->
+        <!--        <directoryProjectGenerator implementation="io.xmake.project.XMakeDirectoryProjectGenerator"/>-->
+        <!-- module-based IDE-->
+        <moduleBuilder builderClass="io.xmake.project.wizard.XMakeProjectModuleBuilder"/>
+        <!-- directory-based IDE-->
+        <directoryProjectGenerator implementation="io.xmake.project.wizard.XMakeProjectDirectoryGenerator"/>
 
         <!-- project configurations -->
-        <projectConfigurable instance="io.xmake.project.XMakeProjectConfigurable" displayName="XMake"
-                             groupId="language"/>
+        <projectConfigurable instance="io.xmake.project.XMakeProjectConfigurable" displayName="XMake" groupId="build">
+            <configurable instance="io.xmake.project.XMakeProjectToolkitConfigurable" displayName="XMake Toolkit"/>
+        </projectConfigurable>
         <toolWindow id="XMake" anchor="bottom" factoryClass="io.xmake.project.XMakeToolWindowFactory"
                     icon="/icons/xmake-dark.svg"/>
 
@@ -42,6 +49,9 @@
         <programRunner implementation="io.xmake.run.XMakeRunner"/>
         <configurationType implementation="io.xmake.run.XMakeRunConfigurationType"/>
         <runConfigurationProducer implementation="io.xmake.run.XMakeRunConfigurationProducer"/>
+
+        <!-- notifications -->
+        <notificationGroup id="XMake" displayType="BALLOON"/>
 
     </extensions>
 

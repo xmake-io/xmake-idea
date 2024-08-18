@@ -1,16 +1,20 @@
 package io.xmake.utils
 
 import com.intellij.execution.configurations.GeneralCommandLine
-import com.intellij.execution.process.ProcessAdapter
-import com.intellij.execution.process.ProcessEvent
-import com.intellij.execution.process.ProcessHandler
-import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.util.SystemInfo
+import com.intellij.execution.process.ProcessNotCreatedException
+import com.intellij.notification.NotificationGroupManager
+import com.intellij.notification.NotificationType
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.vfs.VirtualFile
-import io.xmake.project.*
+import io.xmake.project.toolkit.activatedToolkit
 import io.xmake.shared.XMakeProblem
+import io.xmake.utils.exception.XMakeToolkitNotSetException
+import io.xmake.utils.execute.createProcess
+import io.xmake.utils.execute.runProcessWithHandler
 import io.xmake.utils.interact.kXMakeVersion
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -81,7 +85,7 @@ object SystemUtils {
     }
 
     // parse problems for the given line
-    private fun parseProblem(info: String): XMakeProblem? {
+    fun parseProblem(info: String): XMakeProblem? {
 
         if (SystemInfo.isWindows) {
 
@@ -116,53 +120,28 @@ object SystemUtils {
         return null
     }
 
-    // run process in console
     fun runvInConsole(
         project: Project,
         commandLine: GeneralCommandLine,
         showConsole: Boolean = true,
         showProblem: Boolean = false,
         showExitCode: Boolean = false
-    ): ProcessHandler {
-
-        // create handler
-        val handler = ConsoleProcessHandler(project.xmakeConsoleView, commandLine, showExitCode)
-
-        // show console?
-        if (showConsole) {
-
-            // show tool window first
-            project.xmakeToolWindow?.show {
-                project.xmakeOutputPanel.showPanel()
+    ) = runProcessWithHandler(project, commandLine, showConsole, showProblem, showExitCode) {
+        println("runvInConsole: ${it.workDirectory}")
+        try {
+            val activatedToolkit = project.activatedToolkit ?: throw XMakeToolkitNotSetException()
+            runBlocking(Dispatchers.Default) {
+                commandLine.createProcess(activatedToolkit)
             }
+        } catch (e: XMakeToolkitNotSetException) {
+            NotificationGroupManager.getInstance()
+                .getNotificationGroup("XMake")
+                .createNotification("Error with XMake Toolkit", e.message ?: "", NotificationType.ERROR)
+                .notify(project)
+            throw ProcessNotCreatedException(e.message ?: "", commandLine)
         }
-
-        // show problem?
-        if (showProblem) {
-            handler.addProcessListener(object : ProcessAdapter() {
-
-                override fun processTerminated(e: ProcessEvent) {
-                    val content = handler.outputContent
-                    ApplicationManager.getApplication().invokeLater {
-                        val problems = mutableListOf<XMakeProblem>()
-                        content.split('\n').forEach {
-                            val problem = parseProblem(it.trim())
-                            if (problem !== null) {
-                                problems.add(problem)
-                            }
-                        }
-                        project.xmakeProblemList = problems
-                    }
-                }
-            })
-        }
-
-        // start process
-        handler.startNotify()
-
-        // failed
-        return handler
     }
+
 }
 
 val VirtualFile.pathAsPath: Path get() = Paths.get(path)

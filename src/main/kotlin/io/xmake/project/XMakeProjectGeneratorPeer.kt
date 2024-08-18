@@ -1,8 +1,9 @@
 package io.xmake.project
 
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
+import com.intellij.openapi.ui.ValidationInfo
 import com.intellij.platform.GeneratorPeerImpl
-import com.intellij.ui.dsl.builder.*
+import com.intellij.ui.dsl.builder.panel
 import javax.swing.JComponent
 
 class XMakeProjectGeneratorPeer : GeneratorPeerImpl<XMakeConfigData>() {
@@ -21,4 +22,17 @@ class XMakeProjectGeneratorPeer : GeneratorPeerImpl<XMakeConfigData>() {
         newProjectPanel.attachTo(this)
     }
 
+    override fun validate(): ValidationInfo? {
+        with(newProjectPanel.data) {
+            if (toolkit == null)
+                return ValidationInfo("Toolkit is not set")
+
+            // Todo: Check whether working directory is valid.
+            if (toolkit.isOnRemote && remotePath.isNullOrBlank()) {
+                return ValidationInfo("Working directory is not set!")
+            }
+
+            return null
+        }
+    }
 }

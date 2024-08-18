@@ -9,24 +9,39 @@ import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.project.Project
-import org.jdom.Element
+import com.intellij.openapi.vcs.RemoteFilePath
+import com.intellij.util.xmlb.XmlSerializer
+import com.intellij.util.xmlb.annotations.OptionTag
+import com.intellij.util.xmlb.annotations.Transient
+import io.xmake.project.toolkit.Toolkit
+import io.xmake.project.toolkit.ToolkitManager
 import io.xmake.project.xmakeConsoleView
 import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.SystemUtils
+import org.jdom.Element
 
 class XMakeRunConfiguration(
     project: Project, name: String, factory: ConfigurationFactory
 ) : LocatableConfigurationBase<RunProfileState>(project, factory, name),
     RunConfigurationWithSuppressedDefaultDebugAction {
 
+    @OptionTag(tag = "activatedToolkit")
+    var runToolkit: Toolkit? = null
+
     // the run target
+    @OptionTag(tag = "target")
     var runTarget: String = "default"
 
     // the run arguments
+    @OptionTag(tag = "arguments")
     var runArguments: String = ""
 
-    // the run environment
+    // the run environmen
+    @get:Transient
     var runEnvironment: EnvironmentVariablesData = EnvironmentVariablesData.DEFAULT
+
+    @OptionTag(tag = "workingDirectory")
+    var runWorkingDir: String = ""
 
     // the run command line
     val runCommandLine: GeneralCommandLine
@@ -46,29 +61,44 @@ class XMakeRunConfiguration(
             }
 
             // make command line
-            return project.xmakeConfiguration.makeCommandLine(parameters, runEnvironment)
+            return project.xmakeConfiguration
+                .makeCommandLine(parameters, runEnvironment)
+                .withWorkDirectory(RemoteFilePath(runWorkingDir, true).ioFile)
+                .withCharset(Charsets.UTF_8)
         }
 
     // save configuration
     override fun writeExternal(element: Element) {
         super.writeExternal(element)
-        element.writeString("runTarget", runTarget)
-        element.writeString("runArguments", runArguments)
+
+        XmlSerializer.serializeInto(this, element)
         runEnvironment.writeExternal(element)
     }
 
     // load configuration
     override fun readExternal(element: Element) {
         super.readExternal(element)
-        runTarget = element.readString("runTarget") ?: "default"
-        runArguments = element.readString("runArguments") ?: ""
+
+        XmlSerializer.deserializeInto(this, element)
         runEnvironment = EnvironmentVariablesData.readExternal(element)
+        runToolkit = runToolkit?.let { toolkit ->
+            ToolkitManager.getInstance().findRegisteredToolkitById(toolkit.id)
+        }
     }
 
     override fun checkConfiguration() {
+        if (runToolkit == null) {
+            throw RuntimeConfigurationError("XMake toolkit is not set!")
+        }
+
+        // Todo: Check whether working directory is valid.
+        if (runWorkingDir.isBlank()){
+            throw RuntimeConfigurationError("Working directory is not set!")
+        }
     }
 
-    override fun getConfigurationEditor(): SettingsEditor<out RunConfiguration> = XMakeRunConfigurationEditor(project)
+    override fun getConfigurationEditor(): SettingsEditor<out RunConfiguration> =
+        XMakeRunConfigurationEditor(project, this)
 
     override fun getState(executor: Executor, environment: ExecutionEnvironment): RunProfileState? {
 
@@ -79,7 +109,7 @@ class XMakeRunConfiguration(
         val xmakeConfiguration = project.xmakeConfiguration
         if (xmakeConfiguration.changed) {
             SystemUtils.runvInConsole(project, xmakeConfiguration.configurationCommandLine)
-                .addProcessListener(object : ProcessAdapter() {
+                ?.addProcessListener(object : ProcessAdapter() {
                     override fun processTerminated(e: ProcessEvent) {
                         SystemUtils.runvInConsole(project, runCommandLine, false, true, true)
                     }
@@ -97,21 +127,3 @@ class XMakeRunConfiguration(
         private val Log = Logger.getInstance(XMakeRunConfiguration::class.java.getName())
     }
 }
-
-
-private fun Element.writeString(name: String, value: String) {
-    val opt = org.jdom.Element("option")
-    opt.setAttribute("name", name)
-    opt.setAttribute("value", value)
-    addContent(opt)
-}
-
-private fun Element.readString(name: String): String? =
-    children.find { it.name == "option" && it.getAttributeValue("name") == name }?.getAttributeValue("value")
-
-
-private fun Element.writeBool(name: String, value: Boolean) {
-    writeString(name, value.toString())
-}
-
-private fun Element.readBool(name: String) = readString(name)?.toBoolean()
