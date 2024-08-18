@@ -22,8 +22,11 @@ import java.util.regex.Pattern
 
 object SystemUtils {
 
+    @Deprecated("Please refer to the relevant content in folder io/xmake/project/toolkit.")
     // the xmake program
     private var _xmakeProgram: String = ""
+
+    @Deprecated("Please refer to the relevant content in folder io/xmake/project/toolkit.")
     var xmakeProgram: String
         get() {
 
@@ -61,8 +64,11 @@ object SystemUtils {
             _xmakeProgram = value
         }
 
+    @Deprecated("Please refer to the relevant content in folder io/xmake/project/toolkit.")
     // the xmake version
     private var _xmakeVersion: String = ""
+
+    @Deprecated("Please refer to the relevant content in folder io/xmake/project/toolkit.")
     var xmakeVersion: String
         get() {
             if (_xmakeVersion == "") {

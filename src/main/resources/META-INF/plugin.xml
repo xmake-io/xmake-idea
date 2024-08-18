@@ -28,11 +28,6 @@
         <!-- icons -->
         <iconProvider implementation="io.xmake.icons.XMakeIconProvider"/>
 
-        <!-- module configurations -->
-        <!-- clion not support -->
-        <!--        <sdkType implementation="io.xmake.project.XMakeSdkType"/>-->
-        <!--        <moduleBuilder builderClass="io.xmake.project.XMakeModuleBuilder"/>-->
-        <!--        <directoryProjectGenerator implementation="io.xmake.project.XMakeDirectoryProjectGenerator"/>-->
         <!-- module-based IDE-->
         <moduleBuilder builderClass="io.xmake.project.wizard.XMakeProjectModuleBuilder"/>
         <!-- directory-based IDE-->

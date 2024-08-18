@@ -27,7 +27,7 @@ import kotlinx.coroutines.runBlocking
 import java.io.File
 import javax.swing.Icon
 
-
+@Deprecated("Please refer to the relevant content in folder io/xmake/project/wizard.")
 class XMakeDirectoryProjectGenerator :
     DirectoryProjectGeneratorBase<XMakeConfigData>(), CustomStepProjectGenerator<XMakeConfigData> {
 

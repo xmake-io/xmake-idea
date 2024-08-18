@@ -1,14 +1,16 @@
 package io.xmake.utils
 
-import com.intellij.execution.process.*
+import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.execution.process.KillableColoredProcessHandler
+import com.intellij.execution.process.ProcessTerminatedListener
 import com.intellij.execution.ui.ConsoleView
 import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.util.Key
-import com.intellij.execution.configurations.GeneralCommandLine
 import java.io.IOException
 import java.io.OutputStreamWriter
 
+@Deprecated("Please refer to runProcessWithHandler.")
 class ConsoleProcessHandler(
     private val consoleView: ConsoleView,
     commandLine: GeneralCommandLine,

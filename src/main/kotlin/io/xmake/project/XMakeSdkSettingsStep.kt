@@ -6,13 +6,14 @@ import com.intellij.ide.util.projectWizard.ModuleWizardStep
 import com.intellij.ide.util.projectWizard.WizardContext
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.roots.ModifiableRootModel
-import com.intellij.ui.dsl.builder.*
-import javax.swing.JComponent
 import com.intellij.openapi.util.Disposer
+import com.intellij.ui.dsl.builder.panel
 import com.intellij.util.ui.JBEmptyBorder
-import io.xmake.project.toolkit.ToolkitHostType.*
+import io.xmake.project.toolkit.ToolkitHostType.SSH
+import io.xmake.project.toolkit.ToolkitHostType.WSL
+import javax.swing.JComponent
 
-
+@Deprecated("Please refer to the relevant content in folder io/xmake/project/wizard.")
 class XMakeSdkSettingsStep(
     private val context: WizardContext,
     private val configurationUpdaterConsumer: ((ModuleBuilder.ModuleConfigurationUpdater) -> Unit)? = null
