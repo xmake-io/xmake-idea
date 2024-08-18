@@ -12,6 +12,7 @@ import io.xmake.project.toolkit.ui.ToolkitComboBox
 import io.xmake.project.toolkit.ui.ToolkitListItem
 import javax.swing.DefaultComboBoxModel
 
+@Deprecated("Please refer to the relevant content in folder io/xmake/project/wizard.")
 class XMakeNewProjectPanel : Disposable {
 
     // the module kinds

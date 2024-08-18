@@ -2,11 +2,11 @@ package io.xmake.project
 
 import com.intellij.openapi.module.ModuleType
 import com.intellij.openapi.module.ModuleTypeManager
-import org.jetbrains.jps.model.module.JpsModuleSourceRootType
 import io.xmake.icons.XMakeIcons
+import org.jetbrains.jps.model.module.JpsModuleSourceRootType
+import javax.swing.Icon
 
-import javax.swing.*
-
+@Deprecated("Please refer to the relevant content in folder io/xmake/project/wizard.")
 class XMakeModuleType : ModuleType<XMakeModuleBuilder>(MODULE_TYPE) {
 
     override fun createModuleBuilder(): XMakeModuleBuilder {

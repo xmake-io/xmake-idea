@@ -25,7 +25,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import java.io.File
 
-
+@Deprecated("Please refer to the relevant content in folder io/xmake/project/wizard.")
 class XMakeModuleBuilder : ModuleBuilder() {
     lateinit var configurationData: XMakeConfigData
 

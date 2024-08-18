@@ -6,6 +6,7 @@ import com.intellij.platform.GeneratorPeerImpl
 import com.intellij.ui.dsl.builder.panel
 import javax.swing.JComponent
 
+@Deprecated("Please refer to the relevant content in folder io/xmake/project/wizard.")
 class XMakeProjectGeneratorPeer : GeneratorPeerImpl<XMakeConfigData>() {
 
     private val newProjectPanel = XMakeNewProjectPanel()

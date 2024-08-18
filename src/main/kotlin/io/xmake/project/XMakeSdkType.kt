@@ -1,17 +1,13 @@
 package io.xmake.project
 
 import com.intellij.openapi.diagnostic.Logger
-import com.intellij.openapi.projectRoots.SdkType
-import com.intellij.openapi.projectRoots.SdkAdditionalData
-import com.intellij.openapi.projectRoots.SdkModificator
-import com.intellij.openapi.projectRoots.SdkModel
-import com.intellij.openapi.projectRoots.AdditionalDataConfigurable
-import com.intellij.openapi.projectRoots.Sdk
+import com.intellij.openapi.projectRoots.*
 import io.xmake.icons.XMakeIcons
-import org.jdom.Element
 import io.xmake.utils.SystemUtils
+import org.jdom.Element
 import javax.swing.Icon
 
+@Deprecated("Please refer to the relevant content in folder io/xmake/project/toolkit.")
 class XMakeSdkType : SdkType("XMake SDK") {
 
     override fun suggestHomePath(): String? {
