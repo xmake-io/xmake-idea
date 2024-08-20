@@ -8,6 +8,7 @@ import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import io.xmake.project.toolkit.activatedToolkit
 import io.xmake.run.XMakeRunConfiguration
+import io.xmake.utils.exception.XMakeRunConfigurationNotSetException
 
 @Service(Service.Level.PROJECT)
 class XMakeConfiguration(val project: Project) {
@@ -22,9 +23,11 @@ class XMakeConfiguration(val project: Project) {
     // the modes
     val modes = arrayOf("release", "debug")
 
-    val configuration =
-        RunManager.getInstance(project).selectedConfiguration?.configuration as? XMakeRunConfiguration
-            ?: throw RuntimeException("Run Configuration is not set!")
+    val configuration: XMakeRunConfiguration
+        get() {
+            return RunManager.getInstance(project).selectedConfiguration?.configuration as? XMakeRunConfiguration
+                ?: throw XMakeRunConfigurationNotSetException()
+        }
 
     // the build command line
     val buildCommandLine: GeneralCommandLine
