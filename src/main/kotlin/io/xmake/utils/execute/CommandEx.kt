@@ -13,6 +13,7 @@ import com.intellij.openapi.util.Key
 import com.intellij.ssh.ConnectionBuilder
 import com.intellij.ssh.config.unified.SshConfig
 import com.intellij.ssh.interaction.PlatformSshPasswordProvider
+import com.intellij.ssh.processBuilder
 import com.intellij.util.io.awaitExit
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHostType.*
@@ -58,9 +59,18 @@ fun GeneralCommandLine.createSshProcess(sshConfig: SshConfig): Process {
     val builder = ConnectionBuilder(sshConfig.host)
         .withSshPasswordProvider(PlatformSshPasswordProvider(sshConfig.copyToCredentials()))
 
+    val command = GeneralCommandLine("sh").withParameters("-c")
+        .withParameters(this.commandLineString)
+        .withWorkDirectory(workDirectory)
+        .withCharset(charset)
+        .withEnvironment(environment)
+        .withInput(inputFile)
+        .withRedirectErrorStream(isRedirectErrorStream)
+
     return builder
-        .also { Log.info("commandOnRemote: ${this.commandLineString}") }
-        .execBuilder(this.commandLineString).execute()
+        .also { Log.info("commandOnRemote: ${command.commandLineString}") }
+        .processBuilder(command)
+        .start()
 }
 
 fun GeneralCommandLine.createProcess(toolkit: Toolkit): Process {
