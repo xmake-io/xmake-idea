@@ -9,7 +9,6 @@ import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.vcs.RemoteFilePath
 import com.intellij.util.xmlb.XmlSerializer
 import com.intellij.util.xmlb.annotations.OptionTag
 import com.intellij.util.xmlb.annotations.Transient
@@ -19,6 +18,7 @@ import io.xmake.project.xmakeConsoleView
 import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.SystemUtils
 import org.jdom.Element
+import kotlin.io.path.Path
 
 class XMakeRunConfiguration(
     project: Project, name: String, factory: ConfigurationFactory
@@ -63,7 +63,7 @@ class XMakeRunConfiguration(
             // make command line
             return project.xmakeConfiguration
                 .makeCommandLine(parameters, runEnvironment)
-                .withWorkDirectory(RemoteFilePath(runWorkingDir, true).ioFile)
+                .withWorkDirectory(Path(runWorkingDir).toFile())
                 .withCharset(Charsets.UTF_8)
         }
 
