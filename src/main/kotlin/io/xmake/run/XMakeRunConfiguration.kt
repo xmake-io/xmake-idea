@@ -32,6 +32,15 @@ class XMakeRunConfiguration(
     @OptionTag(tag = "target")
     var runTarget: String = "default"
 
+    @OptionTag(tag = "platform")
+    var runPlatform: String = SystemUtils.platform()
+
+    @OptionTag(tag = "architecture")
+    var runArchitecture: String = ""
+
+    @OptionTag(tag = "mode")
+    var runMode: String = "release"
+
     // the run arguments
     @OptionTag(tag = "arguments")
     var runArguments: String = ""
@@ -42,6 +51,18 @@ class XMakeRunConfiguration(
 
     @OptionTag(tag = "workingDirectory")
     var runWorkingDir: String = ""
+
+    @OptionTag(tag = "buildDirectory")
+    var buildDirectory: String = ""
+
+    @OptionTag(tag = "androidNDKDirectory")
+    var androidNDKDirectory: String = ""
+
+    @OptionTag(tag = "enableVerbose")
+    var enableVerbose: Boolean = false
+
+    @OptionTag(tag = "additionalConfiguration")
+    var additionalConfiguration: String = ""
 
     // the run command line
     val runCommandLine: GeneralCommandLine

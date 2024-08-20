@@ -3,39 +3,39 @@ package io.xmake.shared
 import com.intellij.execution.RunManager
 import com.intellij.execution.configuration.EnvironmentVariablesData
 import com.intellij.execution.configurations.GeneralCommandLine
-import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.Service
-import com.intellij.openapi.components.State
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.startup.ProjectActivity
 import io.xmake.project.toolkit.activatedToolkit
 import io.xmake.run.XMakeRunConfiguration
-import io.xmake.utils.SystemUtils
+import io.xmake.utils.exception.XMakeRunConfigurationNotSetException
 
 @Service(Service.Level.PROJECT)
-@State(name = "XMakeProjectSettings")
-class XMakeConfiguration(// the project
-    val project: Project
-) : PersistentStateComponent<XMakeConfiguration.State>, ProjectActivity {
+class XMakeConfiguration(val project: Project) {
 
     // the platforms
     val platforms = arrayOf("macosx", "linux", "windows", "android", "iphoneos", "watchos", "mingw")
 
     // the architectures
     val architectures: Array<String>
-        get() = getArchitecturesByPlatform(data.currentPlatform)
+        get() = getArchitecturesByPlatform(configuration.runPlatform)
 
     // the modes
     val modes = arrayOf("release", "debug")
+
+    val configuration: XMakeRunConfiguration
+        get() {
+            return RunManager.getInstance(project).selectedConfiguration?.configuration as? XMakeRunConfiguration
+                ?: throw XMakeRunConfigurationNotSetException()
+        }
 
     // the build command line
     val buildCommandLine: GeneralCommandLine
         get() {
 
             // make parameters
-            val parameters = mutableListOf<String>("-y")
-            if (data.verboseOutput) {
+            val parameters = mutableListOf("-y")
+            if (configuration.enableVerbose) {
                 parameters.add("-v")
             }
 
@@ -49,7 +49,7 @@ class XMakeConfiguration(// the project
 
             // make parameters
             val parameters = mutableListOf("-r", "-y")
-            if (data.verboseOutput) {
+            if (configuration.enableVerbose) {
                 parameters.add("-v")
             }
 
@@ -63,7 +63,7 @@ class XMakeConfiguration(// the project
 
             // make parameters
             val parameters = mutableListOf("c")
-            if (data.verboseOutput) {
+            if (configuration.enableVerbose) {
                 parameters.add("-v")
             }
 
@@ -77,12 +77,12 @@ class XMakeConfiguration(// the project
 
             // make parameters
             val parameters = mutableListOf("f", "-c", "-y")
-            if (data.verboseOutput) {
+            if (configuration.enableVerbose) {
                 parameters.add("-v")
             }
-            if (data.buildOutputDirectory != "") {
+            if (configuration.buildDirectory != "") {
                 parameters.add("-o")
-                parameters.add(data.buildOutputDirectory)
+                parameters.add(configuration.buildDirectory)
             }
 
             // make command line
@@ -95,19 +95,28 @@ class XMakeConfiguration(// the project
 
             // make parameters
             val parameters =
-                mutableListOf("f", "-y", "-p", data.currentPlatform, "-a", data.currentArchitecture, "-m", data.currentMode)
-            if (data.currentPlatform == "android" && data.androidNDKDirectory != "") {
-                parameters.add("--ndk=\"${data.androidNDKDirectory}\"")
+                mutableListOf(
+                    "f",
+                    "-y",
+                    "-p",
+                    configuration.runPlatform,
+                    "-a",
+                    configuration.runArchitecture,
+                    "-m",
+                    configuration.runMode
+                )
+            if (configuration.runPlatform == "android" && configuration.androidNDKDirectory != "") {
+                parameters.add("--ndk=\"${configuration.androidNDKDirectory}\"")
             }
-            if (data.verboseOutput) {
+            if (configuration.enableVerbose) {
                 parameters.add("-v")
             }
-            if (data.buildOutputDirectory != "") {
+            if (configuration.buildDirectory != "") {
                 parameters.add("-o")
-                parameters.add(data.buildOutputDirectory)
+                parameters.add(configuration.buildDirectory)
             }
-            if (data.additionalConfiguration != "") {
-                parameters.add(data.additionalConfiguration)
+            if (configuration.additionalConfiguration != "") {
+                parameters.add(configuration.additionalConfiguration)
             }
 
             // make command line
@@ -120,7 +129,7 @@ class XMakeConfiguration(// the project
 
             // make parameters
             val parameters = mutableListOf("f", "-y")
-            if (data.verboseOutput) {
+            if (configuration.enableVerbose) {
                 parameters.add("-v")
             }
 
@@ -138,24 +147,6 @@ class XMakeConfiguration(// the project
     // configuration is changed?
     var changed = true
 
-    // the state data
-    var data: State = State()
-        set(value) {
-            val newState = State(
-                currentPlatform = value.currentPlatform,
-                currentArchitecture = value.currentArchitecture,
-                currentMode = value.currentMode,
-                androidNDKDirectory = value.androidNDKDirectory,
-                buildOutputDirectory = value.buildOutputDirectory,
-                verboseOutput = value.verboseOutput,
-                additionalConfiguration = value.additionalConfiguration
-            )
-            if (field != newState) {
-                field = newState
-                changed = true
-            }
-        }
-
     // make command line
     fun makeCommandLine(
         parameters: List<String>,
@@ -168,46 +159,17 @@ class XMakeConfiguration(// the project
             .withCharset(Charsets.UTF_8)
             // Todo: Check if correct.
             .withWorkDirectory(
-                (RunManager.getInstance(project).selectedConfiguration?.configuration as XMakeRunConfiguration).runWorkingDir
+                configuration.runWorkingDir
             )
             .withEnvironment(environmentVariables.envs)
             .withRedirectErrorStream(true)
     }
 
-    data class State(
-        var currentPlatform: String = SystemUtils.platform(),
-        var currentArchitecture: String = "",
-        var currentMode: String = "release",
-        var androidNDKDirectory: String = "",
-        var buildOutputDirectory: String = "",
-        var verboseOutput: Boolean = false,
-        var additionalConfiguration: String = ""
-    )
-
     // ensure state
     private fun ensureState() {
-        if (data.currentArchitecture == "" && architectures.isNotEmpty()) {
-            data.currentArchitecture = architectures[0]
+        if (configuration.runArchitecture == "" && architectures.isNotEmpty()) {
+            configuration.runArchitecture = architectures[0]
         }
-    }
-
-    // get and save state to file
-    override fun getState(): State {
-        return data
-    }
-
-    // load state from file
-    override fun loadState(state: State) {
-        data = state
-        ensureState()
-    }
-
-    override fun initializeComponent() {
-        ensureState()
-    }
-
-    override suspend fun execute(project: Project) {
-        ensureState()
     }
 
     companion object {
