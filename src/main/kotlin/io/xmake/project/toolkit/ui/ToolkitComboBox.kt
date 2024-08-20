@@ -14,6 +14,7 @@ import io.xmake.project.toolkit.ToolkitManager
 import java.awt.event.ItemEvent
 import java.util.*
 import javax.swing.event.PopupMenuEvent
+import kotlin.concurrent.timerTask
 import kotlin.reflect.KMutableProperty0
 
 class ToolkitComboBox(toolkitProperty: KMutableProperty0<Toolkit?>) : ComboBox<ToolkitListItem>(
@@ -35,6 +36,15 @@ class ToolkitComboBox(toolkitProperty: KMutableProperty0<Toolkit?>) : ComboBox<T
 
     override fun setItem(anObject: ToolkitListItem?) {
         model.selectedItem = anObject
+    }
+
+    private val timer = Timer()
+    private var timerTask: TimerTask? = null
+
+    private fun debounce(delayMillis: Long = 50L, action: TimerTask.() -> Unit) {
+        timerTask?.cancel()
+        timerTask = timerTask(action)
+        timer.schedule(timerTask, delayMillis)
     }
 
     init {
@@ -110,8 +120,10 @@ class ToolkitComboBox(toolkitProperty: KMutableProperty0<Toolkit?>) : ComboBox<T
             override fun onToolkitDetected(e: ToolkitManager.ToolkitDetectEvent) {
                 val toolkit = e.source as Toolkit
                 model.add(ToolkitListItem.ToolkitItem(toolkit))
-                tryRunWithException<ClassCastException, Unit> {
-                    firePropertyChange("model", false, true)
+                debounce {
+                    tryRunWithException<ClassCastException, Unit> {
+                        firePropertyChange("model", false, true)
+                    }
                 }
             }
 
