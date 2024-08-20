@@ -8,10 +8,11 @@ val localDescription: String = file("${projectDir}/description.html").readText(C
 
 //testing ide (true : clion , false : intellij)
 //val testIde:String = if(properties("testInClion").toBoolean()) "CL" else "IC"
-val testIde:String = when(1) {
-    0-> "IC"
-    1-> "IU"
-    2-> "CL"
+val testIde: String = when (2) {
+    0 -> "IC"
+    1 -> "IU"
+    2 -> "CL"
+    3 -> "PY"
     else -> "IC"
 }
 
@@ -37,7 +38,7 @@ repositories {
 
 intellij {
     type.set(testIde)
-    version.set("2024.1.4")
+    version.set("2024.2")
     downloadSources.set(true)
     ideaDependencyCachePath.set(dependencyCachePath)
     updateSinceUntilBuild.set(true)
@@ -82,18 +83,25 @@ tasks {
                 "2023.1",
                 "2023.2",
                 "2023.3",
-                "2024.1 EAP",
+                "2024.1",
+                "2024.2"
             )
         )
     }
     runIde {
-        ideDir.set(file("deps/ideaIU-2024.1.4"))
+        when (2) {
+            0 -> ideDir.set(file("deps/ideaIC-2024.2"))
+            1 -> ideDir.set(file("deps/ideaIU-2024.2"))
+            2 -> ideDir.set(file("deps/clion-2024.2"))
+            3 -> ideDir.set(file("deps/pycharmPY-2024.2"))
+            else -> ideDir.set(file("deps/ideaIC-2024.2"))
+        }
     }
 }
 
 dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib:2.0.0")
-    testImplementation("io.mockk:mockk:1.13.10")
+    testImplementation("io.mockk:mockk:1.13.12")
 }
 
 
