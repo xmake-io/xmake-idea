@@ -33,10 +33,10 @@
         <!-- directory-based IDE-->
         <directoryProjectGenerator implementation="io.xmake.project.wizard.XMakeProjectDirectoryGenerator"/>
 
-        <!-- project configurations -->
-        <projectConfigurable instance="io.xmake.project.XMakeProjectConfigurable" displayName="XMake" groupId="build">
-            <configurable instance="io.xmake.project.XMakeProjectToolkitConfigurable" displayName="XMake Toolkit"/>
-        </projectConfigurable>
+        <!-- xmake toolkit configurations -->
+        <applicationConfigurable instance="io.xmake.project.XMakeProjectToolkitConfigurable"
+                                 displayName="XMake Toolkit" groupId="build"/>
+
         <toolWindow id="XMake" anchor="bottom" factoryClass="io.xmake.project.XMakeToolWindowFactory"
                     icon="/icons/xmake-dark.svg"/>
 

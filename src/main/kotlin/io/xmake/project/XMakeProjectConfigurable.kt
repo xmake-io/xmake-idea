@@ -1,34 +1,11 @@
 package io.xmake.project
 
-import com.intellij.execution.ExecutionBundle
-import com.intellij.openapi.diagnostic.Logger
-import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
-import com.intellij.openapi.options.Configurable
-import com.intellij.openapi.options.ConfigurationException
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.ui.LabeledComponent
-import com.intellij.openapi.ui.TextFieldWithBrowseButton
-import com.intellij.ui.*
-import com.intellij.ui.components.JBCheckBox
-import com.intellij.ui.components.JBTextField
-import com.intellij.ui.dsl.builder.*
-import com.intellij.util.ui.JBFont
-import com.intellij.util.ui.JBUI
-import com.intellij.util.ui.UIUtil
-import io.xmake.shared.XMakeConfiguration
-import io.xmake.shared.xmakeConfigurationOrNull
-import java.awt.Dimension
-import java.awt.event.ItemEvent
-import java.awt.event.ItemListener
-import java.awt.event.KeyEvent
-import java.awt.event.KeyListener
-import javax.swing.*
-import javax.swing.event.ListDataEvent
-import javax.swing.event.ListDataListener
 
+@Deprecated("Migrate to Run Configuration Editor.")
 class XMakeProjectConfigurable(
-    private val project: Project
-) : Configurable, Configurable.NoScroll {
+    private val project: Project,
+)/* : Configurable, Configurable.NoScroll {
     private val platformsModel = DefaultComboBoxModel<String>()
 
     // the architectures ui
@@ -290,4 +267,4 @@ class XMakeProjectConfigurable(
     companion object {
         private val Log = Logger.getInstance(XMakeProjectConfigurable::class.java.getName())
     }
-}
+}*/
