@@ -1,7 +1,6 @@
 package io.xmake.project
 
 import com.intellij.openapi.options.Configurable
-import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.ui.ColoredListCellRenderer
 import com.intellij.ui.SimpleTextAttributes
@@ -15,9 +14,9 @@ import javax.swing.DefaultListModel
 import javax.swing.JComponent
 import javax.swing.JList
 
-class XMakeProjectToolkitConfigurable(val project: Project) : Configurable, Configurable.NoScroll {
+class XMakeProjectToolkitConfigurable : Configurable, Configurable.NoScroll {
     override fun createComponent(): JComponent {
-        val registeredToolkit = ToolkitManager.getInstance().state.registeredToolkits
+        val registeredToolkit = ToolkitManager.getInstance().getRegisteredToolkits()
         val listModel = DefaultListModel<ToolkitListItem>().apply { registeredToolkit.forEach {
             addElement(ToolkitListItem.ToolkitItem(it).asRegistered()) }
         }
@@ -50,7 +49,12 @@ class XMakeProjectToolkitConfigurable(val project: Project) : Configurable, Conf
 
         decorator.setRemoveAction {
             val toolkit = (toolkitList.selectedValue as ToolkitListItem.ToolkitItem).toolkit
-            if (Messages.showYesNoDialog(project, "Unregister ${toolkit.name}?", "Unregister Toolkit", Messages.getQuestionIcon()) == Messages.YES) {
+            if (Messages.showYesNoDialog(
+                    "Unregister ${toolkit.name}?",
+                    "Unregister Toolkit",
+                    Messages.getQuestionIcon()
+                ) == Messages.YES
+            ) {
                 ToolkitManager.getInstance().unregisterToolkit(toolkit)
                 listModel.removeElement(toolkitList.selectedValue)
             }

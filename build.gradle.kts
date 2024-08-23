@@ -89,7 +89,7 @@ tasks {
         )
     }
     runIde {
-        when (2) {
+        when (0) {
             0 -> ideDir.set(file("deps/ideaIC-2024.2"))
             1 -> ideDir.set(file("deps/ideaIU-2024.2"))
             2 -> ideDir.set(file("deps/clion-2024.2"))

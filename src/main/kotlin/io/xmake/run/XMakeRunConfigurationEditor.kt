@@ -204,7 +204,7 @@ class XMakeRunConfigurationEditor(
                         with(runConfiguration) {
                             if (runToolkit != null && runWorkingDir.isNotEmpty()) {
                                 TargetManager.getInstance(project)
-                                    .detectXmakeTarget(runToolkit!!, runConfiguration.runWorkingDir).forEach { target ->
+                                    .detectXMakeTarget(runToolkit!!, runConfiguration.runWorkingDir).forEach { target ->
                                         targetsModel.addElement(target)
                                     }
                             }

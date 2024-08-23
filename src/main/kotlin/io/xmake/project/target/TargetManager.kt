@@ -18,7 +18,7 @@ class TargetManager(
     private val scope: CoroutineScope,
 ) {
 
-    fun detectXmakeTarget(toolkit: Toolkit, workingDirectory: String): List<String> = runBlocking(Dispatchers.IO) {
+    fun detectXMakeTarget(toolkit: Toolkit, workingDirectory: String): List<String> = runBlocking(Dispatchers.IO) {
         val process = probeXmakeTargetCommand
             .withExePath(toolkit.path)
             .withWorkDirectory(workingDirectory)
