@@ -13,16 +13,6 @@ import io.xmake.utils.exception.XMakeRunConfigurationNotSetException
 @Service(Service.Level.PROJECT)
 class XMakeConfiguration(val project: Project) {
 
-    // the platforms
-    val platforms = arrayOf("macosx", "linux", "windows", "android", "iphoneos", "watchos", "mingw")
-
-    // the architectures
-    val architectures: Array<String>
-        get() = getArchitecturesByPlatform(configuration.runPlatform)
-
-    // the modes
-    val modes = arrayOf("release", "debug")
-
     val configuration: XMakeRunConfiguration
         get() {
             return RunManager.getInstance(project).selectedConfiguration?.configuration as? XMakeRunConfiguration
@@ -165,25 +155,14 @@ class XMakeConfiguration(val project: Project) {
             .withRedirectErrorStream(true)
     }
 
-    // ensure state
-    private fun ensureState() {
-        if (configuration.runArchitecture == "" && architectures.isNotEmpty()) {
-            configuration.runArchitecture = architectures[0]
-        }
-    }
+    /*    // ensure state
+        private fun ensureState() {
+            if (configuration.runArchitecture == "" && architectures.isNotEmpty()) {
+                configuration.runArchitecture = architectures[0]
+            }
+        }*/
 
     companion object {
-
-        // get architectures by platform
-        fun getArchitecturesByPlatform(platform: String) = when (platform) {
-            "macosx", "linux", "mingw" -> arrayOf("x86_64", "i386", "arm64")
-            "windows" -> arrayOf("x86", "x64")
-            "iphoneos" -> arrayOf("arm64", "armv7", "armv7s", "x86_64", "i386")
-            "watchos" -> arrayOf("armv7s", "i386")
-            "android" -> arrayOf("armv7-a", "armv5te", "armv6", "armv8-a", "arm64-v8a")
-            else -> arrayOf()
-        }
-
         // get log
         private val Log = Logger.getInstance(XMakeConfiguration::class.java.getName())
     }

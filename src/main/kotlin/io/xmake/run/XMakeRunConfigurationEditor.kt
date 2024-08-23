@@ -21,6 +21,9 @@ import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHostType.*
 import io.xmake.project.toolkit.ui.ToolkitComboBox
 import io.xmake.project.toolkit.ui.ToolkitListItem
+import io.xmake.run.XMakeRunConfiguration.Companion.getArchitecturesByPlatform
+import io.xmake.run.XMakeRunConfiguration.Companion.modes
+import io.xmake.run.XMakeRunConfiguration.Companion.platforms
 import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.execute.SyncDirection
 import io.xmake.utils.execute.syncProjectBySftp
@@ -48,13 +51,13 @@ class XMakeRunConfigurationEditor(
     private val targetsModel = DefaultComboBoxModel<String>()
     private val targetsComboBox = ComboBox(targetsModel).apply { item = runConfiguration.runTarget }
 
-    private val platformsModel = DefaultComboBoxModel(project.xmakeConfiguration.platforms)
+    private val platformsModel = DefaultComboBoxModel(platforms)
     private val platformsComboBox = ComboBox(platformsModel).apply { item = runConfiguration.runPlatform }
 
-    private val architecturesModel = DefaultComboBoxModel(project.xmakeConfiguration.architectures)
+    private val architecturesModel = DefaultComboBoxModel(getArchitecturesByPlatform(runConfiguration.runPlatform))
     private val architecturesComboBox = ComboBox(architecturesModel).apply { item = runConfiguration.runArchitecture }
 
-    private val modesModel = DefaultComboBoxModel(project.xmakeConfiguration.modes)
+    private val modesModel = DefaultComboBoxModel(modes)
     private val modesComboBox = ComboBox(modesModel).apply { item = runConfiguration.runMode }
 
     private val runArguments = RawCommandLineEditor()
@@ -170,7 +173,7 @@ class XMakeRunConfigurationEditor(
                     cell(platformsComboBox).applyToComponent {
                         addItemListener {
                             architecturesModel.removeAllElements()
-                            architecturesModel.addAll(project.xmakeConfiguration.architectures.toMutableList())
+                            architecturesModel.addAll(getArchitecturesByPlatform(runConfiguration.runPlatform).toMutableList())
                         }
                     }.align(AlignX.FILL)
                 }
