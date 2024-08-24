@@ -6,16 +6,32 @@ fun properties(key: String) = project.findProperty(key).toString()
 val localChangeNotes: String = file("${projectDir}/change-notes.html").readText(Charsets.UTF_8)
 val localDescription: String = file("${projectDir}/description.html").readText(Charsets.UTF_8)
 
-//testing ide (true : clion , false : intellij)
-//val testIde:String = if(properties("testInClion").toBoolean()) "CL" else "IC"
-val testIde: String = when (2) {
-    0 -> "IC"
-    1 -> "IU"
-    2 -> "CL"
+/*
+* Best practice:
+* Use CL for both building and running.
+* If you lack a license, use CLI for building and IC for running.
+* Specify the ideDir path as needed.
+* */
+
+val buildIdeType: String = when (2) {
+    0 -> "IC" // SSH-related functions cannot be built by the Community version.
+    1 -> "IU" // To build with Ultimate version does not require a license.
+    2 -> "CL" // C/C++ intellij-sense is included.
     3 -> "PY"
     else -> "IC"
 }
 
+val buildIdeVersion = "2024.2"
+
+val runIdeType: String = when (2) {
+    0 -> "ideaIC" // You can build with the Ultimate version, but run with the Community version.
+    1 -> "ideaIU" // It may require a license to run with the Ultimate version.
+    2 -> "clion"  // It includes C/C++ related functions, along with functions in the Ultimate version.
+    3 -> "pycharmPY"
+    else -> "ideaIC"
+}
+
+val runIdeVersion = "2024.2"
 
 plugins {
     id("java")
@@ -37,8 +53,8 @@ repositories {
 }
 
 intellij {
-    type.set(testIde)
-    version.set("2024.2")
+    type.set(buildIdeType)
+    version.set(buildIdeVersion)
     downloadSources.set(true)
     ideaDependencyCachePath.set(dependencyCachePath)
     updateSinceUntilBuild.set(true)
@@ -89,13 +105,7 @@ tasks {
         )
     }
     runIde {
-        when (0) {
-            0 -> ideDir.set(file("deps/ideaIC-2024.2"))
-            1 -> ideDir.set(file("deps/ideaIU-2024.2"))
-            2 -> ideDir.set(file("deps/clion-2024.2"))
-            3 -> ideDir.set(file("deps/pycharmPY-2024.2"))
-            else -> ideDir.set(file("deps/ideaIC-2024.2"))
-        }
+        ideDir.set(file("deps/$runIdeType-$runIdeVersion"))
     }
 }
 
