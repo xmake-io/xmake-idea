@@ -1,3 +1,4 @@
+import org.jetbrains.intellij.IntelliJPluginExtension
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 fun properties(key: String) = project.findProperty(key).toString()
@@ -6,6 +7,12 @@ fun properties(key: String) = project.findProperty(key).toString()
 val localChangeNotes: String = file("${projectDir}/change-notes.html").readText(Charsets.UTF_8)
 val localDescription: String = file("${projectDir}/description.html").readText(Charsets.UTF_8)
 
+val type = mapOf(
+    "IC" to "ideaIC",
+    "IU" to "ideaIU",
+    "CL" to "clion",
+    "PY" to "pycharmPY"
+)
 /*
 * Best practice:
 * Use CL for both building and running.
@@ -24,11 +31,11 @@ val buildIdeType: String = when (2) {
 val buildIdeVersion = "2024.2"
 
 val runIdeType: String = when (2) {
-    0 -> "ideaIC" // You can build with the Ultimate version, but run with the Community version.
-    1 -> "ideaIU" // It may require a license to run with the Ultimate version.
-    2 -> "clion"  // It includes C/C++ related functions, along with functions in the Ultimate version.
-    3 -> "pycharmPY"
-    else -> "ideaIC"
+    0 -> "IC" // You can build with the Ultimate version, but run with the Community version.
+    1 -> "IU" // It may require a license to run with the Ultimate version.
+    2 -> "CL"  // It includes C/C++ related functions, along with functions in the Ultimate version.
+    3 -> "PY"
+    else -> "IC"
 }
 
 val runIdeVersion = "2024.2"
@@ -104,6 +111,26 @@ tasks {
             )
         )
     }
+
+    // Execute this downloadIde gradle task if missing build.txt in runIde task.
+    register("downloadIde") {
+        group = "Custom Tasks"
+        description = "Downloads a specific version and type of IntelliJ IDEA based on provided parameters."
+
+        doFirst {
+            println("Executing downloadIde task")
+            // 动态设置 IntelliJ 插件配置
+            val intellijExtension = project.extensions.getByType(IntelliJPluginExtension::class.java)
+            val ideVersion = project.findProperty("ideVersion")?.toString() ?: runIdeVersion
+            val ideType = project.findProperty("ideType")?.toString() ?: runIdeType
+
+            intellijExtension.version.set(ideVersion)
+            intellijExtension.type.set(ideType)
+        }
+
+        finalizedBy("setupDependencies")
+    }
+
     runIde {
         ideDir.set(file("deps/$runIdeType-$runIdeVersion"))
     }
