@@ -172,8 +172,12 @@ class XMakeRunConfigurationEditor(
                 row {
                     cell(platformsComboBox).applyToComponent {
                         addItemListener {
-                            architecturesModel.removeAllElements()
-                            architecturesModel.addAll(getArchitecturesByPlatform(runConfiguration.runPlatform).toMutableList())
+                            val architectures = getArchitecturesByPlatform(selectedItem as String)
+                            with(architecturesModel) {
+                                removeAllElements()
+                                addAll(architectures.toMutableList())
+                                selectedItem = architectures.first()
+                            }
                         }
                     }.align(AlignX.FILL)
                 }

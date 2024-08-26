@@ -36,7 +36,7 @@ class XMakeRunConfiguration(
     var runPlatform: String = SystemUtils.platform()
 
     @OptionTag(tag = "architecture")
-    var runArchitecture: String = ""
+    var runArchitecture: String = getArchitecturesByPlatform(runPlatform).first()
 
     @OptionTag(tag = "mode")
     var runMode: String = "release"
