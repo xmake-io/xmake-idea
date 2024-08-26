@@ -84,7 +84,7 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
                 .split(Regex("\\r\\n|\\n|\\r"))
                 .filterNot { it.isBlank() || it.contains("not found") }
                 .distinct()
-            paths.forEach { emit(it); println("emit path on ${host.type}: $it") }
+            paths.forEach { emit(it); Log.info("emit path on ${host.type}: $it") }
         }
     }
 
@@ -113,7 +113,7 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
                 }.flowOn(Dispatchers.IO).buffer()
                     .distinctUntilChanged()
                     .filterNot { it.isBlank() }
-                    .onEach { println("output path: $it") }
+                    .onEach { Log.info("output path: $it") }
                     .map { path -> host to path }
             }.flowOn(Dispatchers.Default).buffer()
 
