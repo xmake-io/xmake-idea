@@ -84,7 +84,7 @@ class ToolkitComboBox(toolkitProperty: KMutableProperty0<Toolkit?>) : ComboBox<T
                 with(model) {
                     clear()
                     add(ToolkitListItem.NoneItem())
-                    service.state.registeredToolkits.forEach {
+                    service.getRegisteredToolkits().forEach {
                         add(ToolkitListItem.ToolkitItem(it).asRegistered())
                     }
                 }
@@ -94,7 +94,7 @@ class ToolkitComboBox(toolkitProperty: KMutableProperty0<Toolkit?>) : ComboBox<T
                 }
 
                 // to select configuration-level activated toolkit
-                item = if (service.state.registeredToolkits.isEmpty() || itemToolkit == null) {
+                item = if (service.getRegisteredToolkits().isEmpty() || itemToolkit == null) {
                     model.items.first()
                 } else {
                     model.items.find { it.id == itemToolkit.id }.let {
@@ -107,7 +107,7 @@ class ToolkitComboBox(toolkitProperty: KMutableProperty0<Toolkit?>) : ComboBox<T
                 }
 
                 val project = ProjectManager.getInstanceIfCreated()?.defaultProject
-                service.detectXmakeToolkits(project)
+                service.detectXMakeToolkits(project)
             }
 
             override fun popupMenuWillBecomeInvisible(e: PopupMenuEvent?) {
@@ -135,23 +135,13 @@ class ToolkitComboBox(toolkitProperty: KMutableProperty0<Toolkit?>) : ComboBox<T
                 val toolkitListItem = it.item as ToolkitListItem
                 if (toolkitListItem is ToolkitListItem.ToolkitItem) {
                     with(service) {
-                        val fetchedToolkit = toolkitSet.find { it.id == toolkitListItem.id }
+                        val fetchedToolkit = fetchedToolkitsSet.find { it.id == toolkitListItem.id }
 
                         if (fetchedToolkit != null) {
                             // check whether registered or not
-                            state.registeredToolkits.run {
+                            getRegisteredToolkits().run {
                                 if (findRegisteredToolkitById(fetchedToolkit.id) == null) {
-                                    add(fetchedToolkit)
-                                }
-                            }
-                        } else {
-                            // selectedItem toolkit is not in toolkitSet
-                        }
-                        if (fetchedToolkit != null) {
-                            // check whether registered or not
-                            state.registeredToolkits.run {
-                                if (findRegisteredToolkitById(fetchedToolkit.id) == null) {
-                                    add(fetchedToolkit)
+                                    registerToolkit(fetchedToolkit)
                                 }
                             }
                         } else {

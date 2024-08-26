@@ -1,3 +1,4 @@
+import org.jetbrains.intellij.IntelliJPluginExtension
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 fun properties(key: String) = project.findProperty(key).toString()
@@ -6,16 +7,38 @@ fun properties(key: String) = project.findProperty(key).toString()
 val localChangeNotes: String = file("${projectDir}/change-notes.html").readText(Charsets.UTF_8)
 val localDescription: String = file("${projectDir}/description.html").readText(Charsets.UTF_8)
 
-//testing ide (true : clion , false : intellij)
-//val testIde:String = if(properties("testInClion").toBoolean()) "CL" else "IC"
-val testIde: String = when (2) {
-    0 -> "IC"
-    1 -> "IU"
-    2 -> "CL"
+val type = mapOf(
+    "IC" to "ideaIC",
+    "IU" to "ideaIU",
+    "CL" to "clion",
+    "PY" to "pycharmPY"
+)
+/*
+* Best practice:
+* Use CL for both building and running.
+* If you lack a license, use CLI for building and IC for running.
+* Specify the ideDir path as needed.
+* */
+
+val buildIdeType: String = when (2) {
+    0 -> "IC" // SSH-related functions cannot be built by the Community version.
+    1 -> "IU" // To build with Ultimate version does not require a license.
+    2 -> "CL" // C/C++ intellij-sense is included.
     3 -> "PY"
     else -> "IC"
 }
 
+val buildIdeVersion = "2024.2"
+
+val runIdeType: String = when (2) {
+    0 -> "IC" // You can build with the Ultimate version, but run with the Community version.
+    1 -> "IU" // It may require a license to run with the Ultimate version.
+    2 -> "CL"  // It includes C/C++ related functions, along with functions in the Ultimate version.
+    3 -> "PY"
+    else -> "IC"
+}
+
+val runIdeVersion = "2024.2"
 
 plugins {
     id("java")
@@ -37,8 +60,8 @@ repositories {
 }
 
 intellij {
-    type.set(testIde)
-    version.set("2024.2")
+    type.set(buildIdeType)
+    version.set(buildIdeVersion)
     downloadSources.set(true)
     ideaDependencyCachePath.set(dependencyCachePath)
     updateSinceUntilBuild.set(true)
@@ -88,14 +111,28 @@ tasks {
             )
         )
     }
-    runIde {
-        when (2) {
-            0 -> ideDir.set(file("deps/ideaIC-2024.2"))
-            1 -> ideDir.set(file("deps/ideaIU-2024.2"))
-            2 -> ideDir.set(file("deps/clion-2024.2"))
-            3 -> ideDir.set(file("deps/pycharmPY-2024.2"))
-            else -> ideDir.set(file("deps/ideaIC-2024.2"))
+
+    // Execute this downloadIde gradle task if missing build.txt in runIde task.
+    register("downloadIde") {
+        group = "Custom Tasks"
+        description = "Downloads a specific version and type of IntelliJ IDEA based on provided parameters."
+
+        doFirst {
+            println("Executing downloadIde task")
+            // 动态设置 IntelliJ 插件配置
+            val intellijExtension = project.extensions.getByType(IntelliJPluginExtension::class.java)
+            val ideVersion = project.findProperty("ideVersion")?.toString() ?: runIdeVersion
+            val ideType = project.findProperty("ideType")?.toString() ?: runIdeType
+
+            intellijExtension.version.set(ideVersion)
+            intellijExtension.type.set(ideType)
         }
+
+        finalizedBy("setupDependencies")
+    }
+
+    runIde {
+        ideDir.set(file("deps/${type[runIdeType]}-$runIdeVersion"))
     }
 }
 
@@ -103,8 +140,6 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib:2.0.0")
     testImplementation("io.mockk:mockk:1.13.12")
 }
-
-
 
 val Project.dependencyCachePath
     get(): String {

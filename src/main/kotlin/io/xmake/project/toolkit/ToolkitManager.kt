@@ -25,7 +25,7 @@ import java.util.*
 @State(name = "toolkits", storages = [Storage("xmakeToolkits.xml")])
 class ToolkitManager(private val scope: CoroutineScope) : PersistentStateComponent<ToolkitManager.State> {
 
-    val toolkitSet = mutableSetOf<Toolkit>()
+    val fetchedToolkitsSet = mutableSetOf<Toolkit>()
     private lateinit var detectionJob: Job
     private lateinit var validateJob: Job
     private var storage: State = State()
@@ -103,7 +103,7 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    fun detectXmakeToolkits(project: Project?) {
+    fun detectXMakeToolkits(project: Project?) {
         detectionJob = scope.launch {
             val toolkitFlow = toolkitHostFlow(project)
 
@@ -145,7 +145,7 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
 
             versionFlow.collect { toolkit ->
                 // Todo: Consider cache
-                toolkitSet.add(toolkit)
+                fetchedToolkitsSet.add(toolkit)
                 listenerList.forEach { listener ->
                     listener.onToolkitDetected(ToolkitDetectEvent(toolkit))
                 }
@@ -162,7 +162,7 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
     }
 
     // Todo: Validate toolkit.
-    fun validateXmakeToolkit(){
+    fun validateXMakeToolkit() {
         scope.launch {
             try {
                 validateJob = launch { validateToolkits() }
@@ -191,9 +191,9 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
     }
 
     override fun loadState(state: State) {
-        state.registeredToolkits.forEach{
+        state.registeredToolkits.forEach {
             registerToolkit(it)
-            toolkitSet.add(it)
+            fetchedToolkitsSet.add(it)
         }
         this.storage = state
     }
@@ -209,6 +209,8 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
         toolkit.isRegistered = true
         if (state.registeredToolkits.add(toolkit)){
             loadToolkit(toolkit)
+        } else {
+            loadToolkit(findRegisteredToolkitById(toolkit.id)!!)
         }
         Log.info("load registered toolkit: ${toolkit.name}, ${toolkit.id}")
     }
@@ -229,6 +231,10 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
 
     fun findRegisteredToolkitById(id: String): Toolkit? {
         return state.registeredToolkits.find { it.id == id }
+    }
+
+    fun getRegisteredToolkits(): List<Toolkit> {
+        return state.registeredToolkits.filterNot { (it.host.type == SSH && PlatformUtils.isCommunityEdition()) }
     }
 
     companion object {

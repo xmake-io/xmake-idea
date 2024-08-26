@@ -13,6 +13,7 @@ import com.intellij.ssh.interaction.PlatformSshPasswordProvider
 import com.intellij.ssh.ui.sftpBrowser.RemoteBrowserDialog
 import com.intellij.ssh.ui.sftpBrowser.SftpRemoteBrowserProvider
 import io.xmake.project.toolkit.Toolkit
+import io.xmake.project.toolkit.ToolkitHost
 import io.xmake.project.toolkit.ToolkitHostType.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -48,45 +49,31 @@ class DirectoryBrowser(val project: Project?) : TextFieldWithBrowseButton() {
         return wslBrowseFolderListener
     }
 
-    private fun createSftpBrowseListener(target: SshConfig): ActionListener {
-        val sftpChannel = runBlocking(Dispatchers.Default){
-            ConnectionBuilder(target.host)
-                .withSshPasswordProvider(PlatformSshPasswordProvider(target.copyToCredentials()))
-                .openFailSafeSftpChannel()
-        }
-        val sftpRemoteBrowserProvider = SftpRemoteBrowserProvider(sftpChannel)
-        val remoteBrowseFolderListener = ActionListener {
-            text = RemoteBrowserDialog(
-                sftpRemoteBrowserProvider,
-                project,
-                true,
-                withCreateDirectoryButton = true
-            ).apply { showAndGet() }.getResult()
-        }
-        return remoteBrowseFolderListener
+    fun addBrowserListenerByToolkit(toolkit: Toolkit){
+        addBrowserListenerByHostType(toolkit.host)
     }
 
-    fun addBrowserListenerByToolkit(toolkit: Toolkit){
-        with(toolkit){
-            when (host.type) {
-                LOCAL -> {
-                    val localBrowseListener = createLocalBrowseListener()
-                    addActionListener(localBrowseListener)
-                    listeners.add(localBrowseListener)
-                    Log.debug("addActionListener local: $localBrowseListener")
-                }
-                WSL -> {
-                    val wslBrowseListener = createWslBrowseListener(host.target as WSLDistribution)
-                    addActionListener(wslBrowseListener)
-                    listeners.add(wslBrowseListener)
-                    Log.debug("addActionListener wsl: $wslBrowseListener")
-                }
-                SSH -> {
-                    val sftpBrowseListener = createSftpBrowseListener(host.target as SshConfig)
-                    addActionListener(sftpBrowseListener)
-                    listeners.add(sftpBrowseListener)
-                    Log.debug("addActionListener remote: $sftpBrowseListener")
-                }
+    fun addBrowserListenerByHostType(host: ToolkitHost) {
+        when (host.type) {
+            LOCAL -> {
+                val localBrowseListener = createLocalBrowseListener()
+                addActionListener(localBrowseListener)
+                listeners.add(localBrowseListener)
+                Log.debug("addActionListener local: $localBrowseListener")
+            }
+
+            WSL -> {
+                val wslBrowseListener = createWslBrowseListener(host.target as WSLDistribution)
+                addActionListener(wslBrowseListener)
+                listeners.add(wslBrowseListener)
+                Log.debug("addActionListener wsl: $wslBrowseListener")
+            }
+
+            SSH -> {
+                val sftpBrowseListener = createSftpBrowseListener(host.target as SshConfig)
+                addActionListener(sftpBrowseListener)
+                listeners.add(sftpBrowseListener)
+                Log.debug("addActionListener remote: $sftpBrowseListener")
             }
         }
     }
@@ -101,4 +88,21 @@ class DirectoryBrowser(val project: Project?) : TextFieldWithBrowseButton() {
     }
 }
 
+fun DirectoryBrowser.createSftpBrowseListener(target: SshConfig): ActionListener {
+    val sftpChannel = runBlocking(Dispatchers.Default) {
+        ConnectionBuilder(target.host)
+            .withSshPasswordProvider(PlatformSshPasswordProvider(target.copyToCredentials()))
+            .openFailSafeSftpChannel()
+    }
+    val sftpRemoteBrowserProvider = SftpRemoteBrowserProvider(sftpChannel)
+    val remoteBrowseFolderListener = ActionListener {
+        text = RemoteBrowserDialog(
+            sftpRemoteBrowserProvider,
+            project,
+            true,
+            withCreateDirectoryButton = true
+        ).apply { showAndGet() }.getResult()
+    }
+    return remoteBrowseFolderListener
+}
 

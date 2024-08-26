@@ -36,7 +36,7 @@ class XMakeRunConfiguration(
     var runPlatform: String = SystemUtils.platform()
 
     @OptionTag(tag = "architecture")
-    var runArchitecture: String = ""
+    var runArchitecture: String = getArchitecturesByPlatform(runPlatform).first()
 
     @OptionTag(tag = "mode")
     var runMode: String = "release"
@@ -145,6 +145,28 @@ class XMakeRunConfiguration(
     }
 
     companion object {
+
+        // the platforms
+        val platforms = arrayOf("macosx", "linux", "windows", "android", "iphoneos", "watchos", "mingw")
+
+        // the modes
+        val modes = arrayOf("release", "debug")
+
+        /*        // the architectures
+                val architectures: Array<String>
+                    get() = getArchitecturesByPlatform(runPlatform)*/
+
+        // get architectures by platform
+        fun getArchitecturesByPlatform(platform: String) = when (platform) {
+            "macosx", "linux", "mingw" -> arrayOf("x86_64", "i386", "arm64")
+            "windows" -> arrayOf("x86", "x64")
+            "iphoneos" -> arrayOf("arm64", "armv7", "armv7s", "x86_64", "i386")
+            "watchos" -> arrayOf("armv7s", "i386")
+            "android" -> arrayOf("armv7-a", "armv5te", "armv6", "armv8-a", "arm64-v8a")
+            else -> arrayOf()
+        }
+
+
         private val Log = Logger.getInstance(XMakeRunConfiguration::class.java.getName())
     }
 }
