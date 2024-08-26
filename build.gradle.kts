@@ -3,7 +3,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 fun properties(key: String) = project.findProperty(key).toString()
 
-//read local workspace file to string
+// read local workspace file to string
 val localChangeNotes: String = file("${projectDir}/change-notes.html").readText(Charsets.UTF_8)
 val localDescription: String = file("${projectDir}/description.html").readText(Charsets.UTF_8)
 
@@ -13,6 +13,7 @@ val type = mapOf(
     "CL" to "clion",
     "PY" to "pycharmPY"
 )
+
 /*
 * Best practice:
 * Use CL for both building and running.
@@ -119,7 +120,6 @@ tasks {
 
         doFirst {
             println("Executing downloadIde task")
-            // 动态设置 IntelliJ 插件配置
             val intellijExtension = project.extensions.getByType(IntelliJPluginExtension::class.java)
             val ideVersion = project.findProperty("ideVersion")?.toString() ?: runIdeVersion
             val ideType = project.findProperty("ideType")?.toString() ?: runIdeType
