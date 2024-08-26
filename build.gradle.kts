@@ -132,7 +132,7 @@ tasks {
     }
 
     runIde {
-        ideDir.set(file("deps/$runIdeType-$runIdeVersion"))
+        ideDir.set(file("deps/${type[runIdeType]}-$runIdeVersion"))
     }
 }
 
@@ -140,8 +140,6 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib:2.0.0")
     testImplementation("io.mockk:mockk:1.13.12")
 }
-
-
 
 val Project.dependencyCachePath
     get(): String {
