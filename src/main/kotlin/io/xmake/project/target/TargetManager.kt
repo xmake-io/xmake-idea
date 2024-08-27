@@ -1,7 +1,7 @@
 package io.xmake.project.target
 
 import com.intellij.openapi.components.Service
-import com.intellij.openapi.components.service
+import com.intellij.openapi.components.serviceOrNull
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import io.xmake.project.toolkit.Toolkit
@@ -32,7 +32,7 @@ class TargetManager(
     }
 
     companion object {
-        fun getInstance(project: Project): TargetManager = project.service()
+        fun getInstance(project: Project): TargetManager = project.serviceOrNull() ?: throw IllegalStateException()
         private val Log = logger<TargetManager>()
     }
 }
