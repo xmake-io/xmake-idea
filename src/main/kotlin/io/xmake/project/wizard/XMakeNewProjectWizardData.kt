@@ -27,6 +27,9 @@ interface XMakeNewProjectWizardData : NewProjectWizardBaseData {
 
     var kind: String
 
+    override val contentEntryPath: String
+        get() = "$path/$name"
+
     companion object {
 
         val KEY: Key<XMakeNewProjectWizardData> = Key.create(XMakeNewProjectWizardData::class.java.name)

@@ -102,7 +102,7 @@ class XMakeToolWindowProblemPanel(project: Project) : SimpleToolWindowPanel(fals
 
         // init toolbar
         setToolbar(toolbar.component)
-        toolbar.setTargetComponent(this)
+        toolbar.targetComponent = this
 
         // init content
         setContent(content)
@@ -110,7 +110,7 @@ class XMakeToolWindowProblemPanel(project: Project) : SimpleToolWindowPanel(fals
         // init double click listener
         problemList.addMouseListener(object: MouseAdapter() {
             override fun mouseClicked(e: MouseEvent) {
-                if (e.getClickCount() == 1 || e.getClickCount() == 2) {
+                if (e.clickCount == 1 || e.clickCount == 2) {
 
                     // get the clicked problem
                     val index   = problemList.locationToIndex(e.getPoint())
@@ -120,12 +120,12 @@ class XMakeToolWindowProblemPanel(project: Project) : SimpleToolWindowPanel(fals
                         val problem     = problems[index]
                         var filename    = problem.file
                         if (File(filename).exists()) {
-                            filename = File(filename).getAbsolutePath()
+                            filename = File(filename).absolutePath
                         } else {
                             filename = File(
                                 // Todo: Check if correct
                                 (RunManager.getInstance(project).selectedConfiguration?.configuration as XMakeRunConfiguration).runWorkingDir
-                                , filename).getAbsolutePath()
+                                , filename).absolutePath
                         }
 
                         // open this file
@@ -140,7 +140,7 @@ class XMakeToolWindowProblemPanel(project: Project) : SimpleToolWindowPanel(fals
                             val editor = FileEditorManager.getInstance(project).selectedTextEditor
                             if (editor !== null) {
 
-                                if (e.getClickCount() == 2 && editor.markupModel.allHighlighters.size > 0) {
+                                if (e.clickCount == 2 && editor.markupModel.allHighlighters.size > 0) {
                                     editor.markupModel.removeAllHighlighters()
                                     return
                                 }
@@ -165,10 +165,6 @@ class XMakeToolWindowProblemPanel(project: Project) : SimpleToolWindowPanel(fals
                 }
             }
         })
-    }
-
-    override fun getData(dataId: String): Any? {
-        return super.getData(dataId)
     }
 
     companion object {

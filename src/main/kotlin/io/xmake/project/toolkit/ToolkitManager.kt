@@ -238,7 +238,7 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
     }
 
     companion object {
-        fun  getInstance(): ToolkitManager = service()
+        fun getInstance(): ToolkitManager = serviceOrNull() ?: throw IllegalStateException()
         private val Log = logger<ToolkitManager>()
     }
 }

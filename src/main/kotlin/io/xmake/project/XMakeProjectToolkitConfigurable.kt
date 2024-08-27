@@ -15,8 +15,11 @@ import javax.swing.JComponent
 import javax.swing.JList
 
 class XMakeProjectToolkitConfigurable : Configurable, Configurable.NoScroll {
+
+    private val toolkitManager = ToolkitManager.getInstance()
+
     override fun createComponent(): JComponent {
-        val registeredToolkit = ToolkitManager.getInstance().getRegisteredToolkits()
+        val registeredToolkit = toolkitManager.getRegisteredToolkits()
         val listModel = DefaultListModel<ToolkitListItem>().apply { registeredToolkit.forEach {
             addElement(ToolkitListItem.ToolkitItem(it).asRegistered()) }
         }
@@ -55,7 +58,7 @@ class XMakeProjectToolkitConfigurable : Configurable, Configurable.NoScroll {
                     Messages.getQuestionIcon()
                 ) == Messages.YES
             ) {
-                ToolkitManager.getInstance().unregisterToolkit(toolkit)
+                toolkitManager.unregisterToolkit(toolkit)
                 listModel.removeElement(toolkitList.selectedValue)
             }
         }

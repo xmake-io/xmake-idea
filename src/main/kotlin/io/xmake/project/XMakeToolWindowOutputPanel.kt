@@ -46,10 +46,6 @@ class XMakeToolWindowOutputPanel(// the project
         contentManager?.setSelectedContent(contentManager.getContent(0)!!)
     }
 
-    override fun getData(dataId: String): Any? {
-        return super.getData(dataId)
-    }
-
     companion object {
         private val Log = Logger.getInstance(XMakeToolWindowOutputPanel::class.java.getName())
     }
