@@ -1,43 +1,43 @@
 package io.xmake.utils.execute
 
-import ai.grazie.utils.tryRunWithException
 import com.intellij.execution.RunManager
+import com.intellij.execution.target.TargetEnvironment
+import com.intellij.execution.target.TargetProgressIndicatorAdapter
 import com.intellij.execution.wsl.WSLDistribution
-import com.intellij.execution.wsl.WslPath
-import com.intellij.execution.wsl.sync.WslHashFilters
-import com.intellij.execution.wsl.sync.WslSync
+import com.intellij.execution.wsl.target.WslTargetEnvironment
+import com.intellij.execution.wsl.target.WslTargetEnvironmentConfiguration
+import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
+import com.intellij.openapi.application.EDT
+import com.intellij.openapi.application.runWriteAction
 import com.intellij.openapi.diagnostic.fileLogger
-import com.intellij.openapi.diagnostic.runAndLogException
+import com.intellij.openapi.extensions.ExtensionPointName
+import com.intellij.openapi.progress.ProgressIndicator
+import com.intellij.openapi.progress.ProgressManager
+import com.intellij.openapi.progress.Task
+import com.intellij.openapi.progress.util.ProgressIndicatorBase
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.guessProjectDir
-import com.intellij.openapi.roots.ProjectRootManager
-import com.intellij.openapi.util.text.Formats
-import com.intellij.ssh.ConnectionBuilder
-import com.intellij.ssh.SftpChannelConfig
-import com.intellij.ssh.SftpChannelNoSuchFileException
-import com.intellij.ssh.SftpProgressTracker
-import com.intellij.ssh.channels.SftpChannel
-import com.intellij.ssh.config.unified.SshConfig
-import com.intellij.ssh.interaction.PlatformSshPasswordProvider
-import com.intellij.util.io.systemIndependentPath
+import com.intellij.openapi.util.io.toCanonicalPath
+import com.intellij.openapi.vfs.VirtualFileManager
 import io.xmake.project.toolkit.Toolkit
+import io.xmake.project.toolkit.ToolkitHost
 import io.xmake.project.toolkit.ToolkitHostType
 import io.xmake.run.XMakeRunConfiguration
+import io.xmake.utils.extension.ToolkitHostExtension
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.io.File
+import kotlinx.coroutines.withContext
 import kotlin.io.path.Path
+import kotlin.io.path.isDirectory
 
 private val Log = fileLogger()
+
+private val EP_NAME: ExtensionPointName<ToolkitHostExtension> = ExtensionPointName("io.xmake.toolkitHostExtension")
 
 enum class SyncMode {
     SYNC_ONLY,
     FORCE_SYNC,
-}
-
-enum class SyncType {
-    PROJECT_ONLY,
-    FOLDERS_ONLY,
 }
 
 enum class SyncStatus {
@@ -45,7 +45,7 @@ enum class SyncStatus {
     FAILED,
 }
 
-enum class SyncDirection { LOCAL_TO_UPSTREAM, UPSTREAM_TO_LOCAL}
+enum class SyncDirection { LOCAL_TO_UPSTREAM, UPSTREAM_TO_LOCAL }
 
 fun SyncDirection.toBoolean(): Boolean = when (this) {
     SyncDirection.LOCAL_TO_UPSTREAM -> false
@@ -55,101 +55,121 @@ fun SyncDirection.toBoolean(): Boolean = when (this) {
 fun syncProjectByWslSync(
     scope: CoroutineScope,
     project: Project,
-    wslDistribution: WSLDistribution,
-    wslPath: String,
-    direction: SyncDirection
+    host: ToolkitHost,
+    direction: SyncDirection,
+    directoryPath: String,
+    relativePath: String? = null,
 ) {
-    scope.launch {
-        WslSync.syncWslFolders(
-            WslPath.parseWindowsUncPath(wslPath)?.linuxPath ?: wslPath,
-            project.guessProjectDir()!!.toNioPath(),
-            wslDistribution,
-            direction.toBoolean(),
-            WslHashFilters.WslHashFiltersBuilder().build()
-        )
-    }
-}
+    val wslDistribution = host.target as? WSLDistribution ?: throw IllegalArgumentException()
 
-fun syncProjectBySftp(
-    scope: CoroutineScope,
-    project: Project,
-    config: SshConfig,
-    remotePath: String,
-    direction: SyncDirection
-) {
-    val commandString = SftpChannelConfig.SftpCommand.detectSftpCommandString
-    Log.info("Command: $commandString")
+    ProgressManager.getInstance().runProcessWithProgressAsynchronously(
+        object : Task.Backgroundable(project, "Sync directory", true) {
+            override fun run(indicator: ProgressIndicator) {
+                scope.launch {
+                    indicator.isIndeterminate = true
 
-    val builder = ConnectionBuilder(config.host)
-        .withSshPasswordProvider(PlatformSshPasswordProvider(config.copyToCredentials()))
+                    /*                    for (i in 1..100) {
+                                            if (indicator.isCanceled) {
+                                                break
+                                            }
+                                            withContext(Dispatchers.EDT) {
+                                                indicator.fraction = i / 100.0
+                                                indicator.text = "Processing $i%"
+                                            }
+                                        }*/
 
-    val sourceRoots = ProjectRootManager.getInstance(project).contentRoots
-    Log.info("Source roots: $sourceRoots")
-
-    Log.info("basePath: "+project.basePath)
-    Log.info("projectFile: "+project.projectFile)
-    Log.info("projectFilePath: "+project.projectFile)
-    Log.info("guessProjectDir: "+project.guessProjectDir())
-
-    scope.launch {
-        val sftpChannel = builder.openFailSafeSftpChannel()
-        Log.info("sftpChannel.home"+sftpChannel.home)
-
-        when (direction) {
-            SyncDirection.LOCAL_TO_UPSTREAM -> {
-
-                Log.runAndLogException {
-                    tryRunWithException<SftpChannelNoSuchFileException, List<SftpChannel.FileInfo>> {
-                        sftpChannel.ls(
-                            remotePath
+                    val wslTargetEnvironmentRequest = WslTargetEnvironmentRequest(
+                        WslTargetEnvironmentConfiguration(wslDistribution)
+                    ).apply {
+                        downloadVolumes.add(
+                            TargetEnvironment.DownloadRoot(
+                                project.guessProjectDir()!!.toNioPath(),
+                                TargetEnvironment.TargetPath.Persistent(directoryPath)
+                            )
                         )
+                        uploadVolumes.add(
+                            TargetEnvironment.UploadRoot(
+                                project.guessProjectDir()!!.toNioPath(),
+                                TargetEnvironment.TargetPath.Persistent(directoryPath),
+                            ).also { println(it.targetRootPath) }.apply {
+                                this.volumeData
+                            }
+                        )
+                        shouldCopyVolumes = true
                     }
-                        .also { Log.info("before: $it") }
-                    sftpChannel.rmRecur(remotePath)
-                    Log.info("after: "+sftpChannel.ls("Project"))
+
+                    val wslTargetEnvironment = WslTargetEnvironment(
+                        wslTargetEnvironmentRequest,
+                        wslDistribution
+                    )
+
+                    when (direction) {
+                        SyncDirection.LOCAL_TO_UPSTREAM -> {
+                            wslTargetEnvironment.uploadVolumes.forEach { root, volume ->
+                                println("upload: ${root.localRootPath}, ${root.targetRootPath}")
+                                volume.upload(relativePath ?: "", TargetProgressIndicatorAdapter(indicator))
+                            }
+                        }
+
+                        SyncDirection.UPSTREAM_TO_LOCAL -> {
+                            wslTargetEnvironment.downloadVolumes.forEach { root, volume ->
+                                volume.download(relativePath ?: "", indicator)
+                            }
+                        }
+                    }
+
+                    withContext(Dispatchers.EDT) {
+                        runWriteAction {
+                            VirtualFileManager.getInstance().syncRefresh()
+                        }
+                    }
+
                 }
-
-                sftpChannel.uploadFileOrDir(
-                    File(project.basePath ?: ""),
-                    remoteDir = remotePath, relativePath = "/",
-                    progressTracker = object : SftpProgressTracker {
-                        override val isCanceled: Boolean
-                            get() = false
-                        //                TODO("Not yet implemented")
-
-                        override fun onBytesTransferred(count: Long) {
-                            println("onBytesTransferred(${Formats.formatFileSize(count)})")
-                        }
-
-                        override fun onFileCopied(file: File) {
-                            println("onFileCopied($file)")
-                        }
-                    }, filesFilter = { file ->
-                        mutableListOf(".xmake", ".idea", "build", ".gitignore")
-                            .all { !file.startsWith(Path(project.basePath ?: "", it).toFile()) }
-                    }, persistExecutableBit = true)
             }
-            SyncDirection.UPSTREAM_TO_LOCAL -> {
-                sftpChannel.downloadFileOrDir(remotePath, project.basePath ?: "")
-            }
-        }
-        sftpChannel.close()
-    }
+
+            override fun onCancel() {}
+
+            override fun onFinished() {}
+        },
+        ProgressIndicatorBase()
+    )
 }
 
-fun syncFileByToolkit(scope: CoroutineScope, project: Project, toolkit: Toolkit, remotePath: String, direction: SyncDirection) {
-    val fileRootPath =
-        (RunManager.getInstance(project).selectedConfiguration?.configuration as XMakeRunConfiguration).runWorkingDir
+private val scope = CoroutineScope(Dispatchers.IO)
 
-    val filePath = Path(fileRootPath, remotePath).systemIndependentPath
+fun transferFolderByToolkit(
+    project: Project,
+    toolkit: Toolkit,
+    direction: SyncDirection,
+    directoryPath: String = (RunManager.getInstance(project).selectedConfiguration?.configuration as XMakeRunConfiguration).runWorkingDir,
+    relativePath: String? = null,
+) {
 
     when (toolkit.host.type) {
         ToolkitHostType.LOCAL -> {}
         ToolkitHostType.WSL -> {
-            syncProjectByWslSync(scope, project, toolkit.host.target as WSLDistribution, filePath, direction)
+            syncProjectByWslSync(
+                scope,
+                project,
+                toolkit.host,
+                direction,
+                directoryPath,
+                relativePath?.let { if (Path(it).isDirectory()) relativePath else null }
+            )
         }
         ToolkitHostType.SSH -> {
-            syncProjectBySftp(scope, project, toolkit.host.target as SshConfig, filePath, direction)
+            val path = relativePath?.let { Path(directoryPath).resolve(relativePath).toCanonicalPath() }
+                ?: directoryPath
+            EP_NAME.extensions.first { it.KEY == "SSH" }
+                .syncProject(scope, project, toolkit.host, direction, path)
         }
     }
+}
+
+fun syncBeforeFetch(project: Project, toolkit: Toolkit) {
+    transferFolderByToolkit(project, toolkit, SyncDirection.LOCAL_TO_UPSTREAM, relativePath = null)
+}
+
+fun fetchGeneratedFile(project: Project, toolkit: Toolkit, fileRelatedPath: String) {
+    transferFolderByToolkit(project, toolkit, SyncDirection.UPSTREAM_TO_LOCAL, relativePath = fileRelatedPath)
 }

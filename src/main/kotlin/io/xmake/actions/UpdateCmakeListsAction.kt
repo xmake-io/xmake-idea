@@ -12,9 +12,8 @@ import io.xmake.project.xmakeConsoleView
 import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.SystemUtils
 import io.xmake.utils.exception.XMakeRunConfigurationNotSetException
-import io.xmake.utils.execute.SyncDirection
-import io.xmake.utils.execute.syncFileByToolkit
-import kotlinx.coroutines.GlobalScope
+import io.xmake.utils.execute.fetchGeneratedFile
+import io.xmake.utils.execute.syncBeforeFetch
 
 class UpdateCmakeListsAction : AnAction() {
     override fun actionPerformed(e: AnActionEvent) {
@@ -31,6 +30,8 @@ class UpdateCmakeListsAction : AnAction() {
                 SystemUtils.runvInConsole(project, xmakeConfiguration.configurationCommandLine)
                     ?.addProcessListener(object : ProcessAdapter() {
                         override fun processTerminated(e: ProcessEvent) {
+                            syncBeforeFetch(project, project.activatedToolkit!!)
+
                             SystemUtils.runvInConsole(
                                 project,
                                 xmakeConfiguration.updateCmakeListsCommandLine,
@@ -40,13 +41,7 @@ class UpdateCmakeListsAction : AnAction() {
                             )?.addProcessListener(
                                 object : ProcessAdapter() {
                                     override fun processTerminated(e: ProcessEvent) {
-                                        syncFileByToolkit(
-                                            GlobalScope,
-                                            project,
-                                            project.activatedToolkit!!,
-                                            "CMakeLists.txt",
-                                            SyncDirection.UPSTREAM_TO_LOCAL
-                                        )
+                                        fetchGeneratedFile(project, project.activatedToolkit!!, "CMakeLists.txt")
                                         // Todo: Reload from disks after download from remote.
                                     }
                                 }
@@ -59,13 +54,7 @@ class UpdateCmakeListsAction : AnAction() {
                     ?.addProcessListener(
                         object : ProcessAdapter() {
                             override fun processTerminated(e: ProcessEvent) {
-                                syncFileByToolkit(
-                                    GlobalScope,
-                                    project,
-                                    project.activatedToolkit!!,
-                                    "CMakeLists.txt",
-                                    SyncDirection.UPSTREAM_TO_LOCAL
-                                )
+                                fetchGeneratedFile(project, project.activatedToolkit!!, "CMakeLists.txt")
                             }
                         }
                     )

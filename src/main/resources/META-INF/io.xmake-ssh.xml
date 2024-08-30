@@ -1,0 +1,5 @@
+<idea-plugin>
+    <extensions defaultExtensionNs="io.xmake">
+        <toolkitHostExtension implementation="io.xmake.utils.extension.SshToolkitHostExtensionImpl"/>
+    </extensions>
+</idea-plugin>

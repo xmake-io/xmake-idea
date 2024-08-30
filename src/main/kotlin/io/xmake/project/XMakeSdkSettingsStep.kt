@@ -9,8 +9,6 @@ import com.intellij.openapi.roots.ModifiableRootModel
 import com.intellij.openapi.util.Disposer
 import com.intellij.ui.dsl.builder.panel
 import com.intellij.util.ui.JBEmptyBorder
-import io.xmake.project.toolkit.ToolkitHostType.SSH
-import io.xmake.project.toolkit.ToolkitHostType.WSL
 import javax.swing.JComponent
 
 @Deprecated("Please refer to the relevant content in folder io/xmake/project/wizard.")
@@ -53,7 +51,7 @@ class XMakeSdkSettingsStep(
             }
 
             // Todo: Check whether working directory is valid.
-            if ((toolkit.host.type == WSL || toolkit.host.type == SSH) && remotePath.isNullOrBlank()) {
+            if ((toolkit.isOnRemote) && remotePath.isNullOrBlank()) {
                 throw RuntimeConfigurationError("Working directory is not set!")
             }
         }

@@ -2,13 +2,13 @@ package io.xmake.project.toolkit
 
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.execution.wsl.WslDistributionManager
+import com.intellij.openapi.extensions.ExtensionPointName
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.SystemInfo
-import com.intellij.ssh.config.unified.SshConfig
-import com.intellij.ssh.config.unified.SshConfigManager
 import com.intellij.util.xmlb.annotations.Attribute
 import com.intellij.util.xmlb.annotations.Tag
 import io.xmake.project.toolkit.ToolkitHostType.*
+import io.xmake.utils.extension.ToolkitHostExtension
 import kotlinx.coroutines.coroutineScope
 
 @Tag("toolkitHost")
@@ -17,36 +17,38 @@ data class ToolkitHost(
     val type: ToolkitHostType = LOCAL,
 ) {
 
+    private val EP_NAME: ExtensionPointName<ToolkitHostExtension> =
+        ExtensionPointName("io.xmake.toolkitHostExtension")
+
     constructor(type: ToolkitHostType, target: Any? = null) : this(type) {
         this.target = target
         this.id = when (type) {
             LOCAL -> SystemInfo.getOsName()
             WSL -> (target as WSLDistribution).id
-            SSH -> (target as SshConfig).id
+            SSH -> EP_NAME.extensions.first { it.KEY == "SSH" }.getTargetId(target)
         }
     }
 
     @Transient
     var target: Any? = null
-        private set
 
     @Attribute
-    private var id: String? = null
+    var id: String? = null
 
     suspend fun loadTarget(project: Project? = null) {
         when (type) {
             LOCAL -> {}
             WSL -> loadWslTarget()
-            SSH -> loadSshTarget(project)
+            SSH -> {
+                with(EP_NAME.extensions.first { it.KEY == "SSH" }) {
+                    loadTargetX(project)
+                }
+            }
         }
     }
 
     private suspend fun loadWslTarget() = coroutineScope {
         target = WslDistributionManager.getInstance().installedDistributions.find { it.id == id }!!
-    }
-
-    private suspend fun loadSshTarget(project: Project? = null) = coroutineScope {
-        target = SshConfigManager.getInstance(project).findConfigById(id!!)!!
     }
 
     override fun toString(): String {

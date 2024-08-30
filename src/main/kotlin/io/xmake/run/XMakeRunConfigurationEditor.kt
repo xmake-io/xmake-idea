@@ -1,12 +1,10 @@
 package io.xmake.run
 
 import com.intellij.execution.configuration.EnvironmentVariablesTextFieldWithBrowseButton
-import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
-import com.intellij.ssh.config.unified.SshConfig
 import com.intellij.ui.PopupMenuListenerAdapter
 import com.intellij.ui.RawCommandLineEditor
 import com.intellij.ui.components.CheckBox
@@ -18,7 +16,6 @@ import com.intellij.ui.layout.ComboBoxPredicate
 import io.xmake.project.directory.ui.DirectoryBrowser
 import io.xmake.project.target.TargetManager
 import io.xmake.project.toolkit.Toolkit
-import io.xmake.project.toolkit.ToolkitHostType.*
 import io.xmake.project.toolkit.ui.ToolkitComboBox
 import io.xmake.project.toolkit.ui.ToolkitListItem
 import io.xmake.run.XMakeRunConfiguration.Companion.getArchitecturesByPlatform
@@ -26,8 +23,7 @@ import io.xmake.run.XMakeRunConfiguration.Companion.modes
 import io.xmake.run.XMakeRunConfiguration.Companion.platforms
 import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.execute.SyncDirection
-import io.xmake.utils.execute.syncProjectBySftp
-import io.xmake.utils.execute.syncProjectByWslSync
+import io.xmake.utils.execute.transferFolderByToolkit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -258,29 +254,14 @@ class XMakeRunConfigurationEditor(
                     val workingDirectoryPath = workingDirectoryBrowser.text
 
                     scope.launch(Dispatchers.IO) {
-                        when (toolkit.host.type) {
-                            LOCAL -> {}
-                            WSL -> {
-                                val wslDistribution = toolkit.host.target as? WSLDistribution
-                                syncProjectByWslSync(
-                                    scope,
-                                    project,
-                                    wslDistribution!!,
-                                    workingDirectoryPath,
-                                    SyncDirection.LOCAL_TO_UPSTREAM
-                                )
-                            }
-
-                            SSH -> {
-                                val sshConfig = toolkit.host.target as? SshConfig
-                                syncProjectBySftp(
-                                    scope,
-                                    project,
-                                    sshConfig!!,
-                                    workingDirectoryPath,
-                                    SyncDirection.LOCAL_TO_UPSTREAM
-                                )
-                            }
+                        if (toolkit.isOnRemote) {
+                            transferFolderByToolkit(
+                                project,
+                                toolkit,
+                                SyncDirection.UPSTREAM_TO_LOCAL,
+                                workingDirectoryPath,
+                                null
+                            )
                         }
                     }
                 }

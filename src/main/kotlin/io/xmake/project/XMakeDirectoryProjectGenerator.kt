@@ -3,7 +3,6 @@ package io.xmake.project
 import com.intellij.execution.RunManager
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.process.ProcessNotCreatedException
-import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.ide.util.projectWizard.AbstractNewProjectStep
 import com.intellij.ide.util.projectWizard.CustomStepProjectGenerator
 import com.intellij.openapi.diagnostic.logger
@@ -15,12 +14,13 @@ import com.intellij.openapi.wm.impl.welcomeScreen.AbstractActionWithPanel
 import com.intellij.platform.DirectoryProjectGenerator
 import com.intellij.platform.DirectoryProjectGeneratorBase
 import com.intellij.platform.ProjectGeneratorPeer
-import com.intellij.ssh.config.unified.SshConfig
 import io.xmake.icons.XMakeIcons
-import io.xmake.project.toolkit.ToolkitHostType.*
 import io.xmake.run.XMakeRunConfiguration
 import io.xmake.run.XMakeRunConfigurationType
-import io.xmake.utils.execute.*
+import io.xmake.utils.execute.SyncDirection
+import io.xmake.utils.execute.createProcess
+import io.xmake.utils.execute.runProcess
+import io.xmake.utils.execute.transferFolderByToolkit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -48,15 +48,9 @@ class XMakeDirectoryProjectGenerator :
          */
         val tmpdir = "$contentEntryPath.dir"
 
-        val dir = when (data.toolkit!!.host.type) {
-            LOCAL -> tmpdir
-            WSL, SSH -> data.remotePath!!
-        }
+        val dir = if (!data.toolkit!!.isOnRemote) tmpdir else data.remotePath!!
 
-        val workingDir = when (data.toolkit.host.type) {
-            LOCAL -> contentEntryPath
-            WSL, SSH -> data.remotePath!!
-        }
+        val workingDir = if (!data.toolkit.isOnRemote) contentEntryPath else data.remotePath!!
 
         Log.debug("dir: $dir")
 
@@ -87,34 +81,20 @@ class XMakeDirectoryProjectGenerator :
         Log.info("results: $results")
 
         with(data.toolkit) {
-            when (host.type) {
-                io.xmake.project.toolkit.ToolkitHostType.LOCAL -> {
-                    val tmpFile = File(tmpdir)
-                    if (tmpFile.exists()) {
-                        tmpFile.copyRecursively(File(contentEntryPath), true)
-                        tmpFile.deleteRecursively()
-                    }
+            if (!isOnRemote) {
+                val tmpFile = File(tmpdir)
+                if (tmpFile.exists()) {
+                    tmpFile.copyRecursively(File(contentEntryPath), true)
+                    tmpFile.deleteRecursively()
                 }
-
-                io.xmake.project.toolkit.ToolkitHostType.WSL -> {
-                    syncProjectByWslSync(
-                        scope,
-                        project,
-                        host.target as WSLDistribution,
-                        data.remotePath!!,
-                        SyncDirection.UPSTREAM_TO_LOCAL
-                    )
-                }
-
-                io.xmake.project.toolkit.ToolkitHostType.SSH -> {
-                    syncProjectBySftp(
-                        scope,
-                        project,
-                        host.target as SshConfig,
-                        data.remotePath!!,
-                        SyncDirection.UPSTREAM_TO_LOCAL
-                    )
-                }
+            } else {
+                transferFolderByToolkit(
+                    project,
+                    this,
+                    SyncDirection.UPSTREAM_TO_LOCAL,
+                    directoryPath = data.remotePath!!,
+                    null
+                )
             }
         }
 
