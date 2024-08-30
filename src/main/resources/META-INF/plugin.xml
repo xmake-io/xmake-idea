@@ -4,6 +4,11 @@
     <name>XMake</name>
     <vendor email="waruqi@gmail.com" url="https://xmake.io">xmake.io</vendor>
 
+    <extensionPoints>
+        <extensionPoint name="toolkitHostExtension" interface="io.xmake.utils.extension.ToolkitHostExtension"
+                        dynamic="true"/>
+    </extensionPoints>
+
     <!--all-->
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.lang</depends>
