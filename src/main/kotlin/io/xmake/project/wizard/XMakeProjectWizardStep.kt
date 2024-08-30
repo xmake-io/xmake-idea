@@ -66,8 +66,8 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
     private val isOnRemoteProperty: GraphProperty<Boolean> =
         propertyGraph.lazyProperty { toolkit?.isOnRemote == true }
 
-    override var name: String = baseData!!.name
-    override var path: String = baseData!!.path
+    override var name: String by nameProperty
+    override var path: String by pathProperty
     override var remotePath: String by remotePathProperty
     override var language: String by languagesProperty
     override var kind: String by kindsProperty
@@ -104,7 +104,6 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
     private val browser = DirectoryBrowser(context.project)
     private val toolkitComboBox = ToolkitComboBox(::toolkit)
 
-    @Suppress("UnstableApiUsage")
     override fun setupUI(builder: Panel) {
         val locationProperty = remotePathProperty.joinCanonicalPath(nameProperty)
         with(builder) {
