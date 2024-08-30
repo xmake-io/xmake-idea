@@ -8,6 +8,7 @@ import com.intellij.execution.wsl.target.WslTargetEnvironment
 import com.intellij.execution.wsl.target.WslTargetEnvironmentConfiguration
 import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
 import com.intellij.openapi.application.EDT
+import com.intellij.openapi.application.invokeLater
 import com.intellij.openapi.application.runWriteAction
 import com.intellij.openapi.diagnostic.fileLogger
 import com.intellij.openapi.extensions.ExtensionPointName
@@ -146,7 +147,13 @@ fun transferFolderByToolkit(
 ) {
 
     when (toolkit.host.type) {
-        ToolkitHostType.LOCAL -> {}
+        ToolkitHostType.LOCAL -> {
+            invokeLater {
+                runWriteAction {
+                    VirtualFileManager.getInstance().syncRefresh()
+                }
+            }
+        }
         ToolkitHostType.WSL -> {
             syncProjectByWslSync(
                 scope,
