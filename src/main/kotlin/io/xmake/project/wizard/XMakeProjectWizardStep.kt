@@ -3,7 +3,6 @@ package io.xmake.project.wizard
 import com.intellij.execution.RunManager
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.process.ProcessNotCreatedException
-import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.ide.util.projectWizard.ModuleBuilder
 import com.intellij.ide.util.projectWizard.WizardContext
 import com.intellij.ide.wizard.AbstractNewProjectWizardStep
@@ -23,7 +22,6 @@ import com.intellij.openapi.ui.shortenTextWithEllipsis
 import com.intellij.openapi.ui.validation.*
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.project.stateStore
-import com.intellij.ssh.config.unified.SshConfig
 import com.intellij.ui.UIBundle
 import com.intellij.ui.dsl.builder.*
 import com.intellij.ui.util.getTextWidth
@@ -38,8 +36,10 @@ import io.xmake.project.toolkit.ui.ToolkitComboBox.Companion.forToolkitComboBox
 import io.xmake.project.wizard.XMakeNewProjectWizardData.Companion.xmakeData
 import io.xmake.run.XMakeRunConfiguration
 import io.xmake.run.XMakeRunConfigurationType
-import io.xmake.utils.execute.*
-import kotlinx.coroutines.CoroutineScope
+import io.xmake.utils.execute.SyncDirection
+import io.xmake.utils.execute.createProcess
+import io.xmake.utils.execute.runProcess
+import io.xmake.utils.execute.transferFolderByToolkit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import java.io.File
@@ -50,8 +50,8 @@ import kotlin.io.path.Path
 class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
     AbstractNewProjectWizardStep(parent),
     XMakeNewProjectWizardData {
+
     private val toolkitManager = ToolkitManager.getInstance()
-    private val scope = CoroutineScope(Dispatchers.IO)
 
     override val nameProperty: GraphProperty<String> = baseData!!.nameProperty
     override val pathProperty: GraphProperty<String> = baseData!!.pathProperty
@@ -66,8 +66,8 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
     private val isOnRemoteProperty: GraphProperty<Boolean> =
         propertyGraph.lazyProperty { toolkit?.isOnRemote == true }
 
-    override var name: String = baseData!!.name
-    override var path: String = baseData!!.path
+    override var name: String by nameProperty
+    override var path: String by pathProperty
     override var remotePath: String by remotePathProperty
     override var language: String by languagesProperty
     override var kind: String by kindsProperty
@@ -104,7 +104,6 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
     private val browser = DirectoryBrowser(context.project)
     private val toolkitComboBox = ToolkitComboBox(::toolkit)
 
-    @Suppress("UnstableApiUsage")
     override fun setupUI(builder: Panel) {
         val locationProperty = remotePathProperty.joinCanonicalPath(nameProperty)
         with(builder) {
@@ -165,14 +164,14 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
 
     override fun setupProject(project: Project) {
         if (context.isCreatingNewProject) {
-            val workingDirectory = when (toolkit!!.host.type) {
-                LOCAL -> File(contentEntryPath).path
-                WSL, SSH -> remoteContentEntryPath
-            }
-            val generateDirectory = when (toolkit!!.host.type) {
-                LOCAL -> File("$contentEntryPath.tmpdir").path
-                WSL, SSH -> remoteContentEntryPath
-            }
+            val workingDirectory =
+                if (!toolkit!!.isOnRemote) File(contentEntryPath).path
+                else remoteContentEntryPath
+
+            val generateDirectory =
+                if (!toolkit!!.isOnRemote) File("$contentEntryPath.tmpdir").path
+                else remoteContentEntryPath
+
 
             Log.info("contentEntry path: $contentEntryPath")
             Log.info("remote contentEntry path: $remoteContentEntryPath")
@@ -214,24 +213,8 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
                         }
                     }
 
-                    WSL -> {
-                        syncProjectByWslSync(
-                            scope,
-                            project,
-                            host.target as WSLDistribution,
-                            workingDirectory,
-                            SyncDirection.UPSTREAM_TO_LOCAL
-                        )
-                    }
-
-                    SSH -> {
-                        syncProjectBySftp(
-                            scope,
-                            project,
-                            host.target as SshConfig,
-                            workingDirectory,
-                            SyncDirection.UPSTREAM_TO_LOCAL
-                        )
+                    WSL, SSH -> {
+                        transferFolderByToolkit(project, this, SyncDirection.UPSTREAM_TO_LOCAL, workingDirectory, null)
                     }
                 }
             }

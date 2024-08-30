@@ -3,7 +3,6 @@ package io.xmake.project
 import com.intellij.execution.RunManager
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.process.ProcessNotCreatedException
-import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.ide.util.projectWizard.ModuleBuilder
 import com.intellij.ide.util.projectWizard.ModuleWizardStep
 import com.intellij.ide.util.projectWizard.WizardContext
@@ -15,11 +14,12 @@ import com.intellij.openapi.roots.ModifiableRootModel
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.vfs.LocalFileSystem
-import com.intellij.ssh.config.unified.SshConfig
-import io.xmake.project.toolkit.ToolkitHostType.*
 import io.xmake.run.XMakeRunConfiguration
 import io.xmake.run.XMakeRunConfigurationType
-import io.xmake.utils.execute.*
+import io.xmake.utils.execute.SyncDirection
+import io.xmake.utils.execute.createProcess
+import io.xmake.utils.execute.runProcess
+import io.xmake.utils.execute.transferFolderByToolkit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -52,15 +52,10 @@ class XMakeModuleBuilder : ModuleBuilder() {
          */
         val tmpdir = "$contentEntryPath.dir"
 
-        val dir = when(configurationData.toolkit!!.host.type) {
-            LOCAL -> tmpdir
-            WSL, SSH -> configurationData.remotePath!!
-        }
+        val dir = if (!configurationData.toolkit!!.isOnRemote) tmpdir else configurationData.remotePath!!
 
-        val workingDir = when(configurationData.toolkit!!.host.type) {
-            LOCAL -> contentEntryPath
-            WSL, SSH -> configurationData.remotePath!!
-        }
+        val workingDir =
+            if (!configurationData.toolkit!!.isOnRemote) contentEntryPath else configurationData.remotePath!!
 
         Log.debug("dir: $dir")
 
@@ -91,20 +86,20 @@ class XMakeModuleBuilder : ModuleBuilder() {
         Log.info("results: $results")
 
         with(configurationData.toolkit!!) {
-            when(host.type) {
-                LOCAL -> {
-                    val tmpFile = File(tmpdir)
-                    if (tmpFile.exists()) {
-                        tmpFile.copyRecursively(File(contentEntryPath), true)
-                        tmpFile.deleteRecursively()
-                    }
+            if (!isOnRemote) {
+                val tmpFile = File(tmpdir)
+                if (tmpFile.exists()) {
+                    tmpFile.copyRecursively(File(contentEntryPath), true)
+                    tmpFile.deleteRecursively()
                 }
-                WSL -> {
-                    syncProjectByWslSync(scope, rootModel.project, host.target as WSLDistribution, configurationData.remotePath!!, SyncDirection.UPSTREAM_TO_LOCAL)
-                }
-                SSH -> {
-                    syncProjectBySftp(scope, rootModel.project, host.target as SshConfig, configurationData.remotePath!!, SyncDirection.UPSTREAM_TO_LOCAL)
-                }
+            } else {
+                transferFolderByToolkit(
+                    rootModel.project,
+                    this,
+                    SyncDirection.UPSTREAM_TO_LOCAL,
+                    directoryPath = configurationData.remotePath!!,
+                    null
+                )
             }
         }
 

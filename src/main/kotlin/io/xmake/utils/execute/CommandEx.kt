@@ -7,13 +7,11 @@ import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.execution.wsl.WSLCommandLineOptions
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.execution.wsl.WslPath
+import com.intellij.execution.wsl.rootMappings
 import com.intellij.openapi.diagnostic.fileLogger
+import com.intellij.openapi.extensions.ExtensionPointName
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
-import com.intellij.ssh.ConnectionBuilder
-import com.intellij.ssh.config.unified.SshConfig
-import com.intellij.ssh.interaction.PlatformSshPasswordProvider
-import com.intellij.ssh.processBuilder
 import com.intellij.util.io.awaitExit
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHostType.*
@@ -23,11 +21,14 @@ import io.xmake.project.xmakeProblemList
 import io.xmake.project.xmakeToolWindow
 import io.xmake.shared.XMakeProblem
 import io.xmake.utils.SystemUtils.parseProblem
+import io.xmake.utils.extension.ToolkitHostExtension
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
-import java.nio.charset.Charset
 
 private val Log = fileLogger()
+
+private val EP_NAME: ExtensionPointName<ToolkitHostExtension> =
+    ExtensionPointName("io.xmake.toolkitHostExtension")
 
 fun GeneralCommandLine.createLocalProcess(): Process{
     return this
@@ -37,40 +38,25 @@ fun GeneralCommandLine.createLocalProcess(): Process{
 
 fun GeneralCommandLine.createWslProcess(wslDistribution: WSLDistribution, project: Project? = null): Process {
     val commandInWsl: GeneralCommandLine = wslDistribution.patchCommandLine(
-        object : GeneralCommandLine(this) { init {
-            parametersList.clearAll()
-        }
+        object : GeneralCommandLine(this) {
+            init {
+                parametersList.clearAll()
+            }
         }, project,
         WSLCommandLineOptions().apply {
+            wslDistribution.rootMappings
             isLaunchWithWslExe = true
+//            remoteWorkingDirectory = workingDirectory?.toCanonicalPath()
         }
     ).apply {
         workDirectory?.let {
-            withWorkDirectory(WslPath(wslDistribution.id, workDirectory.path).toWindowsUncPath())
+            withWorkDirectory(WslPath(wslDistribution.id, it.path).toWindowsUncPath())
         }
         parametersList.replaceOrAppend(this@createWslProcess.exePath, this@createWslProcess.commandLineString)
     }
     return commandInWsl
         .also { Log.info("commandInWsl: ${commandInWsl.commandLineString}") }
         .toProcessBuilder().start()
-}
-
-fun GeneralCommandLine.createSshProcess(sshConfig: SshConfig): Process {
-    val builder = ConnectionBuilder(sshConfig.host)
-        .withSshPasswordProvider(PlatformSshPasswordProvider(sshConfig.copyToCredentials()))
-
-    val command = GeneralCommandLine("sh").withParameters("-c")
-        .withParameters(this.commandLineString)
-        .withWorkDirectory(workDirectory)
-        .withCharset(charset)
-        .withEnvironment(environment)
-        .withInput(inputFile)
-        .withRedirectErrorStream(isRedirectErrorStream)
-
-    return builder
-        .also { Log.info("commandOnRemote: ${command.commandLineString}") }
-        .processBuilder(command)
-        .start()
 }
 
 fun GeneralCommandLine.createProcess(toolkit: Toolkit): Process {
@@ -87,8 +73,9 @@ fun GeneralCommandLine.createProcess(toolkit: Toolkit): Process {
             }
 
             SSH -> {
-                val sshConfig = host.target as SshConfig
-                this@createProcess.createSshProcess(sshConfig)
+                with(EP_NAME.extensions.first { it.KEY == "SSH" }) {
+                    createProcess(toolkit.host)
+                }
             }
         }
     }
@@ -114,7 +101,7 @@ fun runProcessWithHandler(
     } catch (e: ProcessNotCreatedException) {
         return null
     }
-    val processHandler = KillableColoredProcessHandler(process, command.commandLineString, Charset.forName("UTF-8"))
+    val processHandler = KillableColoredProcessHandler(process, command.commandLineString, Charsets.UTF_8)
     var content = ""
 
     processHandler.addProcessListener(object : ProcessAdapter() {

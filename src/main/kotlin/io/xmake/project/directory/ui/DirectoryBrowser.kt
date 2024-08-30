@@ -3,26 +3,22 @@ package io.xmake.project.directory.ui
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.execution.wsl.ui.browseWslPath
 import com.intellij.openapi.diagnostic.logger
+import com.intellij.openapi.extensions.ExtensionPointName
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.TextComponentAccessor
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
-import com.intellij.ssh.ConnectionBuilder
-import com.intellij.ssh.config.unified.SshConfig
-import com.intellij.ssh.interaction.PlatformSshPasswordProvider
-import com.intellij.ssh.ui.sftpBrowser.RemoteBrowserDialog
-import com.intellij.ssh.ui.sftpBrowser.SftpRemoteBrowserProvider
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHost
 import io.xmake.project.toolkit.ToolkitHostType.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
+import io.xmake.utils.extension.ToolkitHostExtension
 import java.awt.event.ActionListener
-
 
 class DirectoryBrowser(val project: Project?) : TextFieldWithBrowseButton() {
 
     private val listeners = mutableSetOf<ActionListener>()
+
+    private val EP_NAME: ExtensionPointName<ToolkitHostExtension> = ExtensionPointName("io.xmake.toolkitHostExtension")
 
     private fun createLocalBrowseListener(): ActionListener {
         val fileChooserDescriptor = FileChooserDescriptorFactory.createSingleFolderDescriptor()
@@ -68,12 +64,14 @@ class DirectoryBrowser(val project: Project?) : TextFieldWithBrowseButton() {
                 listeners.add(wslBrowseListener)
                 Log.debug("addActionListener wsl: $wslBrowseListener")
             }
-
             SSH -> {
-                val sftpBrowseListener = createSftpBrowseListener(host.target as SshConfig)
-                addActionListener(sftpBrowseListener)
-                listeners.add(sftpBrowseListener)
-                Log.debug("addActionListener remote: $sftpBrowseListener")
+                EP_NAME.extensions.first { it.KEY == "SSH" }.let { extension ->
+                    println("host: $host")
+                    val browseListener = with(extension) { createBrowseListener(host) }
+                    addActionListener(browseListener)
+                    listeners.add(browseListener)
+                    Log.debug("addActionListener ${extension.getHostType()}: $browseListener")
+                }
             }
         }
     }
@@ -86,23 +84,5 @@ class DirectoryBrowser(val project: Project?) : TextFieldWithBrowseButton() {
     companion object{
         private val Log = logger<DirectoryBrowser>()
     }
-}
-
-fun DirectoryBrowser.createSftpBrowseListener(target: SshConfig): ActionListener {
-    val sftpChannel = runBlocking(Dispatchers.Default) {
-        ConnectionBuilder(target.host)
-            .withSshPasswordProvider(PlatformSshPasswordProvider(target.copyToCredentials()))
-            .openFailSafeSftpChannel()
-    }
-    val sftpRemoteBrowserProvider = SftpRemoteBrowserProvider(sftpChannel)
-    val remoteBrowseFolderListener = ActionListener {
-        text = RemoteBrowserDialog(
-            sftpRemoteBrowserProvider,
-            project,
-            true,
-            withCreateDirectoryButton = true
-        ).apply { showAndGet() }.getResult()
-    }
-    return remoteBrowseFolderListener
 }
 

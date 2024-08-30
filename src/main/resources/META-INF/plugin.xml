@@ -4,14 +4,19 @@
     <name>XMake</name>
     <vendor email="waruqi@gmail.com" url="https://xmake.io">xmake.io</vendor>
 
+    <extensionPoints>
+        <extensionPoint name="toolkitHostExtension" interface="io.xmake.utils.extension.ToolkitHostExtension"
+                        dynamic="true"/>
+    </extensionPoints>
+
     <!--all-->
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.lang</depends>
     <depends>com.intellij.modules.xml</depends>
     <depends>com.intellij.modules.xdebugger</depends>
 
-    <depends optional="true" config-file="io.xmake-ultimate.xml">
-        com.intellij.modules.ultimate
+    <depends optional="true" config-file="io.xmake-ssh.xml">
+        com.intellij.modules.ssh
     </depends>
     <!--clion and c/cpp language-->
     <!--
