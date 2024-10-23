@@ -28,9 +28,10 @@ val probeXmakeLocCommand = GeneralCommandLine("which")
     )
     .withCharset(Charsets.UTF_8)
 
-val probeXmakeVersionCommand = GeneralCommandLine()
-    .withParameters("--version")
-    .withCharset(Charsets.UTF_8)
+val probeXmakeVersionCommand
+    get() = GeneralCommandLine()
+        .withParameters("--version")
+        .withCharset(Charsets.UTF_8)
 
 val probeXmakeTargetCommand = GeneralCommandLine()
     .withParameters("l")
