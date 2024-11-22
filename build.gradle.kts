@@ -29,7 +29,7 @@ val buildIdeType: String = when (2) {
     else -> "IC"
 }
 
-val buildIdeVersion = "2024.2"
+val buildIdeVersion = "2024.3"
 
 val runIdeType: String = when (2) {
     0 -> "IC" // You can build with the Ultimate version, but run with the Community version.
@@ -39,7 +39,7 @@ val runIdeType: String = when (2) {
     else -> "IC"
 }
 
-val runIdeVersion = "2024.2"
+val runIdeVersion = "2024.3"
 
 plugins {
     id("java")
@@ -105,7 +105,8 @@ tasks {
             listOf(
                 "2023.3",
                 "2024.1",
-                "2024.2"
+                "2024.2",
+                "2024.3"
             )
         )
     }

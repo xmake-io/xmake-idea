@@ -5,6 +5,7 @@
  * - Changed class from final to open
  * - Date: 2024-08-07
  * - Author: windchargerj
+ * - Reference: [com.jetbrains.python.newProject.NewProjectWizardDirectoryGeneratorAdapter]
  */
 
 package io.xmake.project.wizard
@@ -16,6 +17,7 @@ import com.intellij.ide.wizard.GeneratorNewProjectWizard
 import com.intellij.ide.wizard.NewProjectWizardStepPanel
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.openapi.ui.VerticalFlowLayout
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.platform.DirectoryProjectGeneratorBase
@@ -25,6 +27,8 @@ import javax.swing.Icon
 import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JPanel
+
+// Todo: Refactor to transform a project wizard to a [com.intellij.platform.DirectoryProjectGenerator] directly.
 
 /**
  * A base adapter class to turn a [GeneratorNewProjectWizard] into a
@@ -47,7 +51,7 @@ open class NewProjectWizardDirectoryGeneratorAdapter<T : Any>(val wizard: Genera
     override fun createPeer(): ProjectGeneratorPeer<T> {
         val context = WizardContext(null) {}
         return object : GeneratorPeerImpl<T>() {
-            override fun getComponent(): JComponent {
+            override fun getComponent(myLocationField: TextFieldWithBrowseButton, checkValid: Runnable): JComponent {
                 panel = NewProjectWizardStepPanel(wizard.createStep(context))
                 return panel.component
             }
@@ -68,7 +72,7 @@ open class NewProjectWizardProjectSettingsStep<T : Any>(private val projectGener
 
     override fun createAndFillContentPanel(): JPanel =
         JPanel(VerticalFlowLayout()).apply {
-            add(peer.component)
+            add(peer.getComponent(TextFieldWithBrowseButton()) {})
         }
 
     override fun registerValidators() {}
