@@ -12,76 +12,13 @@ import io.xmake.shared.XMakeProblem
 import io.xmake.utils.exception.XMakeToolkitNotSetException
 import io.xmake.utils.execute.createProcess
 import io.xmake.utils.execute.runProcessWithHandler
-import io.xmake.utils.interact.kXMakeVersion
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
-import java.io.File
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.regex.Pattern
 
 object SystemUtils {
-
-    @Deprecated("Please refer to the relevant content in folder io/xmake/project/toolkit.")
-    // the xmake program
-    private var _xmakeProgram: String = ""
-
-    @Deprecated("Please refer to the relevant content in folder io/xmake/project/toolkit.")
-    var xmakeProgram: String
-        get() {
-
-            // cached? return it directly
-            if (_xmakeProgram != "") {
-                return _xmakeProgram
-            }
-
-            // for windows? return xmake directly
-            if (SystemInfo.isWindows) {
-                _xmakeProgram = "xmake"
-                return _xmakeProgram
-            }
-
-            // attempt to get xmake program
-            val programs = arrayOf(
-                "xmake",
-                (System.getenv("HOME") ?: "") + "/.local/bin/xmake",
-                "/usr/local/bin/xmake",
-                "/usr/bin/xmake",
-                "/opt/homebrew/bin/xmake"
-            )
-            for (program in programs) {
-                if (program == "xmake" || File(program).exists()) {
-                    val result = ioRunvInPool(listOf(program, "--version"))
-                    if (result.isNotEmpty()) {
-                        _xmakeProgram = program
-                        break
-                    }
-                }
-            }
-            return _xmakeProgram
-        }
-        set(value) {
-            _xmakeProgram = value
-        }
-
-    @Deprecated("Please refer to the relevant content in folder io/xmake/project/toolkit.")
-    // the xmake version
-    private var _xmakeVersion: String = ""
-
-    @Deprecated("Please refer to the relevant content in folder io/xmake/project/toolkit.")
-    var xmakeVersion: String
-        get() {
-            if (_xmakeVersion == "") {
-                val result = kXMakeVersion
-                if (result.isNotEmpty()) {
-                    _xmakeVersion = result
-                }
-            }
-            return _xmakeVersion
-        }
-        set(value) {
-            _xmakeVersion = value
-        }
 
     // get platform
     fun platform(): String = when {
