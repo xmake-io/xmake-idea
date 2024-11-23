@@ -23,11 +23,11 @@ class DirectoryBrowser(val project: Project?) : TextFieldWithBrowseButton() {
     private fun createLocalBrowseListener(): ActionListener {
         val fileChooserDescriptor = FileChooserDescriptorFactory.createSingleFolderDescriptor()
         val browseFolderListener = BrowseFolderActionListener(
-            "Working Directory",
-            null,
             this,
             project,
-            fileChooserDescriptor,
+            fileChooserDescriptor
+                .withTitle("Working Directory")
+                .withDescription("Select the working directory"),
             TextComponentAccessor.TEXT_FIELD_WHOLE_TEXT
         )
         return browseFolderListener
@@ -64,6 +64,7 @@ class DirectoryBrowser(val project: Project?) : TextFieldWithBrowseButton() {
                 listeners.add(wslBrowseListener)
                 Log.debug("addActionListener wsl: $wslBrowseListener")
             }
+
             SSH -> {
                 EP_NAME.extensions.first { it.KEY == "SSH" }.let { extension ->
                     println("host: $host")

@@ -34,5 +34,5 @@ interface ToolkitHostExtension {
 
     fun DirectoryBrowser.createBrowseListener(host: ToolkitHost): ActionListener
 
-    fun GeneralCommandLine.createProcess(target: ToolkitHost): Process
+    fun GeneralCommandLine.createProcess(host: ToolkitHost): Process
 }

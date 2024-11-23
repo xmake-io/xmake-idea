@@ -5,7 +5,6 @@ import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.runWriteAction
 import com.intellij.openapi.diagnostic.logger
-import com.intellij.openapi.diagnostic.runAndLogException
 import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
@@ -88,13 +87,12 @@ class SshToolkitHostExtensionImpl : ToolkitHostExtension {
                         when (direction) {
                             SyncDirection.LOCAL_TO_UPSTREAM -> {
 
-                                Log.runAndLogException {
+                                Log.runCatching {
                                     tryRunWithException<SftpChannelNoSuchFileException, List<SftpChannel.FileInfo>> {
                                         sftpChannel.ls(
                                             remoteDirectory
                                         )
-                                    }
-                                        .also { Log.info("before: $it") }
+                                    }.also { Log.info("before: $it") }
                                     sftpChannel.rmRecur(remoteDirectory)
                                     Log.info("after: " + sftpChannel.ls("Project"))
                                 }

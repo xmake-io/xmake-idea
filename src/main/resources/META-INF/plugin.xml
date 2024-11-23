@@ -67,47 +67,47 @@
             <action id="XMake.Run"
                     class="io.xmake.actions.RunAction"
                     text="Run Target"
-                    icon="com.intellij.icons.ExpUiIcons.Run.Run"
+                    icon="AllIcons.Actions.Execute"
                     description="Run the current target."/>
             <action id="XMake.Build"
                     class="io.xmake.actions.BuildAction"
                     text="Build Project"
-                    icon="com.intellij.icons.ExpUiIcons.Build.Build"
+                    icon="AllIcons.Actions.Compile"
                     description="Build the current project."/>
             <action id="XMake.Rebuild"
                     class="io.xmake.actions.RebuildAction"
                     text="Rebuild Project"
-                    icon="com.intellij.icons.ExpUiIcons.Run.Restart"
+                    icon="AllIcons.Actions.Restart"
                     description="Rebuild the current project."/>
             <action id="XMake.Clean"
                     class="io.xmake.actions.CleanAction"
                     text="Clean Project"
-                    icon="com.intellij.icons.ExpUiIcons.Actions.ClearCash"
+                    icon="AllIcons.Actions.ClearCash"
                     description="Clean target and object files."/>
             <separator/>
             <reference id="editRunConfigurations"/>
             <action id="XMake.CleanConfiguration"
                     class="io.xmake.actions.CleanConfigurationAction"
                     text="Clean Configuration"
-                    icon="com.intellij.icons.ExpUiIcons.Vcs.Revert"
+                    icon="AllIcons.Diff.Revert"
                     description="Clean the current configuration."/>
             <separator/>
             <action id="XMake.QuickStart"
                     class="io.xmake.actions.QuickStartAction"
                     text="Quick Start"
-                    icon="com.intellij.icons.ExpUiIcons.Actions.Lightning"
+                    icon="AllIcons.Actions.Lightning"
                     description="Quick start a new project."/>
             <action id="XMake.UpdateCmakeLists"
                     class="io.xmake.actions.UpdateCmakeListsAction"
                     text="Update CmakeLists"
-                    icon="com.intellij.icons.ExpUiIcons.FileTypes.Less"
-                    description="Create or update the CmakeLists.txt.">
+                    icon="AllIcons.FileTypes.Csv"
+                    description="Create or update the CMakeLists.txt.">
                 <keyboard-shortcut keymap="$default" first-keystroke="alt U" />
             </action>
             <action id="XMake.UpdateCompileCommands"
                     class="io.xmake.actions.UpdateCompileCommandsAction"
                     text="Update Compile Commands"
-                    icon="com.intellij.icons.ExpUiIcons.FileTypes.SourceMap"
+                    icon="AllIcons.FileTypes.Json"
                     description="Create or update  compile_commands.js.">
             </action>
         </group>
