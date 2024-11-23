@@ -66,7 +66,7 @@ class XMakeConfiguration(val project: Project) {
         get() {
 
             // make parameters
-            val parameters = mutableListOf("f", "-c", "-y")
+            val parameters = mutableListOf("f", "-c", "-y", "--policies=run.autobuild")
             if (configuration.enableVerbose) {
                 parameters.add("-v")
             }
@@ -93,7 +93,8 @@ class XMakeConfiguration(val project: Project) {
                     "-a",
                     configuration.runArchitecture,
                     "-m",
-                    configuration.runMode
+                    configuration.runMode,
+                    "--policies=run.autobuild"
                 )
             if (configuration.runPlatform == "android" && configuration.androidNDKDirectory != "") {
                 parameters.add("--ndk=\"${configuration.androidNDKDirectory}\"")
