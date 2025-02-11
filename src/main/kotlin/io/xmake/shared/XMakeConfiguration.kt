@@ -131,7 +131,7 @@ class XMakeConfiguration(val project: Project) {
     val updateCmakeListsCommandLine: GeneralCommandLine
         get() = makeCommandLine(mutableListOf("project", "-k", "cmake", "-y"))
 
-    val updateCompileCommansLine: GeneralCommandLine
+    val updateCompileCommandsLine: GeneralCommandLine
         get() = makeCommandLine(mutableListOf("project", "-k", "compile_commands"))
 
 

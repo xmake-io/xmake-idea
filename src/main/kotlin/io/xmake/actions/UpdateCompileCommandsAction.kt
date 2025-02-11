@@ -34,7 +34,7 @@ class UpdateCompileCommandsAction : AnAction() {
 
                             SystemUtils.runvInConsole(
                                 project,
-                                xmakeConfiguration.updateCompileCommansLine,
+                                xmakeConfiguration.updateCompileCommandsLine,
                                 false,
                                 true,
                                 true
@@ -55,7 +55,7 @@ class UpdateCompileCommandsAction : AnAction() {
                     })
                 xmakeConfiguration.changed = false
             } else {
-                SystemUtils.runvInConsole(project, xmakeConfiguration.updateCompileCommansLine, false, true, true)
+                SystemUtils.runvInConsole(project, xmakeConfiguration.updateCompileCommandsLine, false, true, true)
                     ?.addProcessListener(
                         object : ProcessAdapter() {
                             override fun processTerminated(e: ProcessEvent) {
