@@ -52,6 +52,12 @@
         <!-- notifications -->
         <notificationGroup id="XMake" displayType="BALLOON"/>
 
+        <fileType name="xmake.lua" language="xmake.lua" fieldName="INSTANCE"
+                  fileNames="xmake.lua" fileNamesCaseInsensitive="xmake.lua"
+                  implementationClass="io.xmake.file.XMakeLuaFileType"/>
+
+        <psi.treeChangeListener implementation="io.xmake.file.XMakeLuaFileChangeListener"/>
+
     </extensions>
 
     <!--
