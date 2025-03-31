@@ -1,6 +1,7 @@
 package io.xmake.project.toolkit.ui
 
 import ai.grazie.utils.tryRunWithException
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.ui.ComboBox
@@ -10,6 +11,7 @@ import com.intellij.openapi.ui.validation.validationErrorIf
 import com.intellij.ui.PopupMenuListenerAdapter
 import com.intellij.ui.SortedComboBoxModel
 import io.xmake.project.toolkit.Toolkit
+import io.xmake.project.toolkit.ToolkitChangedNotifier
 import io.xmake.project.toolkit.ToolkitManager
 import java.awt.event.ItemEvent
 import java.util.*
@@ -174,9 +176,13 @@ class ToolkitComboBox(toolkitProperty: KMutableProperty0<Toolkit?>) : ComboBox<T
         toolkitChangedListeners.add(listener)
     }
 
+    val publisher: ToolkitChangedNotifier = ApplicationManager.getApplication().messageBus
+        .syncPublisher(ToolkitChangedNotifier.TOOLKIT_CHANGED_TOPIC)
+
     fun addToolkitChangedListener(action: (Toolkit?) -> Unit) {
         toolkitChangedListeners.add(object : ToolkitChangedListener {
             override fun onToolkitChanged(toolkit: Toolkit?) {
+                publisher.toolkitChanged(toolkit)
                 action(toolkit)
             }
         })

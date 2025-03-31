@@ -92,6 +92,7 @@ class XMakeConfiguration(val project: Project) {
                     configuration.runPlatform,
                     "-a",
                     configuration.runArchitecture,
+                    "--toolchain=${configuration.runToolchain}",
                     "-m",
                     configuration.runMode,
                     "--policies=run.autobuild"

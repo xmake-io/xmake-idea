@@ -199,7 +199,7 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
         this.storage = state
     }
 
-    fun loadToolkit(toolkit: Toolkit) {
+    private fun loadToolkit(toolkit: Toolkit) {
         scope.launch(Dispatchers.IO) {
             toolkit.host.loadTarget()
             joinAll()
