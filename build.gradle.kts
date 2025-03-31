@@ -46,6 +46,7 @@ plugins {
     id("org.jetbrains.intellij") version "1.17.1"
     id("org.jetbrains.kotlin.jvm") version "1.9.22"
     id("org.jetbrains.changelog") version "2.2.0"
+    kotlin("plugin.serialization") version "1.9.22"
 }
 
 group = "io.xmake"
@@ -136,6 +137,7 @@ tasks {
 
 dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib:2.0.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
     testImplementation("io.mockk:mockk:1.13.12")
 }
 
