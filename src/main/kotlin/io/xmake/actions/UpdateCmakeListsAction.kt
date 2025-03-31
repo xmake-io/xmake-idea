@@ -65,7 +65,7 @@ class UpdateCmakeListsAction : AnAction() {
                 ConsoleViewContentType.ERROR_OUTPUT
             )
             NotificationGroupManager.getInstance()
-                .getNotificationGroup("XMake")
+                .getNotificationGroup("XMake.NotificationGroup")
                 .createNotification("Error with XMake Configuration", e.message ?: "", NotificationType.ERROR)
                 .notify(project)
         }
