@@ -50,7 +50,9 @@
         <runConfigurationProducer implementation="io.xmake.run.XMakeRunConfigurationProducer"/>
 
         <!-- notifications -->
-        <notificationGroup id="XMake" displayType="BALLOON"/>
+        <notificationGroup id="XMake.NotificationGroup" displayType="BALLOON"/>
+
+        <postStartupActivity implementation="io.xmake.utils.info.XMakeInfoActivity"/>
 
         <fileType name="xmake.lua" language="xmake.lua" fieldName="INSTANCE"
                   fileNames="xmake.lua" fileNamesCaseInsensitive="xmake.lua"

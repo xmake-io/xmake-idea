@@ -1,5 +1,4 @@
-import org.jetbrains.intellij.IntelliJPluginExtension
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 
 fun properties(key: String) = project.findProperty(key).toString()
 
@@ -29,7 +28,7 @@ val buildIdeType: String = when (2) {
     else -> "IC"
 }
 
-val buildIdeVersion = "2024.3"
+val buildIdeVersion = "2025.1"
 
 val runIdeType: String = when (2) {
     0 -> "IC" // You can build with the Ultimate version, but run with the Community version.
@@ -39,104 +38,72 @@ val runIdeType: String = when (2) {
     else -> "IC"
 }
 
-val runIdeVersion = "2024.3"
+val runIdeVersion = "2025.1"
 
 plugins {
     id("java")
-    id("org.jetbrains.intellij") version "1.17.1"
-    id("org.jetbrains.kotlin.jvm") version "1.9.22"
+    id("org.jetbrains.intellij.platform") version "2.5.0"
+    id("org.jetbrains.kotlin.jvm") version "2.1.0"
     id("org.jetbrains.changelog") version "2.2.0"
+    kotlin("plugin.serialization") version "2.1.0"
 }
 
 group = "io.xmake"
 
 repositories {
-    maven("https://cache-redirector.jetbrains.com/www.jetbrains.com/intellij-repository")
+    maven("https://maven.aliyun.com/repository/public/")
+    maven("https://oss.sonatype.org/content/repositories/snapshots/")
     mavenLocal()
     mavenCentral()
     gradlePluginPortal()
-    maven("https://maven.aliyun.com/repository/public/")
-    maven("https://oss.sonatype.org/content/repositories/snapshots/")
-    maven("https://cache-redirector.jetbrains.com/intellij-dependencies")
+    intellijPlatform {
+        defaultRepositories()
+    }
 }
 
-intellij {
-    type.set(buildIdeType)
-    version.set(buildIdeVersion)
-    downloadSources.set(true)
-    ideaDependencyCachePath.set(dependencyCachePath)
-    updateSinceUntilBuild.set(true)
-    /*
-    plugins.set(
-        listOf(
-            "com.intellij.clion",
-            "com.intellij.cidr.base",
-            "com.intellij.cidr.lang"
-        )
-    )
-     */
+intellijPlatform{
+
+    pluginConfiguration {
+        version = properties("pluginVersion")
+        changeNotes = localChangeNotes
+        description = localDescription
+        ideaVersion {
+            sinceBuild = properties("pluginSinceBuild")
+            untilBuild = properties("pluginUntilBuild")
+        }
+    }
+
+    pluginVerification {
+        ides{
+            select {
+                types = listOf(
+                    IntelliJPlatformType.CLion,
+                    IntelliJPlatformType.IntellijIdeaUltimate,
+                    IntelliJPlatformType.IntellijIdeaCommunity
+                )
+                sinceBuild = "243"
+                untilBuild = "251.*"
+            }
+        }
+    }
 }
 
 tasks {
-    withType<JavaCompile> {
-        sourceCompatibility = "17"
-        targetCompatibility = "17"
-    }
-    withType<KotlinCompile> {
-        kotlinOptions.jvmTarget = "17"
-        kotlinOptions.languageVersion = "2.0"
-    }
-
     test {
         useJUnit()
         include("io/xmake/**/**")
     }
-
-    patchPluginXml {
-        version = properties("pluginVersion")
-        sinceBuild = properties("pluginSinceBuild")
-        untilBuild = properties("pluginUntilBuild")
-        changeNotes = localChangeNotes
-        pluginDescription = localDescription
-    }
-
-    runPluginVerifier {
-        ideVersions.set(
-            listOf(
-                "2023.3",
-                "2024.1",
-                "2024.2",
-                "2024.3"
-            )
-        )
-    }
-
-    // Execute this downloadIde gradle task if missing build.txt in runIde task.
-    register("downloadIde") {
-        group = "Custom Tasks"
-        description = "Downloads a specific version and type of IntelliJ IDEA based on provided parameters."
-
-        doFirst {
-            println("Executing downloadIde task")
-            val intellijExtension = project.extensions.getByType(IntelliJPluginExtension::class.java)
-            val ideVersion = project.findProperty("ideVersion")?.toString() ?: runIdeVersion
-            val ideType = project.findProperty("ideType")?.toString() ?: runIdeType
-
-            intellijExtension.version.set(ideVersion)
-            intellijExtension.type.set(ideType)
-        }
-
-        finalizedBy("setupDependencies")
-    }
-
-    runIde {
-        ideDir.set(file("deps/${type[runIdeType]}-$runIdeVersion"))
-    }
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:2.0.0")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:2.1.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
     testImplementation("io.mockk:mockk:1.13.12")
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
+    intellijPlatform {
+        create(runIdeType, runIdeVersion)
+        bundledPlugin("com.intellij.clion")
+    }
 }
 
 val Project.dependencyCachePath

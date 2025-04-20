@@ -17,6 +17,8 @@ import io.xmake.project.toolkit.ToolkitManager
 import io.xmake.project.xmakeConsoleView
 import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.SystemUtils
+import io.xmake.utils.info.XMakeInfoManager
+import io.xmake.utils.info.xmakeInfo
 import org.jdom.Element
 import kotlin.io.path.Path
 
@@ -33,10 +35,13 @@ class XMakeRunConfiguration(
     var runTarget: String = "default"
 
     @OptionTag(tag = "platform")
-    var runPlatform: String = SystemUtils.platform()
+    var runPlatform: String = if (platforms.contains(SystemUtils.platform())) SystemUtils.platform() else "default"
 
     @OptionTag(tag = "architecture")
-    var runArchitecture: String = getArchitecturesByPlatform(runPlatform).first()
+    var runArchitecture: String = getArchitecturesByPlatform(runPlatform).firstOrNull() ?: "default"
+
+    @OptionTag(tag = "toolchain")
+    var runToolchain: String = toolchains.firstOrNull() ?: "default"
 
     @OptionTag(tag = "mode")
     var runMode: String = "release"
@@ -105,6 +110,8 @@ class XMakeRunConfiguration(
         runToolkit = runToolkit?.let { toolkit ->
             ToolkitManager.getInstance().findRegisteredToolkitById(toolkit.id)
         }
+        // Todo: Optimize to avoid probing delay.
+        XMakeInfoManager.getInstance(project).probeXMakeInfo(runToolkit)
     }
 
     override fun checkConfiguration() {
@@ -144,29 +151,20 @@ class XMakeRunConfiguration(
         return null
     }
 
+    val platforms: Array<String>
+        get() = project.xmakeInfo.architectures.keys.plus("default").toTypedArray()
+
+    val toolchains: Array<String>
+        get() = project.xmakeInfo.toolchains.keys.plus("default").toTypedArray()
+
+    val modes: Array<String>
+        get() = project.xmakeInfo.buildModes.map { it.substringAfter('.') }.toTypedArray()
+
+    fun getArchitecturesByPlatform(platform: String): Array<String> {
+        return (project.xmakeInfo.architectures[platform]?.toTypedArray() ?: arrayOf("default"))
+    }
+
     companion object {
-
-        // the platforms
-        val platforms = arrayOf("macosx", "linux", "windows", "android", "iphoneos", "watchos", "mingw")
-
-        // the modes
-        val modes = arrayOf("release", "debug")
-
-        /*        // the architectures
-                val architectures: Array<String>
-                    get() = getArchitecturesByPlatform(runPlatform)*/
-
-        // get architectures by platform
-        fun getArchitecturesByPlatform(platform: String) = when (platform) {
-            "macosx", "linux", "mingw" -> arrayOf("x86_64", "i386", "arm64")
-            "windows" -> arrayOf("x86", "x64")
-            "iphoneos" -> arrayOf("arm64", "armv7", "armv7s", "x86_64", "i386")
-            "watchos" -> arrayOf("armv7s", "i386")
-            "android" -> arrayOf("armv7-a", "armv5te", "armv6", "armv8-a", "arm64-v8a")
-            else -> arrayOf()
-        }
-
-
         private val Log = Logger.getInstance(XMakeRunConfiguration::class.java.getName())
     }
 }

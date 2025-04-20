@@ -78,7 +78,7 @@ object SystemUtils {
             }
         } catch (e: XMakeToolkitNotSetException) {
             NotificationGroupManager.getInstance()
-                .getNotificationGroup("XMake")
+                .getNotificationGroup("XMake.NotificationGroup")
                 .createNotification("Error with XMake Toolkit", e.message ?: "", NotificationType.ERROR)
                 .notify(project)
             throw ProcessNotCreatedException(e.message ?: "", commandLine)

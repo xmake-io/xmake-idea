@@ -18,9 +18,6 @@ import io.xmake.project.target.TargetManager
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ui.ToolkitComboBox
 import io.xmake.project.toolkit.ui.ToolkitListItem
-import io.xmake.run.XMakeRunConfiguration.Companion.getArchitecturesByPlatform
-import io.xmake.run.XMakeRunConfiguration.Companion.modes
-import io.xmake.run.XMakeRunConfiguration.Companion.platforms
 import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.execute.SyncDirection
 import io.xmake.utils.execute.transferFolderByToolkit
@@ -47,13 +44,17 @@ class XMakeRunConfigurationEditor(
     private val targetsModel = DefaultComboBoxModel<String>()
     private val targetsComboBox = ComboBox(targetsModel).apply { item = runConfiguration.runTarget }
 
-    private val platformsModel = DefaultComboBoxModel(platforms)
+    private val platformsModel = DefaultComboBoxModel(runConfiguration.platforms)
     private val platformsComboBox = ComboBox(platformsModel).apply { item = runConfiguration.runPlatform }
 
-    private val architecturesModel = DefaultComboBoxModel(getArchitecturesByPlatform(runConfiguration.runPlatform))
+    private val architecturesModel =
+        DefaultComboBoxModel(runConfiguration.getArchitecturesByPlatform(runConfiguration.runPlatform))
     private val architecturesComboBox = ComboBox(architecturesModel).apply { item = runConfiguration.runArchitecture }
 
-    private val modesModel = DefaultComboBoxModel(modes)
+    private val toolchainsModel = DefaultComboBoxModel(runConfiguration.toolchains)
+    private val toolchainsComboBox = ComboBox(toolchainsModel).apply { item = runConfiguration.runToolchain }
+
+    private val modesModel = DefaultComboBoxModel(runConfiguration.modes)
     private val modesComboBox = ComboBox(modesModel).apply { item = runConfiguration.runMode }
 
     private val runArguments = RawCommandLineEditor()
@@ -80,11 +81,14 @@ class XMakeRunConfigurationEditor(
 
         // reset targets
         targetsModel.removeAllElements()
+
         targetsModel.selectedItem = configuration.runTarget
 
         platformsComboBox.item = configuration.runPlatform
 
         architecturesComboBox.item = configuration.runArchitecture
+
+        toolchainsComboBox.item = configuration.runToolchain
 
         modesComboBox.item = configuration.runMode
 
@@ -115,6 +119,8 @@ class XMakeRunConfigurationEditor(
         configuration.runPlatform = platformsComboBox.item
 
         configuration.runArchitecture = architecturesComboBox.item
+
+        configuration.runToolchain = toolchainsComboBox.item
 
         configuration.runMode = modesComboBox.item
 
@@ -168,7 +174,7 @@ class XMakeRunConfigurationEditor(
                 row {
                     cell(platformsComboBox).applyToComponent {
                         addItemListener {
-                            val architectures = getArchitecturesByPlatform(selectedItem as String)
+                            val architectures = runConfiguration.getArchitecturesByPlatform(selectedItem as String)
                             with(architecturesModel) {
                                 removeAllElements()
                                 addAll(architectures.toMutableList())
@@ -188,10 +194,10 @@ class XMakeRunConfigurationEditor(
             }.resizableColumn()
             panel {
                 row {
-                    label("Mode:")
+                    label("Toolchain:")
                 }
                 row {
-                    cell(modesComboBox).align(AlignX.FILL)
+                    cell(toolchainsComboBox).align(AlignX.FILL)
                 }
             }.resizableColumn()
         }.layout(RowLayout.PARENT_GRID)
@@ -214,7 +220,9 @@ class XMakeRunConfigurationEditor(
                         }
                     }
                 })
-            }.align(AlignX.FILL)
+            }.align(AlignX.FILL).resizableColumn()
+            label("Mode:").align(AlignX.FILL)
+            cell(modesComboBox).align(AlignX.FILL)
         }
 
         row("Program arguments:") {
