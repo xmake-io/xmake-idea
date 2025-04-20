@@ -200,14 +200,6 @@ class XMakeRunConfigurationEditor(
                     cell(toolchainsComboBox).align(AlignX.FILL)
                 }
             }.resizableColumn()
-            panel {
-                row {
-                    label("Mode:")
-                }
-                row {
-                    cell(modesComboBox).align(AlignX.FILL)
-                }
-            }.resizableColumn()
         }.layout(RowLayout.PARENT_GRID)
 
         separator()
@@ -228,7 +220,9 @@ class XMakeRunConfigurationEditor(
                         }
                     }
                 })
-            }.align(AlignX.FILL)
+            }.align(AlignX.FILL).resizableColumn()
+            label("Mode:").align(AlignX.FILL)
+            cell(modesComboBox).align(AlignX.FILL)
         }
 
         row("Program arguments:") {

@@ -88,15 +88,19 @@ class XMakeConfiguration(val project: Project) {
                 mutableListOf(
                     "f",
                     "-y",
-                    "-p",
-                    configuration.runPlatform,
-                    "-a",
-                    configuration.runArchitecture,
-                    "--toolchain=${configuration.runToolchain}",
                     "-m",
                     configuration.runMode,
                     "--policies=run.autobuild"
                 )
+            if (configuration.runPlatform != "default") {
+                parameters.addAll(listOf("-p", configuration.runPlatform))
+            }
+            if (configuration.runArchitecture != "default") {
+                parameters.addAll(listOf("-a", configuration.runArchitecture))
+            }
+            if (configuration.runToolchain != "default" ) {
+                parameters.add("--toolchain=${configuration.runToolchain}")
+            }
             if (configuration.runPlatform == "android" && configuration.androidNDKDirectory != "") {
                 parameters.add("--ndk=\"${configuration.androidNDKDirectory}\"")
             }

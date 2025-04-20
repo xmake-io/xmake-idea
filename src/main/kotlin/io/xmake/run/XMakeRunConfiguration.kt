@@ -35,13 +35,13 @@ class XMakeRunConfiguration(
     var runTarget: String = "default"
 
     @OptionTag(tag = "platform")
-    var runPlatform: String = if (platforms.contains(SystemUtils.platform())) SystemUtils.platform() else ""
+    var runPlatform: String = if (platforms.contains(SystemUtils.platform())) SystemUtils.platform() else "default"
 
     @OptionTag(tag = "architecture")
-    var runArchitecture: String = getArchitecturesByPlatform(runPlatform).firstOrNull() ?: ""
+    var runArchitecture: String = getArchitecturesByPlatform(runPlatform).firstOrNull() ?: "default"
 
     @OptionTag(tag = "toolchain")
-    var runToolchain: String = toolchains.firstOrNull() ?: ""
+    var runToolchain: String = toolchains.firstOrNull() ?: "default"
 
     @OptionTag(tag = "mode")
     var runMode: String = "release"
@@ -152,16 +152,16 @@ class XMakeRunConfiguration(
     }
 
     val platforms: Array<String>
-        get() = project.xmakeInfo.architectures.keys.toTypedArray()
+        get() = project.xmakeInfo.architectures.keys.plus("default").toTypedArray()
 
     val toolchains: Array<String>
-        get() = project.xmakeInfo.toolchains.keys.toTypedArray()
+        get() = project.xmakeInfo.toolchains.keys.plus("default").toTypedArray()
 
     val modes: Array<String>
         get() = project.xmakeInfo.buildModes.map { it.substringAfter('.') }.toTypedArray()
 
     fun getArchitecturesByPlatform(platform: String): Array<String> {
-        return (project.xmakeInfo.architectures[platform]?.toTypedArray() ?: emptyArray())
+        return (project.xmakeInfo.architectures[platform]?.toTypedArray() ?: arrayOf("default"))
     }
 
     companion object {
