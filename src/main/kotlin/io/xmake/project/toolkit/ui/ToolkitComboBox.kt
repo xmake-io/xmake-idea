@@ -1,6 +1,5 @@
 package io.xmake.project.toolkit.ui
 
-import ai.grazie.utils.tryRunWithException
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.ProjectManager
@@ -91,8 +90,10 @@ class ToolkitComboBox(toolkitProperty: KMutableProperty0<Toolkit?>) : ComboBox<T
                     }
                 }
 
-                tryRunWithException<ClassCastException, Unit> {
+                try {
                     firePropertyChange("model", false, true)
+                } catch (e: ClassCastException){
+                    Log.info(e.message)
                 }
 
                 // to select configuration-level activated toolkit
@@ -123,8 +124,10 @@ class ToolkitComboBox(toolkitProperty: KMutableProperty0<Toolkit?>) : ComboBox<T
                 val toolkit = e.source as Toolkit
                 model.add(ToolkitListItem.ToolkitItem(toolkit))
                 debounce {
-                    tryRunWithException<ClassCastException, Unit> {
+                    try {
                         firePropertyChange("model", false, true)
+                    } catch (e: ClassCastException){
+                        Log.info(e.message)
                     }
                 }
             }

@@ -38,7 +38,7 @@ val runIdeType: String = when (2) {
     else -> "IC"
 }
 
-val runIdeVersion = "2025.1"
+val runIdeVersion = "2025.2"
 
 plugins {
     id("java")
@@ -82,7 +82,7 @@ intellijPlatform{
                     IntelliJPlatformType.IntellijIdeaCommunity
                 )
                 sinceBuild = "243"
-                untilBuild = "251.*"
+                untilBuild = "252.*"
             }
         }
     }

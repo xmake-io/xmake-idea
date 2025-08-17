@@ -1,6 +1,5 @@
 package io.xmake.utils.extension
 
-import ai.grazie.utils.tryRunWithException
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.runWriteAction
@@ -15,7 +14,6 @@ import com.intellij.openapi.roots.ProjectRootManager
 import com.intellij.openapi.util.text.Formats
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.ssh.*
-import com.intellij.ssh.channels.SftpChannel
 import com.intellij.ssh.config.unified.SshConfig
 import com.intellij.ssh.config.unified.SshConfigManager
 import com.intellij.ssh.interaction.PlatformSshPasswordProvider
@@ -88,10 +86,12 @@ class SshToolkitHostExtensionImpl : ToolkitHostExtension {
                             SyncDirection.LOCAL_TO_UPSTREAM -> {
 
                                 Log.runCatching {
-                                    tryRunWithException<SftpChannelNoSuchFileException, List<SftpChannel.FileInfo>> {
+                                    try {
                                         sftpChannel.ls(
                                             remoteDirectory
                                         )
+                                    } catch (e: SftpChannelNoSuchFileException) {
+                                        Log.warn(e.message)
                                     }.also { Log.info("before: $it") }
                                     sftpChannel.rmRecur(remoteDirectory)
                                     Log.info("after: " + sftpChannel.ls("Project"))

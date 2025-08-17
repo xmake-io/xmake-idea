@@ -8,7 +8,7 @@ import com.intellij.execution.wsl.WSLCommandLineOptions
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.execution.wsl.WslPath
 import com.intellij.execution.wsl.rootMappings
-import com.intellij.openapi.diagnostic.fileLogger
+import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.extensions.ExtensionPointName
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
@@ -25,7 +25,7 @@ import io.xmake.utils.extension.ToolkitHostExtension
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 
-private val Log = fileLogger()
+private val Log = logger<GeneralCommandLine>()
 
 private val EP_NAME: ExtensionPointName<ToolkitHostExtension> =
     ExtensionPointName("io.xmake.toolkitHostExtension")
@@ -104,7 +104,7 @@ fun runProcessWithHandler(
     val processHandler = KillableColoredProcessHandler(process, command.commandLineString, Charsets.UTF_8)
     var content = ""
 
-    processHandler.addProcessListener(object : ProcessAdapter() {
+    processHandler.addProcessListener(object : ProcessListener {
         override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {
             super.onTextAvailable(event, outputType)
             project.xmakeConsoleView.print(event.text, ConsoleViewContentType.getConsoleViewType(outputType))
@@ -119,7 +119,7 @@ fun runProcessWithHandler(
     }
 
     if (showProblem) {
-        processHandler.addProcessListener(object : ProcessAdapter() {
+        processHandler.addProcessListener(object : ProcessListener {
             override fun processTerminated(e: ProcessEvent) {
                 runBlocking(Dispatchers.Default) {
                     val problems = mutableListOf<XMakeProblem>()
