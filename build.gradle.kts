@@ -68,7 +68,6 @@ dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     intellijPlatform {
         clion(runIdeVersion)
-        bundledPlugin("com.intellij.clion")
     }
 }
 
