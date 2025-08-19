@@ -66,7 +66,7 @@ class XMakeConfiguration(val project: Project) {
         get() {
 
             // make parameters
-            val parameters = mutableListOf("f", "-c", "-y", "--policies=run.autobuild")
+            val parameters = mutableListOf("f", "-c", "-y")
             if (configuration.enableVerbose) {
                 parameters.add("-v")
             }
@@ -89,8 +89,7 @@ class XMakeConfiguration(val project: Project) {
                     "f",
                     "-y",
                     "-m",
-                    configuration.runMode,
-                    "--policies=run.autobuild"
+                    configuration.runMode
                 )
             if (configuration.runPlatform != "default") {
                 parameters.addAll(listOf("-p", configuration.runPlatform))
