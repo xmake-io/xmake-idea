@@ -1,7 +1,7 @@
 package io.xmake.actions
 
-import com.intellij.execution.process.ProcessAdapter
 import com.intellij.execution.process.ProcessEvent
+import com.intellij.execution.process.ProcessListener
 import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
@@ -28,7 +28,7 @@ class UpdateCompileCommandsAction : AnAction() {
             val xmakeConfiguration = project.xmakeConfiguration
             if (xmakeConfiguration.changed) {
                 SystemUtils.runvInConsole(project, xmakeConfiguration.configurationCommandLine)
-                    ?.addProcessListener(object : ProcessAdapter() {
+                    ?.addProcessListener(object : ProcessListener {
                         override fun processTerminated(e: ProcessEvent) {
                             syncBeforeFetch(project, project.activatedToolkit!!)
 
@@ -40,7 +40,7 @@ class UpdateCompileCommandsAction : AnAction() {
                                 true
                             )
                                 ?.addProcessListener(
-                                    object : ProcessAdapter() {
+                                    object : ProcessListener {
                                         override fun processTerminated(e: ProcessEvent) {
                                             fetchGeneratedFile(
                                                 project,
@@ -57,7 +57,7 @@ class UpdateCompileCommandsAction : AnAction() {
             } else {
                 SystemUtils.runvInConsole(project, xmakeConfiguration.updateCompileCommandsLine, false, true, true)
                     ?.addProcessListener(
-                        object : ProcessAdapter() {
+                        object : ProcessListener {
                             override fun processTerminated(e: ProcessEvent) {
                                 fetchGeneratedFile(project, project.activatedToolkit!!, "compile_commands.json")
                             }

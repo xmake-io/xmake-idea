@@ -3,8 +3,8 @@ package io.xmake.run
 import com.intellij.execution.Executor
 import com.intellij.execution.configuration.EnvironmentVariablesData
 import com.intellij.execution.configurations.*
-import com.intellij.execution.process.ProcessAdapter
 import com.intellij.execution.process.ProcessEvent
+import com.intellij.execution.process.ProcessListener
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.options.SettingsEditor
@@ -137,7 +137,7 @@ class XMakeRunConfiguration(
         val xmakeConfiguration = project.xmakeConfiguration
         if (xmakeConfiguration.changed) {
             SystemUtils.runvInConsole(project, xmakeConfiguration.configurationCommandLine)
-                ?.addProcessListener(object : ProcessAdapter() {
+                ?.addProcessListener(object : ProcessListener {
                     override fun processTerminated(e: ProcessEvent) {
                         SystemUtils.runvInConsole(project, runCommandLine, false, true, true)
                     }

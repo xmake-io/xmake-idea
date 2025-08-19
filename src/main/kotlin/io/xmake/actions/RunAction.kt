@@ -1,7 +1,7 @@
 package io.xmake.actions
 
-import com.intellij.execution.process.ProcessAdapter
 import com.intellij.execution.process.ProcessEvent
+import com.intellij.execution.process.ProcessListener
 import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
@@ -27,7 +27,7 @@ class RunAction : AnAction() {
             val xmakeConfiguration = project.xmakeConfiguration
             if (xmakeConfiguration.changed) {
                 SystemUtils.runvInConsole(project, xmakeConfiguration.configurationCommandLine)
-                    ?.addProcessListener(object : ProcessAdapter() {
+                    ?.addProcessListener(object : ProcessListener {
                         override fun processTerminated(e: ProcessEvent) {
                             SystemUtils.runvInConsole(
                                 project,

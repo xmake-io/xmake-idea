@@ -6,43 +6,11 @@ fun properties(key: String) = project.findProperty(key).toString()
 val localChangeNotes: String = file("${projectDir}/change-notes.html").readText(Charsets.UTF_8)
 val localDescription: String = file("${projectDir}/description.html").readText(Charsets.UTF_8)
 
-val type = mapOf(
-    "IC" to "ideaIC",
-    "IU" to "ideaIU",
-    "CL" to "clion",
-    "PY" to "pycharmPY"
-)
-
-/*
-* Best practice:
-* Use CL for both building and running.
-* If you lack a license, use CLI for building and IC for running.
-* Specify the ideDir path as needed.
-* */
-
-val buildIdeType: String = when (2) {
-    0 -> "IC" // SSH-related functions cannot be built by the Community version.
-    1 -> "IU" // To build with Ultimate version does not require a license.
-    2 -> "CL" // C/C++ intellij-sense is included.
-    3 -> "PY"
-    else -> "IC"
-}
-
-val buildIdeVersion = "2025.1"
-
-val runIdeType: String = when (2) {
-    0 -> "IC" // You can build with the Ultimate version, but run with the Community version.
-    1 -> "IU" // It may require a license to run with the Ultimate version.
-    2 -> "CL"  // It includes C/C++ related functions, along with functions in the Ultimate version.
-    3 -> "PY"
-    else -> "IC"
-}
-
-val runIdeVersion = "2025.1"
+val runIdeVersion = "2025.2"
 
 plugins {
     id("java")
-    id("org.jetbrains.intellij.platform") version "2.5.0"
+    id("org.jetbrains.intellij.platform") version "2.7.2"
     id("org.jetbrains.kotlin.jvm") version "2.1.0"
     id("org.jetbrains.changelog") version "2.2.0"
     kotlin("plugin.serialization") version "2.1.0"
@@ -78,11 +46,9 @@ intellijPlatform{
             select {
                 types = listOf(
                     IntelliJPlatformType.CLion,
-                    IntelliJPlatformType.IntellijIdeaUltimate,
-                    IntelliJPlatformType.IntellijIdeaCommunity
                 )
                 sinceBuild = "243"
-                untilBuild = "251.*"
+                untilBuild = "252.*"
             }
         }
     }
@@ -101,8 +67,7 @@ dependencies {
     testImplementation("io.mockk:mockk:1.13.12")
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     intellijPlatform {
-        create(runIdeType, runIdeVersion)
-        bundledPlugin("com.intellij.clion")
+        clion(runIdeVersion)
     }
 }
 
