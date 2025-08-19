@@ -9,3 +9,5 @@ build/
 deps/
 .gradle
 .idea
+.intellijPlatform/
+.kotlin/
