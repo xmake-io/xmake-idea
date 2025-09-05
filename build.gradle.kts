@@ -1,4 +1,5 @@
 import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
+import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 
 fun properties(key: String) = project.findProperty(key).toString()
 
@@ -65,9 +66,10 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib:2.1.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
     testImplementation("io.mockk:mockk:1.13.12")
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
+    testImplementation("junit:junit:4.13.2")
     intellijPlatform {
         clion(runIdeVersion)
+        testFramework(TestFrameworkType.Platform)
     }
 }
 
