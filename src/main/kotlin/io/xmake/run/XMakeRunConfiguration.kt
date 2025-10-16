@@ -9,6 +9,7 @@ import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.project.Project
+import com.intellij.util.execution.ParametersListUtil
 import com.intellij.util.xmlb.XmlSerializer
 import com.intellij.util.xmlb.annotations.OptionTag
 import com.intellij.util.xmlb.annotations.Transient
@@ -81,9 +82,7 @@ class XMakeRunConfiguration(
                 parameters.add(runTarget)
             }
             if (runArguments != "") {
-                runArguments.split(" ").forEach {
-                    parameters.add(it)
-                }
+                parameters.addAll(ParametersListUtil.parse(runArguments))
             }
 
             // make command line

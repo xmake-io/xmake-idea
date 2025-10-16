@@ -6,6 +6,7 @@ import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
+import com.intellij.util.execution.ParametersListUtil
 import io.xmake.project.toolkit.activatedToolkit
 import io.xmake.run.XMakeRunConfiguration
 import io.xmake.utils.exception.XMakeRunConfigurationNotSetException
@@ -111,7 +112,7 @@ class XMakeConfiguration(val project: Project) {
                 parameters.add(configuration.buildDirectory)
             }
             if (configuration.additionalConfiguration != "") {
-                parameters.add(configuration.additionalConfiguration)
+                parameters.addAll(ParametersListUtil.parse(configuration.additionalConfiguration))
             }
 
             // make command line

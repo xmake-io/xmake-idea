@@ -105,6 +105,7 @@ class XMakeRunConfigurationEditor(
         androidNDKDirectoryBrowser.text = configuration.androidNDKDirectory
 
         enableVerbose = configuration.enableVerbose
+        enableVerboseCheckBox.setSelected(enableVerbose)
 
         additionalConfiguration.text = configuration.additionalConfiguration
     }
@@ -134,6 +135,7 @@ class XMakeRunConfigurationEditor(
 
         configuration.androidNDKDirectory = androidNDKDirectoryBrowser.text
 
+        enableVerbose = enableVerboseCheckBox.isSelected()
         configuration.enableVerbose = enableVerbose
 
         configuration.additionalConfiguration = additionalConfiguration.text
