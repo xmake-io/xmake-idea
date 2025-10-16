@@ -111,7 +111,13 @@ class XMakeConfiguration(val project: Project) {
                 parameters.add(configuration.buildDirectory)
             }
             if (configuration.additionalConfiguration != "") {
-                parameters.add(configuration.additionalConfiguration)
+                parameters.addAll(
+                    "\"[^\"]*\"|'[^']*'|[^\\s]+".toRegex().findAll(
+                        configuration.additionalConfiguration
+                    ).map {
+                        it.value.removeSurrounding("\"").removeSurrounding("'")
+                    }.toList()
+                )
             }
 
             // make command line

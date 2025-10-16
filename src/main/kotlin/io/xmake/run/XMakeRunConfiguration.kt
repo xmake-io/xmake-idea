@@ -81,9 +81,13 @@ class XMakeRunConfiguration(
                 parameters.add(runTarget)
             }
             if (runArguments != "") {
-                runArguments.split(" ").forEach {
-                    parameters.add(it)
-                }
+                parameters.addAll(
+                    "\"[^\"]*\"|'[^']*'|[^\\s]+".toRegex().findAll(
+                        runArguments
+                    ).map {
+                        it.value.removeSurrounding("\"").removeSurrounding("'")
+                    }.toList()
+                )
             }
 
             // make command line
