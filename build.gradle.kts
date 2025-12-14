@@ -7,8 +7,6 @@ fun properties(key: String) = project.findProperty(key).toString()
 val localChangeNotes: String = file("${projectDir}/change-notes.html").readText(Charsets.UTF_8)
 val localDescription: String = file("${projectDir}/description.html").readText(Charsets.UTF_8)
 
-val runIdeVersion = "2025.2"
-
 plugins {
     id("java")
     id("org.jetbrains.intellij.platform") version "2.7.2"
@@ -30,26 +28,23 @@ repositories {
     }
 }
 
-intellijPlatform{
-
+intellijPlatform {
     pluginConfiguration {
         version = properties("pluginVersion")
         changeNotes = localChangeNotes
         description = localDescription
         ideaVersion {
             sinceBuild = properties("pluginSinceBuild")
-            untilBuild = properties("pluginUntilBuild")
         }
     }
 
     pluginVerification {
-        ides{
+        ides {
             select {
                 types = listOf(
                     IntelliJPlatformType.CLion,
                 )
-                sinceBuild = "243"
-                untilBuild = "252.*"
+                sinceBuild = properties("pluginSinceBuild")
             }
         }
     }
@@ -68,7 +63,7 @@ dependencies {
     testImplementation("io.mockk:mockk:1.13.12")
     testImplementation("junit:junit:4.13.2")
     intellijPlatform {
-        clion(runIdeVersion)
+        clion(properties("runIdeVersion"))
         testFramework(TestFrameworkType.Platform)
     }
 }
