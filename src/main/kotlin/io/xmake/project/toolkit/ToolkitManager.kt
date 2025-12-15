@@ -10,7 +10,7 @@ import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.extensions.ExtensionPointName
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
-import com.intellij.openapi.util.SystemInfo
+import com.intellij.util.system.OS
 import com.intellij.util.xmlb.annotations.XCollection
 import io.xmake.project.toolkit.ToolkitHostType.*
 import io.xmake.run.XMakeRunConfiguration
@@ -74,7 +74,7 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
     private fun detectToolkitLocation(host: ToolkitHost): Flow<String> = flow {
         val process = probeXmakeLocCommand.let {
             when (host.type) {
-                LOCAL -> (if (SystemInfo.isWindows) probeXmakeLocCommandOnWin else it).createLocalProcess()
+                LOCAL -> (if (OS.CURRENT == OS.Windows) probeXmakeLocCommandOnWin else it).createLocalProcess()
                 WSL -> it.createWslProcess(host.target as WSLDistribution)
                 SSH -> with(EP_NAME.extensions.first { it.KEY == "SSH" }) { it.createProcess(host) }
             }
@@ -126,7 +126,7 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
                 }.flowOn(Dispatchers.IO).buffer().filterNot { it.isBlank() }.map { versionString ->
                     when (host.type) {
                         LOCAL -> {
-                            val name = SystemInfo.getOsName()
+                            val name = OS.CURRENT.name
                             Toolkit(name, host, path, versionString)
                         }
 

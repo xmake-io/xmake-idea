@@ -4,7 +4,7 @@ import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.execution.wsl.WslDistributionManager
 import com.intellij.openapi.extensions.ExtensionPointName
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.SystemInfo
+import com.intellij.util.system.OS
 import com.intellij.util.xmlb.annotations.Attribute
 import com.intellij.util.xmlb.annotations.Tag
 import io.xmake.project.toolkit.ToolkitHostType.*
@@ -23,7 +23,7 @@ data class ToolkitHost(
     constructor(type: ToolkitHostType, target: Any? = null) : this(type) {
         this.target = target
         this.id = when (type) {
-            LOCAL -> SystemInfo.getOsName()
+            LOCAL -> OS.CURRENT.name
             WSL -> (target as WSLDistribution).id
             SSH -> EP_NAME.extensions.first { it.KEY == "SSH" }.getTargetId(target)
         }
