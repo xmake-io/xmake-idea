@@ -107,6 +107,6 @@ fun ioRunvSingle(argv: List<String>, workDir: String? = null): List<String> {
  * @param workDir the working directory
  * @return void
  */
-inline fun vRunv(console: String/*TODO()*/, argv: List<String>, workDir: String? = null) {
+fun vRunv(console: String/*TODO()*/, argv: List<String>, workDir: String? = null) {
     TODO()
 }

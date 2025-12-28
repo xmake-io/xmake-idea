@@ -56,7 +56,7 @@ class XMakeRunConfiguration(
     var runEnvironment: EnvironmentVariablesData = EnvironmentVariablesData.DEFAULT
 
     @OptionTag(tag = "workingDirectory")
-    var runWorkingDir: String = ""
+    var runWorkingDir: String = project.basePath ?: ""
 
     @OptionTag(tag = "buildDirectory")
     var buildDirectory: String = ""
