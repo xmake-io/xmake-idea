@@ -21,6 +21,7 @@ import io.xmake.project.toolkit.ui.ToolkitListItem
 import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.execute.SyncDirection
 import io.xmake.utils.execute.transferFolderByToolkit
+import io.xmake.utils.info.XMakeInfoManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -157,12 +158,14 @@ class XMakeRunConfigurationEditor(
                         workingDirectoryBrowser.addBrowserListenerByToolkit(it)
                         buildDirectoryBrowser.addBrowserListenerByToolkit(it)
                         androidNDKDirectoryBrowser.addBrowserListenerByToolkit(it)
+                        XMakeInfoManager.getInstance(project).probeXMakeInfo(it)
                     }
                 }
                 activatedToolkit?.let {
                     workingDirectoryBrowser.addBrowserListenerByToolkit(it)
                     buildDirectoryBrowser.addBrowserListenerByToolkit(it)
                     androidNDKDirectoryBrowser.addBrowserListenerByToolkit(it)
+                    XMakeInfoManager.getInstance(project).probeXMakeInfo(it)
                 }
             }
         }

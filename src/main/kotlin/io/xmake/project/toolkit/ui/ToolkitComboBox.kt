@@ -50,20 +50,34 @@ class ToolkitComboBox(toolkitProperty: KMutableProperty0<Toolkit?>) : ComboBox<T
 
     init {
         model.apply {
+            // init items
+            add(ToolkitListItem.NoneItem())
+            service.getRegisteredToolkits().forEach {
+                add(ToolkitListItem.ToolkitItem(it).asRegistered())
+            }
+
             val initialToolkit = activatedToolkit
             Log.debug("ComboBox initial activated Toolkit: $initialToolkit")
 
-            val initialListItem = if (initialToolkit != null) {
-                if (initialToolkit.isValid)
-                    ToolkitListItem.ToolkitItem(initialToolkit)
-                else
-                    ToolkitListItem.ToolkitItem(initialToolkit).asInvalid()
+            if (initialToolkit != null) {
+                // find it
+                val found = items.find { it.id == initialToolkit.id }
+                if (found != null) {
+                    selectedItem = found
+                } else {
+                    val invalid = ToolkitListItem.ToolkitItem(initialToolkit).asInvalid()
+                    add(invalid)
+                    selectedItem = invalid
+                }
             } else {
-                ToolkitListItem.NoneItem()
+                // select first one
+                val first = items.filterIsInstance<ToolkitListItem.ToolkitItem>().firstOrNull()
+                if (first != null) {
+                    selectedItem = first
+                } else {
+                    selectedItem = items.firstOrNull()
+                }
             }
-
-            add(initialListItem)
-            item = initialListItem
         }
 
         isSwingPopup = false
