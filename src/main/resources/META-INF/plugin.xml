@@ -60,6 +60,10 @@
 
         <psi.treeChangeListener implementation="io.xmake.file.XMakeLuaFileChangeListener"/>
 
+        <lang.parserDefinition language="xmake.lua" implementationClass="io.xmake.file.parser.XMakeLuaParserDefinition"/>
+        <lang.syntaxHighlighterFactory language="xmake.lua" implementationClass="io.xmake.file.highlight.XMakeLuaSyntaxHighlighterFactory"/>
+        <completion.contributor language="xmake.lua" implementationClass="io.xmake.file.completion.XMakeLuaCompletionContributor"/>
+
     </extensions>
 
     <!--

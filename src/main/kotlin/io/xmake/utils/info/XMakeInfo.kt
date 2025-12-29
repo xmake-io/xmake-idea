@@ -17,6 +17,7 @@ class XMakeInfo {
     var platforms: XMakePlatforms = emptyList()
     var targets: XMakeTargets = emptyList()
     var toolchains: XMakeToolchains = emptyMap()
+    var apis: XMakeApis = emptySet()
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -126,6 +127,30 @@ class XMakeInfo {
             Log.error("Failed to parse toolchains: $e")
             emptyMap()
         }
+    }
+
+    fun parseApis(apiString: String): XMakeApis {
+        try {
+            val element = json.decodeFromString<JsonElement>(apiString)
+            if (element is JsonObject) {
+                val apis = mutableSetOf<String>()
+                val keysToInclude = listOf("description_builtin_apis", "script_builtin_apis", "description_scope_apis")
+                for (key in keysToInclude) {
+                    element[key]?.jsonArray?.forEach {
+                        val content = it.jsonPrimitive.content
+                        content.split(".").forEach { part ->
+                            if (part.isNotEmpty()) {
+                                apis.add(part)
+                            }
+                        }
+                    }
+                }
+                return apis
+            }
+        } catch (e: Exception) {
+            Log.error("Failed to parse apis: $e")
+        }
+        return emptySet()
     }
 
     companion object {

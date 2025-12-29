@@ -5,3 +5,4 @@ typealias XMakeBuildModes = List<String>
 typealias XMakePlatforms = List<String>
 typealias XMakeTargets = List<String>
 typealias XMakeToolchains = Map<String, String>
+typealias XMakeApis = Set<String>

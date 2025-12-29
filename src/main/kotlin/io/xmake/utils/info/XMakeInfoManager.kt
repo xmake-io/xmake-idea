@@ -6,6 +6,7 @@ import com.intellij.openapi.components.serviceOrNull
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.util.messages.Topic
+import io.xmake.file.highlight.XMakeLuaLexer
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.utils.execute.createProcess
 import io.xmake.utils.execute.runProcess
@@ -54,6 +55,37 @@ class XMakeInfoManager(val project: Project, private val scope: CoroutineScope) 
                 }
 
                 project.messageBus.syncPublisher(XMAKE_INFO_TOPIC).onXMakeInfoUpdated(xmakeInfo)
+            }
+        }
+    }
+
+    fun probeXMakeApis(toolkit: Toolkit?) {
+        scope.launch {
+            toolkit?.let {
+                val workingDirectory = project.basePath?.let { path -> File(path) }
+
+                suspend fun runXMakeShow(key: String): String {
+                    val cmd = GeneralCommandLine(
+                        "xmake show -l $key --json".split(" ")
+                    ).apply {
+                        workingDirectory?.let { wd -> withWorkDirectory(wd) }
+                        withEnvironment("XMAKE_SKIP_HISTORY", "1")
+                        withEnvironment("XMAKE_ROOT", "y")
+                        withEnvironment("XMAKE_COLOR_TERM", "nocolor")
+                    }
+                    val result = runProcess(cmd.createProcess(it)).first.getOrDefault("")
+                    return result
+                }
+
+                val apisString = runXMakeShow("apis")
+
+                with(xmakeInfo) {
+                    apis = parseApis(apisString)
+                }
+
+                if (xmakeInfo.apis.isNotEmpty()) {
+                    XMakeLuaLexer.updateApis(xmakeInfo.apis)
+                }
             }
         }
     }
