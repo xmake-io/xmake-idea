@@ -94,7 +94,11 @@ class XMakeRunConfigurationEditor(
 
         val selectedMode = modesComboBox.item
         modesModel.removeAllElements()
-        val modes = xmakeInfo.buildModes.map { it.substringAfter('.') }.toList()
+        val modes = if (xmakeInfo.buildModes.isNotEmpty()) {
+            xmakeInfo.buildModes.map { it.substringAfter('.') }.toList()
+        } else {
+            listOf("release", "debug")
+        }
         modesModel.addAll(modes)
         modesComboBox.item = if (modes.contains(selectedMode)) selectedMode else runConfiguration.runMode
 
@@ -168,7 +172,7 @@ class XMakeRunConfigurationEditor(
         updateComboBoxes()
 
         // reset targets
-        // targetsModel.removeAllElements() // Removed to prevent clearing data populated by updateComboBoxes
+        targetsModel.removeAllElements() // Removed to prevent clearing data populated by updateComboBoxes
 
         targetsModel.selectedItem = configuration.runTarget
 

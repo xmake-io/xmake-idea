@@ -161,7 +161,11 @@ class XMakeRunConfiguration(
         get() = project.xmakeInfo.toolchains.keys.plus("default").toTypedArray()
 
     val modes: Array<String>
-        get() = project.xmakeInfo.buildModes.map { it.substringAfter('.') }.toTypedArray()
+        get() = if (project.xmakeInfo.buildModes.isNotEmpty()) {
+            project.xmakeInfo.buildModes.map { it.substringAfter('.') }.toTypedArray()
+        } else {
+            arrayOf("release", "debug")
+        }
 
     fun getArchitecturesByPlatform(platform: String): Array<String> {
         return (project.xmakeInfo.architectures[platform]?.toTypedArray() ?: arrayOf("default"))
