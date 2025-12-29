@@ -102,26 +102,17 @@ class XMakeRunConfigurationEditor(
         modesModel.addAll(modes)
         modesComboBox.item = if (modes.contains(selectedMode)) selectedMode else runConfiguration.runMode
 
-        // Update targets from XMakeInfo if available
-        val targets = xmakeInfo.targets
-        if (targets.isNotEmpty()) {
-            val selectedTarget = targetsModel.selectedItem
-            targetsModel.removeAllElements()
-            targetsModel.addAll(targets)
-            targetsModel.selectedItem = if (targets.contains(selectedTarget)) selectedTarget else runConfiguration.runTarget
+        val selectedTarget = targetsModel.selectedItem
+        targetsModel.removeAllElements()
+        val targets = if (xmakeInfo.targets.isNotEmpty()) {
+            xmakeInfo.targets.plus("default")
         } else {
-            // Fallback: try detectXMakeTarget if xmakeInfo is not ready
-            val detected = runConfiguration.runToolkit?.let {
+            (runConfiguration.runToolkit?.let {
                 TargetManager.getInstance(project).detectXMakeTarget(it, runConfiguration.runWorkingDir)
-            } ?: emptyList()
-            
-            if (detected.isNotEmpty()) {
-                val selectedTarget = targetsModel.selectedItem
-                targetsModel.removeAllElements()
-                targetsModel.addAll(detected)
-                targetsModel.selectedItem = if (detected.contains(selectedTarget)) selectedTarget else runConfiguration.runTarget
-            }
-        }
+            } ?: emptyList()).plus("default")
+        }.distinct().toList()
+        targetsModel.addAll(targets)
+        targetsModel.selectedItem = if (targets.contains(selectedTarget)) selectedTarget else runConfiguration.runTarget
     }
 
     private var toolkit: Toolkit? = runConfiguration.runToolkit
@@ -172,8 +163,6 @@ class XMakeRunConfigurationEditor(
         updateComboBoxes()
 
         // reset targets
-        targetsModel.removeAllElements() // Removed to prevent clearing data populated by updateComboBoxes
-
         targetsModel.selectedItem = configuration.runTarget
 
         platformsComboBox.item = configuration.runPlatform
@@ -310,23 +299,20 @@ class XMakeRunConfigurationEditor(
                 addPopupMenuListener(object : PopupMenuListenerAdapter() {
                     override fun popupMenuWillBecomeVisible(e: PopupMenuEvent?) {
                         super.popupMenuWillBecomeVisible(e)
+                        val selectedTarget = targetsModel.selectedItem
                         targetsModel.removeAllElements()
-                        
-                        // Try XMakeInfo first
+
                         val xmakeInfo = XMakeInfoManager.getInstance(project).xmakeInfo
-                        if (xmakeInfo.targets.isNotEmpty()) {
-                            targetsModel.addAll(xmakeInfo.targets)
-                            return
-                        }
-                        
-                        with(runConfiguration) {
-                            if (runToolkit != null && runWorkingDir.isNotEmpty()) {
-                                TargetManager.getInstance(project)
-                                    .detectXMakeTarget(runToolkit!!, runConfiguration.runWorkingDir).forEach { target ->
-                                        targetsModel.addElement(target)
-                                    }
-                            }
-                        }
+                        val targets = if (xmakeInfo.targets.isNotEmpty()) {
+                            xmakeInfo.targets.plus("default")
+                        } else {
+                            (runConfiguration.runToolkit?.let {
+                                TargetManager.getInstance(project).detectXMakeTarget(it, runConfiguration.runWorkingDir)
+                            } ?: emptyList()).plus("default")
+                        }.distinct().toList()
+
+                        targetsModel.addAll(targets)
+                        targetsModel.selectedItem = if (targets.contains(selectedTarget)) selectedTarget else runConfiguration.runTarget
                     }
                 })
             }.align(AlignX.FILL).resizableColumn()
