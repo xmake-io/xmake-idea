@@ -151,7 +151,11 @@ class XMakeRunConfiguration(
     }
 
     val platforms: Array<String>
-        get() = project.xmakeInfo.architectures.keys.plus("default").toTypedArray()
+        get() = if (project.xmakeInfo.platforms.isNotEmpty()) {
+            project.xmakeInfo.platforms.plus("default").toTypedArray()
+        } else {
+            project.xmakeInfo.architectures.keys.plus("default").toTypedArray()
+        }
 
     val toolchains: Array<String>
         get() = project.xmakeInfo.toolchains.keys.plus("default").toTypedArray()

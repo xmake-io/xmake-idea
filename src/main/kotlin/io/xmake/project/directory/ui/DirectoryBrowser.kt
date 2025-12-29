@@ -67,7 +67,6 @@ class DirectoryBrowser(val project: Project?) : TextFieldWithBrowseButton() {
 
             SSH -> {
                 EP_NAME.extensions.first { it.KEY == "SSH" }.let { extension ->
-                    println("host: $host")
                     val browseListener = with(extension) { createBrowseListener(host) }
                     addActionListener(browseListener)
                     listeners.add(browseListener)

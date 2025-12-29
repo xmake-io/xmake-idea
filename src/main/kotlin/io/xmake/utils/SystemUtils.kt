@@ -70,7 +70,6 @@ object SystemUtils {
         showProblem: Boolean = false,
         showExitCode: Boolean = false
     ) = runProcessWithHandler(project, commandLine, showConsole, showProblem, showExitCode) {
-        println("runvInConsole: ${it.workDirectory}")
         try {
             val activatedToolkit = project.activatedToolkit ?: throw XMakeToolkitNotSetException()
             runBlocking(Dispatchers.Default) {

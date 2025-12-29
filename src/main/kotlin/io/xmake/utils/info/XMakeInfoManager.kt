@@ -31,12 +31,10 @@ class XMakeInfoManager(val project: Project, private val scope: CoroutineScope) 
                         "xmake show -l $key --json".split(" ")
                     ).apply {
                         workingDirectory?.let { wd -> withWorkDirectory(wd) }
+                        withEnvironment("XMAKE_SKIP_HISTORY", "1")
+                        withEnvironment("XMAKE_Root_Permission", "1")
                     }
-                    Log.info("Probing xmake info: ${cmd.commandLineString}, workDir: $workingDirectory")
-                    println("Probing xmake info: ${cmd.commandLineString}, workDir: $workingDirectory")
                     val result = runProcess(cmd.createProcess(it)).first.getOrDefault("")
-                    Log.info("Probing result for $key: $result")
-                    println("Probing result for $key: $result")
                     return result
                 }
 
@@ -60,17 +58,6 @@ class XMakeInfoManager(val project: Project, private val scope: CoroutineScope) 
                     rules = parseRules(rulesString)
                     targets = parseTargets(targetsString)
                     toolchains = parseToolchains(toolchainsString)
-
-                    Log.info(
-                        "XMake Info: " +
-                                "$apis, " +
-                                "$architectures, " +
-                                "$platforms, " +
-                                "$policies, " +
-                                "$rules, " +
-                                "$targets, " +
-                                "$toolchains"
-                    )
                 }
 
                 project.messageBus.syncPublisher(XMAKE_INFO_TOPIC).onXMakeInfoUpdated(xmakeInfo)

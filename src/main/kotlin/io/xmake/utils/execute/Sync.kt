@@ -107,7 +107,6 @@ fun syncProjectByWslSync(
                     when (direction) {
                         SyncDirection.LOCAL_TO_UPSTREAM -> {
                             wslTargetEnvironment.uploadVolumes.forEach { root, volume ->
-                                println("upload: ${root.localRootPath}, ${root.targetRootPath}")
                                 volume.upload(relativePath ?: "", TargetProgressIndicatorAdapter(indicator))
                             }
                         }

@@ -62,6 +62,7 @@ fun GeneralCommandLine.createWslProcess(wslDistribution: WSLDistribution, projec
 fun GeneralCommandLine.createProcess(toolkit: Toolkit): Process {
     return with(toolkit) {
         Log.info("createProcessWithToolkit: $toolkit")
+        Log.info("createProcessWithToolkit: $toolkit")
         when (host.type) {
             LOCAL -> {
                 this@createProcess.createLocalProcess()
@@ -123,7 +124,6 @@ fun runProcessWithHandler(
             override fun processTerminated(e: ProcessEvent) {
                 runBlocking(Dispatchers.Default) {
                     val problems = mutableListOf<XMakeProblem>()
-                    println("Content: $content")
                     content.split(Regex("\\r\\n|\\n|\\r")).forEach {
                         val problem = parseProblem(it.trim())
                         if (problem !== null) {

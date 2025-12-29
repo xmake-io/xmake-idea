@@ -27,39 +27,49 @@ class XMakeInfo {
 
     fun parseApis(apiString: String): XMakeApis? {
         return try {
-            json.decodeFromString<XMakeApis>(apiString).also {
-                Log.info("Parsed XMake Apis: $it")
-                println("Parsed XMake Apis: $it")
-            }
+            json.decodeFromString<XMakeApis>(apiString)
         } catch (e: Exception) {
             Log.error("Failed to parse apis: $e")
-            println("Failed to parse apis: $e")
             null
         }
     }
 
     fun parseArchitectures(archString: String): XMakeArchitectures {
+        try {
+            return json.decodeFromString<XMakeArchitectures>(archString)
+        } catch (e: Exception) {
+            // Fallthrough to text parsing
+        }
+
         return try {
-            json.decodeFromString<XMakeArchitectures>(archString).also {
-                Log.info("Parsed XMake Architectures: $it")
-                println("Parsed XMake Architectures: $it")
+            val architectures = mutableMapOf<String, List<String>>()
+            archString.split("\n").forEach { line ->
+                val parts = line.split(":")
+                if (parts.size == 2) {
+                    val platform = parts[0].trim()
+                    val archs = parts[1].split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                    architectures[platform] = archs
+                }
             }
+            architectures
         } catch (e: Exception) {
             Log.error("Failed to parse architectures: $e")
-            println("Failed to parse architectures: $e")
             emptyMap()
         }
     }
 
     fun parseBuildModes(buildModeString: String): XMakeBuildModes {
+        try {
+            return json.decodeFromString<XMakeBuildModes>(buildModeString)
+        } catch (e: Exception) {
+            // Fallthrough
+        }
+
         return try {
-            json.decodeFromString<XMakeBuildModes>(buildModeString).also {
-                Log.info("Parsed XMake BuildModes: $it")
-                println("Parsed XMake BuildModes: $it")
-            }
+            val modes = buildModeString.split("\n").map { it.trim() }.filter { it.isNotEmpty() }
+            modes
         } catch (e: Exception) {
             Log.error("Failed to parse buildmodes: $e")
-            println("Failed to parse buildmodes: $e")
             emptyList()
         }
     }
@@ -75,14 +85,17 @@ class XMakeInfo {
     }
 
     fun parsePlatforms(platformString: String): XMakePlatforms {
+        try {
+            return json.decodeFromString<XMakePlatforms>(platformString)
+        } catch (e: Exception) {
+            // Fallthrough
+        }
+
         return try {
-            json.decodeFromString<XMakePlatforms>(platformString).also {
-                Log.info("Parsed XMake Platforms: $it")
-                println("Parsed XMake Platforms: $it")
-            }
+            val platforms = platformString.split("\n").map { it.trim() }.filter { it.isNotEmpty() }
+            platforms
         } catch (e: Exception) {
             Log.error("Failed to parse platforms: $e")
-            println("Failed to parse platforms: $e")
             emptyList()
         }
     }
@@ -95,28 +108,25 @@ class XMakeInfo {
     fun parseRules(ruleString: String): XMakeRules {
         return try {
             // Rules might be a list of strings or objects, need careful handling if complex
-            json.decodeFromString<XMakeRules>(ruleString).also {
-                Log.info("Parsed XMake Rules: $it")
-                println("Parsed XMake Rules: $it")
-            }
+            json.decodeFromString<XMakeRules>(ruleString)
         } catch (e: Exception) {
             Log.error("Failed to parse rules: $e")
-            println("Failed to parse rules: $e")
             emptyList()
         }
     }
 
     fun parseTargets(targetString: String): XMakeTargets {
+        try {
+            return json.decodeFromString<XMakeTargets>(targetString)
+        } catch (e: Exception) {
+            // Fallthrough
+        }
+
         return try {
-            // Targets might be complex objects or simple strings depending on xmake version/output
-            // Assuming simple list of target names for now based on previous typealias
-             json.decodeFromString<XMakeTargets>(targetString).also {
-                Log.info("Parsed XMake Targets: $it")
-                println("Parsed XMake Targets: $it")
-            }
+            val targets = targetString.split("\n").map { it.trim() }.filter { it.isNotEmpty() }
+            targets
         } catch (e: Exception) {
             Log.error("Failed to parse targets: $e")
-            println("Failed to parse targets: $e")
             emptyList()
         }
     }
@@ -135,8 +145,6 @@ class XMakeInfo {
                         toolchains[item.content] = ""
                     }
                 }
-                Log.info("Parsed XMake Toolchains (JSON): $toolchains")
-                println("Parsed XMake Toolchains (JSON): $toolchains")
                 return toolchains
             }
         } catch (e: Exception) {
@@ -152,14 +160,10 @@ class XMakeInfo {
                      val desc = if (parts.size > 1) parts[1] else ""
                      name to desc
                  } else null
-             }.associate { it }.also {
-                 Log.info("Parsed XMake Toolchains (Text): ${it.keys}")
-                 println("Parsed XMake Toolchains (Text): ${it.keys}")
-             }
-        } catch (e2: Exception) {
-             Log.error("Failed to parse toolchains: $e2")
-             println("Failed to parse toolchains: $e2")
-             emptyMap()
+             }.associate { it }
+        } catch (e: Exception) {
+            Log.error("Failed to parse toolchains: $e")
+            emptyMap()
         }
     }
 

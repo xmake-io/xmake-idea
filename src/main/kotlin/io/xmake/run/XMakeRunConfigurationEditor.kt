@@ -52,6 +52,11 @@ class XMakeRunConfigurationEditor(
                 }
             }
         })
+
+        // Try to update combo boxes initially if info is already available
+        ApplicationManager.getApplication().invokeLater {
+            updateComboBoxes()
+        }
     }
 
     override fun disposeEditor() {
@@ -60,25 +65,58 @@ class XMakeRunConfigurationEditor(
     }
 
     private fun updateComboBoxes() {
+
+        val xmakeInfo = XMakeInfoManager.getInstance(project).xmakeInfo
+
         val selectedPlatform = platformsComboBox.item
         platformsModel.removeAllElements()
-        platformsModel.addAll(runConfiguration.platforms.toList())
-        platformsComboBox.item = selectedPlatform ?: runConfiguration.runPlatform
+        val platforms = if (xmakeInfo.platforms.isNotEmpty()) {
+            xmakeInfo.platforms.plus("default")
+        } else {
+            xmakeInfo.architectures.keys.plus("default")
+        }.toList()
+        platformsModel.addAll(platforms)
+        platformsComboBox.item = if (platforms.contains(selectedPlatform)) selectedPlatform else runConfiguration.runPlatform
 
         val selectedArch = architecturesComboBox.item
         architecturesModel.removeAllElements()
-        architecturesModel.addAll(runConfiguration.getArchitecturesByPlatform(platformsComboBox.item ?: "default").toList())
-        architecturesComboBox.item = selectedArch ?: runConfiguration.runArchitecture
+        val currentPlatform = platformsComboBox.item as? String ?: "default"
+        val architectures = (xmakeInfo.architectures[currentPlatform] ?: emptyList()).plus("default")
+        architecturesModel.addAll(architectures)
+        architecturesComboBox.item = if (architectures.contains(selectedArch)) selectedArch else runConfiguration.runArchitecture
 
         val selectedToolchain = toolchainsComboBox.item
         toolchainsModel.removeAllElements()
-        toolchainsModel.addAll(runConfiguration.toolchains.toList())
-        toolchainsComboBox.item = selectedToolchain ?: runConfiguration.runToolchain
+        val toolchains = xmakeInfo.toolchains.keys.plus("default").toList()
+        toolchainsModel.addAll(toolchains)
+        toolchainsComboBox.item = if (toolchains.contains(selectedToolchain)) selectedToolchain else runConfiguration.runToolchain
 
         val selectedMode = modesComboBox.item
         modesModel.removeAllElements()
-        modesModel.addAll(runConfiguration.modes.toList())
-        modesComboBox.item = selectedMode ?: runConfiguration.runMode
+        val modes = xmakeInfo.buildModes.map { it.substringAfter('.') }.toList()
+        modesModel.addAll(modes)
+        modesComboBox.item = if (modes.contains(selectedMode)) selectedMode else runConfiguration.runMode
+
+        // Update targets from XMakeInfo if available
+        val targets = xmakeInfo.targets
+        if (targets.isNotEmpty()) {
+            val selectedTarget = targetsModel.selectedItem
+            targetsModel.removeAllElements()
+            targetsModel.addAll(targets)
+            targetsModel.selectedItem = if (targets.contains(selectedTarget)) selectedTarget else runConfiguration.runTarget
+        } else {
+            // Fallback: try detectXMakeTarget if xmakeInfo is not ready
+            val detected = runConfiguration.runToolkit?.let {
+                TargetManager.getInstance(project).detectXMakeTarget(it, runConfiguration.runWorkingDir)
+            } ?: emptyList()
+            
+            if (detected.isNotEmpty()) {
+                val selectedTarget = targetsModel.selectedItem
+                targetsModel.removeAllElements()
+                targetsModel.addAll(detected)
+                targetsModel.selectedItem = if (detected.contains(selectedTarget)) selectedTarget else runConfiguration.runTarget
+            }
+        }
     }
 
     private var toolkit: Toolkit? = runConfiguration.runToolkit
@@ -123,8 +161,11 @@ class XMakeRunConfigurationEditor(
 
         toolkit = configuration.runToolkit
 
+        // Update combo boxes data from XMakeInfo first
+        updateComboBoxes()
+
         // reset targets
-        targetsModel.removeAllElements()
+        // targetsModel.removeAllElements() // Removed to prevent clearing data populated by updateComboBoxes
 
         targetsModel.selectedItem = configuration.runTarget
 
@@ -159,15 +200,15 @@ class XMakeRunConfigurationEditor(
 
         configuration.runToolkit = toolkit
 
-        configuration.runTarget = (targetsModel.selectedItem ?: "").toString()
+        configuration.runTarget = (targetsModel.selectedItem ?: "default").toString()
 
-        configuration.runPlatform = platformsComboBox.item
+        configuration.runPlatform = (platformsComboBox.item ?: "default").toString()
 
-        configuration.runArchitecture = architecturesComboBox.item
+        configuration.runArchitecture = (architecturesComboBox.item ?: "default").toString()
 
-        configuration.runToolchain = toolchainsComboBox.item
+        configuration.runToolchain = (toolchainsComboBox.item ?: "default").toString()
 
-        configuration.runMode = modesComboBox.item
+        configuration.runMode = (modesComboBox.item ?: "default").toString()
 
         configuration.runArguments = runArguments.text
 
@@ -263,6 +304,14 @@ class XMakeRunConfigurationEditor(
                     override fun popupMenuWillBecomeVisible(e: PopupMenuEvent?) {
                         super.popupMenuWillBecomeVisible(e)
                         targetsModel.removeAllElements()
+                        
+                        // Try XMakeInfo first
+                        val xmakeInfo = XMakeInfoManager.getInstance(project).xmakeInfo
+                        if (xmakeInfo.targets.isNotEmpty()) {
+                            targetsModel.addAll(xmakeInfo.targets)
+                            return
+                        }
+                        
                         with(runConfiguration) {
                             if (runToolkit != null && runWorkingDir.isNotEmpty()) {
                                 TargetManager.getInstance(project)
