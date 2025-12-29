@@ -39,24 +39,16 @@ class XMakeInfoManager(val project: Project, private val scope: CoroutineScope) 
                     return result
                 }
 
-                val apisString = runXMakeShow("apis")
                 val architecturesString = runXMakeShow("architectures")
                 val buildModesString = runXMakeShow("buildmodes")
-                val envsString = runXMakeShow("envs")
-                val packagesString = runXMakeShow("packages")
                 val platformsString = runXMakeShow("platforms")
-                val policiesString = runXMakeShow("policies")
-                val rulesString = runXMakeShow("rules")
                 val targetsString = runXMakeShow("targets")
                 val toolchainsString = runXMakeShow("toolchains")
 
                 with(xmakeInfo) {
-                    apis = parseApis(apisString)
                     architectures = parseArchitectures(architecturesString)
                     buildModes = parseBuildModes(buildModesString)
                     platforms = parsePlatforms(platformsString)
-                    policies = parsePolicies(policiesString)
-                    rules = parseRules(rulesString)
                     targets = parseTargets(targetsString)
                     toolchains = parseToolchains(toolchainsString)
                 }

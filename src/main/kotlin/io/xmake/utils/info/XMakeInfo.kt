@@ -12,27 +12,13 @@ import kotlinx.serialization.json.jsonPrimitive
 
 class XMakeInfo {
 
-    var apis: XMakeApis? = null
     var architectures: XMakeArchitectures = emptyMap()
     var buildModes: XMakeBuildModes = emptyList()
-    var envs: XMakeEnvs = emptyMap()
-    var packages: XMakePackages = emptyList()
     var platforms: XMakePlatforms = emptyList()
-    var policies: XMakePolicies = emptyMap()
-    var rules: XMakeRules = emptyList()
     var targets: XMakeTargets = emptyList()
     var toolchains: XMakeToolchains = emptyMap()
 
     private val json = Json { ignoreUnknownKeys = true }
-
-    fun parseApis(apiString: String): XMakeApis? {
-        return try {
-            json.decodeFromString<XMakeApis>(apiString)
-        } catch (e: Exception) {
-            Log.error("Failed to parse apis: $e")
-            null
-        }
-    }
 
     fun parseArchitectures(archString: String): XMakeArchitectures {
         try {
@@ -74,16 +60,6 @@ class XMakeInfo {
         }
     }
 
-    fun parseEnvs(envString: String): XMakeEnvs {
-        // Todo
-        return emptyMap()
-    }
-
-    fun parsePackages(packageString: String): XMakePackages {
-        // Todo
-        return emptyList()
-    }
-
     fun parsePlatforms(platformString: String): XMakePlatforms {
         try {
             return json.decodeFromString<XMakePlatforms>(platformString)
@@ -96,21 +72,6 @@ class XMakeInfo {
             platforms
         } catch (e: Exception) {
             Log.error("Failed to parse platforms: $e")
-            emptyList()
-        }
-    }
-
-    fun parsePolicies(policyString: String): XMakePolicies {
-        // Todo
-        return emptyMap()
-    }
-
-    fun parseRules(ruleString: String): XMakeRules {
-        return try {
-            // Rules might be a list of strings or objects, need careful handling if complex
-            json.decodeFromString<XMakeRules>(ruleString)
-        } catch (e: Exception) {
-            Log.error("Failed to parse rules: $e")
             emptyList()
         }
     }
