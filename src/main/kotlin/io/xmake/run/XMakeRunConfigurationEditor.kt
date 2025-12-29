@@ -32,6 +32,7 @@ import java.awt.Dimension
 import javax.swing.DefaultComboBoxModel
 import javax.swing.JComponent
 import javax.swing.JPanel
+import javax.swing.SwingUtilities
 import javax.swing.event.PopupMenuEvent
 
 class XMakeRunConfigurationEditor(
@@ -47,14 +48,14 @@ class XMakeRunConfigurationEditor(
         messageBusConnection = project.messageBus.connect()
         messageBusConnection!!.subscribe(XMakeInfoManager.XMAKE_INFO_TOPIC, object : XMakeInfoManager.XMakeInfoListener {
             override fun onXMakeInfoUpdated(xmakeInfo: XMakeInfo) {
-                ApplicationManager.getApplication().invokeLater {
+                SwingUtilities.invokeLater {
                     updateComboBoxes()
                 }
             }
         })
 
         // Try to update combo boxes initially if info is already available
-        ApplicationManager.getApplication().invokeLater {
+        SwingUtilities.invokeLater {
             updateComboBoxes()
         }
     }

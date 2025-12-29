@@ -32,7 +32,8 @@ class XMakeInfoManager(val project: Project, private val scope: CoroutineScope) 
                     ).apply {
                         workingDirectory?.let { wd -> withWorkDirectory(wd) }
                         withEnvironment("XMAKE_SKIP_HISTORY", "1")
-                        withEnvironment("XMAKE_Root_Permission", "1")
+                        withEnvironment("XMAKE_ROOT", "y")
+                        withEnvironment("XMAKE_COLOR_TERM", "nocolor")
                     }
                     val result = runProcess(cmd.createProcess(it)).first.getOrDefault("")
                     return result
