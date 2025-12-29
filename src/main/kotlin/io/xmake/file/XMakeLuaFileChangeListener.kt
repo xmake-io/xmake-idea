@@ -10,7 +10,6 @@ class XMakeLuaFileChangeListener : PsiTreeAnyChangeAbstractAdapter() {
     override fun onChange(file: PsiFile?) {
         file?.let {
             if (XMakeLuaFileType.isFileOfType(file.virtualFile)) {
-                println("${file.name} on change")
                 fileDocumentManager.saveDocument(it.fileDocument)
             }
         }

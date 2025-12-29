@@ -50,20 +50,36 @@ class ToolkitComboBox(toolkitProperty: KMutableProperty0<Toolkit?>) : ComboBox<T
 
     init {
         model.apply {
+            // init items
+            add(ToolkitListItem.NoneItem())
+            service.getRegisteredToolkits().forEach {
+                add(ToolkitListItem.ToolkitItem(it).asRegistered())
+            }
+
             val initialToolkit = activatedToolkit
             Log.debug("ComboBox initial activated Toolkit: $initialToolkit")
 
-            val initialListItem = if (initialToolkit != null) {
-                if (initialToolkit.isValid)
-                    ToolkitListItem.ToolkitItem(initialToolkit)
-                else
-                    ToolkitListItem.ToolkitItem(initialToolkit).asInvalid()
+            if (initialToolkit != null) {
+                // find it
+                val found = items.find { it.id == initialToolkit.id }
+                if (found != null) {
+                    selectedItem = found
+                } else {
+                    val invalid = ToolkitListItem.ToolkitItem(initialToolkit).asInvalid()
+                    add(invalid)
+                    selectedItem = invalid
+                }
             } else {
-                ToolkitListItem.NoneItem()
+                // select first one
+                val first = items.filterIsInstance<ToolkitListItem.ToolkitItem>().firstOrNull()
+                if (first != null) {
+                    selectedItem = first
+                    // Force update activatedToolkit
+                    activatedToolkit = first.toolkit
+                } else {
+                    selectedItem = items.firstOrNull()
+                }
             }
-
-            add(initialListItem)
-            item = initialListItem
         }
 
         isSwingPopup = false
@@ -149,11 +165,12 @@ class ToolkitComboBox(toolkitProperty: KMutableProperty0<Toolkit?>) : ComboBox<T
                                     registerToolkit(fetchedToolkit)
                                 }
                             }
+                            activatedToolkit = fetchedToolkit
                         } else {
-                            // selectedItem toolkit is not in toolkitSet
+                            // selectedItem toolkit is not in toolkitSet, use the one from the item directly
+                            // This happens when we select an already registered toolkit that wasn't "fetched" in this session
+                            activatedToolkit = toolkitListItem.toolkit
                         }
-
-                        activatedToolkit = fetchedToolkit
                     }
                 } else {
                     activatedToolkit = null
@@ -196,6 +213,24 @@ class ToolkitComboBox(toolkitProperty: KMutableProperty0<Toolkit?>) : ComboBox<T
     }
 
     fun getToolkitChangedListeners(): List<ToolkitChangedListener> = toolkitChangedListeners
+
+    fun selectToolkit(toolkit: Toolkit?) {
+        if (toolkit != null) {
+            val found = model.items.find { it.id == toolkit.id }
+            if (found != null) {
+                selectedItem = found
+            } else {
+                val invalid = ToolkitListItem.ToolkitItem(toolkit).asInvalid()
+                model.add(invalid)
+                selectedItem = invalid
+            }
+        } else {
+            val none = model.items.find { it is ToolkitListItem.NoneItem }
+            if (none != null) {
+                selectedItem = none
+            }
+        }
+    }
 
     companion object {
         private val Log = logger<ToolkitComboBox>()

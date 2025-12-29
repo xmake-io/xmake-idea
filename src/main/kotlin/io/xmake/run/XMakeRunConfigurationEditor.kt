@@ -1,10 +1,12 @@
 package io.xmake.run
 
 import com.intellij.execution.configuration.EnvironmentVariablesTextFieldWithBrowseButton
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
+import com.intellij.util.messages.MessageBusConnection
 import com.intellij.ui.PopupMenuListenerAdapter
 import com.intellij.ui.RawCommandLineEditor
 import com.intellij.ui.components.CheckBox
@@ -21,6 +23,8 @@ import io.xmake.project.toolkit.ui.ToolkitListItem
 import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.execute.SyncDirection
 import io.xmake.utils.execute.transferFolderByToolkit
+import io.xmake.utils.info.XMakeInfo
+import io.xmake.utils.info.XMakeInfoManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -28,6 +32,7 @@ import java.awt.Dimension
 import javax.swing.DefaultComboBoxModel
 import javax.swing.JComponent
 import javax.swing.JPanel
+import javax.swing.SwingUtilities
 import javax.swing.event.PopupMenuEvent
 
 class XMakeRunConfigurationEditor(
@@ -36,6 +41,79 @@ class XMakeRunConfigurationEditor(
 ) : SettingsEditor<XMakeRunConfiguration>() {
 
     private val scope = CoroutineScope(Dispatchers.Default)
+
+    private var messageBusConnection: MessageBusConnection? = null
+
+    init {
+        messageBusConnection = project.messageBus.connect()
+        messageBusConnection!!.subscribe(XMakeInfoManager.XMAKE_INFO_TOPIC, object : XMakeInfoManager.XMakeInfoListener {
+            override fun onXMakeInfoUpdated(xmakeInfo: XMakeInfo) {
+                SwingUtilities.invokeLater {
+                    updateComboBoxes()
+                }
+            }
+        })
+
+        // Try to update combo boxes initially if info is already available
+        SwingUtilities.invokeLater {
+            updateComboBoxes()
+        }
+    }
+
+    override fun disposeEditor() {
+        messageBusConnection?.disconnect()
+        super.disposeEditor()
+    }
+
+    private fun updateComboBoxes() {
+
+        val xmakeInfo = XMakeInfoManager.getInstance(project).xmakeInfo
+
+        val selectedPlatform = platformsComboBox.item
+        platformsModel.removeAllElements()
+        val platforms = if (xmakeInfo.platforms.isNotEmpty()) {
+            xmakeInfo.platforms.plus("default")
+        } else {
+            xmakeInfo.architectures.keys.plus("default")
+        }.toList()
+        platformsModel.addAll(platforms)
+        platformsComboBox.item = if (platforms.contains(selectedPlatform)) selectedPlatform else runConfiguration.runPlatform
+
+        val selectedArch = architecturesComboBox.item
+        architecturesModel.removeAllElements()
+        val currentPlatform = platformsComboBox.item as? String ?: "default"
+        val architectures = (xmakeInfo.architectures[currentPlatform] ?: emptyList()).plus("default")
+        architecturesModel.addAll(architectures)
+        architecturesComboBox.item = if (architectures.contains(selectedArch)) selectedArch else runConfiguration.runArchitecture
+
+        val selectedToolchain = toolchainsComboBox.item
+        toolchainsModel.removeAllElements()
+        val toolchains = xmakeInfo.toolchains.keys.plus("default").toList()
+        toolchainsModel.addAll(toolchains)
+        toolchainsComboBox.item = if (toolchains.contains(selectedToolchain)) selectedToolchain else runConfiguration.runToolchain
+
+        val selectedMode = modesComboBox.item
+        modesModel.removeAllElements()
+        val modes = if (xmakeInfo.buildModes.isNotEmpty()) {
+            xmakeInfo.buildModes.map { it.substringAfter('.') }.toList()
+        } else {
+            listOf("release", "debug")
+        }
+        modesModel.addAll(modes)
+        modesComboBox.item = if (modes.contains(selectedMode)) selectedMode else runConfiguration.runMode
+
+        val selectedTarget = targetsModel.selectedItem
+        targetsModel.removeAllElements()
+        val targets = if (xmakeInfo.targets.isNotEmpty()) {
+            xmakeInfo.targets.plus("default")
+        } else {
+            (runConfiguration.runToolkit?.let {
+                TargetManager.getInstance(project).detectXMakeTarget(it, runConfiguration.runWorkingDir)
+            } ?: emptyList()).plus("default")
+        }.distinct().toList()
+        targetsModel.addAll(targets)
+        targetsModel.selectedItem = if (targets.contains(selectedTarget)) selectedTarget else runConfiguration.runTarget
+    }
 
     private var toolkit: Toolkit? = runConfiguration.runToolkit
     private val toolkitComboBox = ToolkitComboBox(::toolkit)
@@ -77,11 +155,14 @@ class XMakeRunConfigurationEditor(
     // reset editor from configuration
     override fun resetEditorFrom(configuration: XMakeRunConfiguration) {
 
-        toolkit = configuration.runToolkit
+        if (configuration.runToolkit != null) {
+            toolkitComboBox.selectToolkit(configuration.runToolkit)
+        }
+
+        // Update combo boxes data from XMakeInfo first
+        updateComboBoxes()
 
         // reset targets
-        targetsModel.removeAllElements()
-
         targetsModel.selectedItem = configuration.runTarget
 
         platformsComboBox.item = configuration.runPlatform
@@ -115,15 +196,15 @@ class XMakeRunConfigurationEditor(
 
         configuration.runToolkit = toolkit
 
-        configuration.runTarget = (targetsModel.selectedItem ?: "").toString()
+        configuration.runTarget = (targetsModel.selectedItem ?: "default").toString()
 
-        configuration.runPlatform = platformsComboBox.item
+        configuration.runPlatform = platformsComboBox.item ?: "default"
 
-        configuration.runArchitecture = architecturesComboBox.item
+        configuration.runArchitecture = architecturesComboBox.item ?: "default"
 
-        configuration.runToolchain = toolchainsComboBox.item
+        configuration.runToolchain = toolchainsComboBox.item ?: "default"
 
-        configuration.runMode = modesComboBox.item
+        configuration.runMode = modesComboBox.item ?: "default"
 
         configuration.runArguments = runArguments.text
 
@@ -157,12 +238,14 @@ class XMakeRunConfigurationEditor(
                         workingDirectoryBrowser.addBrowserListenerByToolkit(it)
                         buildDirectoryBrowser.addBrowserListenerByToolkit(it)
                         androidNDKDirectoryBrowser.addBrowserListenerByToolkit(it)
+                        XMakeInfoManager.getInstance(project).probeXMakeInfo(it)
                     }
                 }
                 activatedToolkit?.let {
                     workingDirectoryBrowser.addBrowserListenerByToolkit(it)
                     buildDirectoryBrowser.addBrowserListenerByToolkit(it)
                     androidNDKDirectoryBrowser.addBrowserListenerByToolkit(it)
+                    XMakeInfoManager.getInstance(project).probeXMakeInfo(it)
                 }
             }
         }
@@ -176,11 +259,16 @@ class XMakeRunConfigurationEditor(
                 row {
                     cell(platformsComboBox).applyToComponent {
                         addItemListener {
-                            val architectures = runConfiguration.getArchitecturesByPlatform(selectedItem as String)
-                            with(architecturesModel) {
-                                removeAllElements()
-                                addAll(architectures.toMutableList())
-                                selectedItem = architectures.first()
+                            val selected = selectedItem
+                            if (selected is String) {
+                                val architectures = runConfiguration.getArchitecturesByPlatform(selected)
+                                with(architecturesModel) {
+                                    removeAllElements()
+                                    addAll(architectures.toMutableList())
+                                    if (architectures.isNotEmpty()) {
+                                        selectedItem = architectures.first()
+                                    }
+                                }
                             }
                         }
                     }.align(AlignX.FILL)
@@ -207,22 +295,7 @@ class XMakeRunConfigurationEditor(
         separator()
 
         row("Target:") {
-            cell(targetsComboBox).applyToComponent {
-                addPopupMenuListener(object : PopupMenuListenerAdapter() {
-                    override fun popupMenuWillBecomeVisible(e: PopupMenuEvent?) {
-                        super.popupMenuWillBecomeVisible(e)
-                        targetsModel.removeAllElements()
-                        with(runConfiguration) {
-                            if (runToolkit != null && runWorkingDir.isNotEmpty()) {
-                                TargetManager.getInstance(project)
-                                    .detectXMakeTarget(runToolkit!!, runConfiguration.runWorkingDir).forEach { target ->
-                                        targetsModel.addElement(target)
-                                    }
-                            }
-                        }
-                    }
-                })
-            }.align(AlignX.FILL).resizableColumn()
+            cell(targetsComboBox).align(AlignX.FILL).resizableColumn()
             label("Mode:").align(AlignX.FILL)
             cell(modesComboBox).align(AlignX.FILL)
         }

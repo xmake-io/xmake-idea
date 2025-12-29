@@ -17,7 +17,6 @@ class XMakeRunConfigurationProducer : LazyRunConfigurationProducer<XMakeRunConfi
             context: ConfigurationContext
     ): Boolean {
 
-        Log.info("isConfigurationFromContext")
         return false
     }
 
@@ -27,7 +26,6 @@ class XMakeRunConfigurationProducer : LazyRunConfigurationProducer<XMakeRunConfi
             sourceElement: Ref<PsiElement>
     ): Boolean {
 
-        Log.info("setupConfigurationFromContext")
         return true
     }
 

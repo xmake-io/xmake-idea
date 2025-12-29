@@ -69,18 +69,14 @@ class SshToolkitHostExtensionImpl : ToolkitHostExtension {
             object : Task.Backgroundable(project, "Sync directory", true) {
                 override fun run(indicator: ProgressIndicator) {
                     val commandString = SftpChannelConfig.SftpCommand.detectSftpCommandString
-                    Log.info("Command: $commandString")
 
                     val builder = ConnectionBuilder(sshConfig.host)
                         .withSshPasswordProvider(PlatformSshPasswordProvider(sshConfig.copyToCredentials()))
 
                     val sourceRoots = ProjectRootManager.getInstance(project).contentRoots
-                    Log.info("Source roots: $sourceRoots")
-                    Log.info("guessProjectDir: " + project.guessProjectDir())
 
                     scope.launch {
                         val sftpChannel = builder.openFailSafeSftpChannel()
-                        Log.info("sftpChannel.home" + sftpChannel.home)
 
                         when (direction) {
                             SyncDirection.LOCAL_TO_UPSTREAM -> {
@@ -106,11 +102,9 @@ class SshToolkitHostExtensionImpl : ToolkitHostExtension {
                                         //                TODO("Not yet implemented")
 
                                         override fun onBytesTransferred(count: Long) {
-                                            println("onBytesTransferred(${Formats.formatFileSize(count)})")
                                         }
 
                                         override fun onFileCopied(file: File) {
-                                            println("onFileCopied($file)")
                                         }
                                     }, filesFilter = { file ->
                                         mutableListOf(".xmake", ".idea", "build", ".gitignore")
