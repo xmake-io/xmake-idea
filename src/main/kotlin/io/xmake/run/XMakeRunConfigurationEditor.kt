@@ -160,7 +160,9 @@ class XMakeRunConfigurationEditor(
     // reset editor from configuration
     override fun resetEditorFrom(configuration: XMakeRunConfiguration) {
 
-        toolkit = configuration.runToolkit
+        if (configuration.runToolkit != null) {
+            toolkitComboBox.selectToolkit(configuration.runToolkit)
+        }
 
         // Update combo boxes data from XMakeInfo first
         updateComboBoxes()

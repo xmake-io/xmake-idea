@@ -216,6 +216,24 @@ class ToolkitComboBox(toolkitProperty: KMutableProperty0<Toolkit?>) : ComboBox<T
 
     fun getToolkitChangedListeners(): List<ToolkitChangedListener> = toolkitChangedListeners
 
+    fun selectToolkit(toolkit: Toolkit?) {
+        if (toolkit != null) {
+            val found = model.items.find { it.id == toolkit.id }
+            if (found != null) {
+                selectedItem = found
+            } else {
+                val invalid = ToolkitListItem.ToolkitItem(toolkit).asInvalid()
+                model.add(invalid)
+                selectedItem = invalid
+            }
+        } else {
+            val none = model.items.find { it is ToolkitListItem.NoneItem }
+            if (none != null) {
+                selectedItem = none
+            }
+        }
+    }
+
     companion object {
         private val Log = logger<ToolkitComboBox>()
 
