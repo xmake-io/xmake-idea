@@ -295,27 +295,7 @@ class XMakeRunConfigurationEditor(
         separator()
 
         row("Target:") {
-            cell(targetsComboBox).applyToComponent {
-                addPopupMenuListener(object : PopupMenuListenerAdapter() {
-                    override fun popupMenuWillBecomeVisible(e: PopupMenuEvent?) {
-                        super.popupMenuWillBecomeVisible(e)
-                        val selectedTarget = targetsModel.selectedItem
-                        targetsModel.removeAllElements()
-
-                        val xmakeInfo = XMakeInfoManager.getInstance(project).xmakeInfo
-                        val targets = if (xmakeInfo.targets.isNotEmpty()) {
-                            xmakeInfo.targets.plus("default")
-                        } else {
-                            (runConfiguration.runToolkit?.let {
-                                TargetManager.getInstance(project).detectXMakeTarget(it, runConfiguration.runWorkingDir)
-                            } ?: emptyList()).plus("default")
-                        }.distinct().toList()
-
-                        targetsModel.addAll(targets)
-                        targetsModel.selectedItem = if (targets.contains(selectedTarget)) selectedTarget else runConfiguration.runTarget
-                    }
-                })
-            }.align(AlignX.FILL).resizableColumn()
+            cell(targetsComboBox).align(AlignX.FILL).resizableColumn()
             label("Mode:").align(AlignX.FILL)
             cell(modesComboBox).align(AlignX.FILL)
         }
