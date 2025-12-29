@@ -3,6 +3,9 @@ package io.xmake.run
 import com.intellij.execution.Executor
 import com.intellij.execution.configuration.EnvironmentVariablesData
 import com.intellij.execution.configurations.*
+import com.intellij.execution.executors.DefaultDebugExecutor
+import com.intellij.execution.process.NopProcessHandler
+import com.intellij.execution.process.ProcessHandler
 import com.intellij.execution.process.ProcessEvent
 import com.intellij.execution.process.ProcessListener
 import com.intellij.execution.runners.ExecutionEnvironment
@@ -128,6 +131,14 @@ class XMakeRunConfiguration(
         XMakeRunConfigurationEditor(project, this)
 
     override fun getState(executor: Executor, environment: ExecutionEnvironment): RunProfileState? {
+
+        if (executor.id == DefaultDebugExecutor.EXECUTOR_ID) {
+            return object : CommandLineState(environment) {
+                override fun startProcess(): ProcessHandler {
+                    return NopProcessHandler()
+                }
+            }
+        }
 
         // clear console first
         project.xmakeConsoleView.clear()

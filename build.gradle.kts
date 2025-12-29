@@ -64,6 +64,7 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     intellijPlatform {
         clion(properties("runIdeVersion"))
+        bundledPlugin("com.intellij.nativeDebug")
         testFramework(TestFrameworkType.Platform)
     }
 }

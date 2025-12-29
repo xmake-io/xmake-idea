@@ -2,8 +2,10 @@ package io.xmake.utils
 
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.process.ProcessNotCreatedException
+import com.intellij.ide.plugins.PluginManagerCore
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
+import com.intellij.openapi.extensions.PluginId
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.vfs.VirtualFile
@@ -14,6 +16,7 @@ import io.xmake.utils.execute.createProcess
 import io.xmake.utils.execute.runProcessWithHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
+import java.io.File
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.regex.Pattern
@@ -84,6 +87,25 @@ object SystemUtils {
         }
     }
 
+    fun getScriptPath(scriptName: String): String? {
+        val pluginId = PluginId.getId("io.xmake")
+        val plugin = PluginManagerCore.getPlugin(pluginId) ?: return null
+        val scriptFile = File(plugin.pluginPath.toFile(), "scripts/$scriptName")
+        if (scriptFile.exists()) {
+            return scriptFile.absolutePath
+        }
+        // Try resources
+        val url = this::class.java.getResource("/scripts/$scriptName")
+        if (url != null && url.protocol == "file") {
+            return File(url.toURI()).absolutePath
+        }
+        // For development environment
+        val devPath = File("src/main/resources/scripts/$scriptName")
+        if (devPath.exists()) {
+            return devPath.absolutePath
+        }
+        return null
+    }
 }
 
 val VirtualFile.pathAsPath: Path get() = Paths.get(path)
