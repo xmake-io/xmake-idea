@@ -1,10 +1,12 @@
 package io.xmake.run
 
 import com.intellij.execution.configuration.EnvironmentVariablesTextFieldWithBrowseButton
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
+import com.intellij.util.messages.MessageBusConnection
 import com.intellij.ui.PopupMenuListenerAdapter
 import com.intellij.ui.RawCommandLineEditor
 import com.intellij.ui.components.CheckBox
@@ -21,6 +23,7 @@ import io.xmake.project.toolkit.ui.ToolkitListItem
 import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.execute.SyncDirection
 import io.xmake.utils.execute.transferFolderByToolkit
+import io.xmake.utils.info.XMakeInfo
 import io.xmake.utils.info.XMakeInfoManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -37,6 +40,46 @@ class XMakeRunConfigurationEditor(
 ) : SettingsEditor<XMakeRunConfiguration>() {
 
     private val scope = CoroutineScope(Dispatchers.Default)
+
+    private var messageBusConnection: MessageBusConnection? = null
+
+    init {
+        messageBusConnection = project.messageBus.connect()
+        messageBusConnection!!.subscribe(XMakeInfoManager.XMAKE_INFO_TOPIC, object : XMakeInfoManager.XMakeInfoListener {
+            override fun onXMakeInfoUpdated(xmakeInfo: XMakeInfo) {
+                ApplicationManager.getApplication().invokeLater {
+                    updateComboBoxes()
+                }
+            }
+        })
+    }
+
+    override fun disposeEditor() {
+        messageBusConnection?.disconnect()
+        super.disposeEditor()
+    }
+
+    private fun updateComboBoxes() {
+        val selectedPlatform = platformsComboBox.item
+        platformsModel.removeAllElements()
+        platformsModel.addAll(runConfiguration.platforms.toList())
+        platformsComboBox.item = selectedPlatform ?: runConfiguration.runPlatform
+
+        val selectedArch = architecturesComboBox.item
+        architecturesModel.removeAllElements()
+        architecturesModel.addAll(runConfiguration.getArchitecturesByPlatform(platformsComboBox.item ?: "default").toList())
+        architecturesComboBox.item = selectedArch ?: runConfiguration.runArchitecture
+
+        val selectedToolchain = toolchainsComboBox.item
+        toolchainsModel.removeAllElements()
+        toolchainsModel.addAll(runConfiguration.toolchains.toList())
+        toolchainsComboBox.item = selectedToolchain ?: runConfiguration.runToolchain
+
+        val selectedMode = modesComboBox.item
+        modesModel.removeAllElements()
+        modesModel.addAll(runConfiguration.modes.toList())
+        modesComboBox.item = selectedMode ?: runConfiguration.runMode
+    }
 
     private var toolkit: Toolkit? = runConfiguration.runToolkit
     private val toolkitComboBox = ToolkitComboBox(::toolkit)
@@ -179,11 +222,16 @@ class XMakeRunConfigurationEditor(
                 row {
                     cell(platformsComboBox).applyToComponent {
                         addItemListener {
-                            val architectures = runConfiguration.getArchitecturesByPlatform(selectedItem as String)
-                            with(architecturesModel) {
-                                removeAllElements()
-                                addAll(architectures.toMutableList())
-                                selectedItem = architectures.first()
+                            val selected = selectedItem
+                            if (selected is String) {
+                                val architectures = runConfiguration.getArchitecturesByPlatform(selected)
+                                with(architecturesModel) {
+                                    removeAllElements()
+                                    addAll(architectures.toMutableList())
+                                    if (architectures.isNotEmpty()) {
+                                        selectedItem = architectures.first()
+                                    }
+                                }
                             }
                         }
                     }.align(AlignX.FILL)

@@ -5,11 +5,13 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.serviceOrNull
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
+import com.intellij.util.messages.Topic
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.utils.execute.createProcess
 import io.xmake.utils.execute.runProcess
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import java.io.File
 
 @Service(Service.Level.PROJECT)
 class XMakeInfoManager(val project: Project, private val scope: CoroutineScope) {
@@ -22,65 +24,32 @@ class XMakeInfoManager(val project: Project, private val scope: CoroutineScope) 
     fun probeXMakeInfo(toolkit: Toolkit?) {
         scope.launch {
             toolkit?.let {
-                val apisString = runProcess(
-                    GeneralCommandLine(
-                        "xmake show -l apis --json".split(" ")
-                    ).createProcess(it)
-                ).first.getOrDefault("")
+                val workingDirectory = project.basePath?.let { path -> File(path) }
 
-                val architecturesString = runProcess(
-                    GeneralCommandLine(
-                        "xmake show -l architectures --json".split(" ")
-                    ).createProcess(it)
-                ).first.getOrDefault("")
+                suspend fun runXMakeShow(key: String): String {
+                    val cmd = GeneralCommandLine(
+                        "xmake show -l $key --json".split(" ")
+                    ).apply {
+                        workingDirectory?.let { wd -> withWorkDirectory(wd) }
+                    }
+                    Log.info("Probing xmake info: ${cmd.commandLineString}, workDir: $workingDirectory")
+                    println("Probing xmake info: ${cmd.commandLineString}, workDir: $workingDirectory")
+                    val result = runProcess(cmd.createProcess(it)).first.getOrDefault("")
+                    Log.info("Probing result for $key: $result")
+                    println("Probing result for $key: $result")
+                    return result
+                }
 
-                val buildModesString = runProcess(
-                    GeneralCommandLine(
-                        "xmake show -l buildmodes --json".split(" ")
-                    ).createProcess(it)
-                ).first.getOrDefault("")
-
-                val envsString = runProcess(
-                    GeneralCommandLine(
-                        "xmake show -l envs --json".split(" ")
-                    ).createProcess(it)
-                ).first.getOrDefault("")
-
-                val packagesString = runProcess(
-                    GeneralCommandLine(
-                        "xmake show -l packages --json".split(" ")
-                    ).createProcess(it)
-                ).first.getOrDefault("")
-
-                val platformsString = runProcess(
-                    GeneralCommandLine(
-                        "xmake show -l platforms --json".split(" ")
-                    ).createProcess(it)
-                ).first.getOrDefault("")
-
-                val policiesString = runProcess(
-                    GeneralCommandLine(
-                        "xmake show -l policies --json".split(" ")
-                    ).createProcess(it)
-                ).first.getOrDefault("")
-
-                val rulesString = runProcess(
-                    GeneralCommandLine(
-                        "xmake show -l rules --json".split(" ")
-                    ).createProcess(it)
-                ).first.getOrDefault("")
-
-                val targetsString = runProcess(
-                    GeneralCommandLine(
-                        "xmake show -l targets --json".split(" ")
-                    ).createProcess(it)
-                ).first.getOrDefault("")
-
-                val toolchainsString = runProcess(
-                    GeneralCommandLine(
-                        "xmake show -l toolchains --json".split(" ")
-                    ).createProcess(it)
-                ).first.getOrDefault("")
+                val apisString = runXMakeShow("apis")
+                val architecturesString = runXMakeShow("architectures")
+                val buildModesString = runXMakeShow("buildmodes")
+                val envsString = runXMakeShow("envs")
+                val packagesString = runXMakeShow("packages")
+                val platformsString = runXMakeShow("platforms")
+                val policiesString = runXMakeShow("policies")
+                val rulesString = runXMakeShow("rules")
+                val targetsString = runXMakeShow("targets")
+                val toolchainsString = runXMakeShow("toolchains")
 
                 with(xmakeInfo) {
                     apis = parseApis(apisString)
@@ -89,7 +58,7 @@ class XMakeInfoManager(val project: Project, private val scope: CoroutineScope) 
                     platforms = parsePlatforms(platformsString)
                     policies = parsePolicies(policiesString)
                     rules = parseRules(rulesString)
-//                    targets = parseTargets(targetsString)
+                    targets = parseTargets(targetsString)
                     toolchains = parseToolchains(toolchainsString)
 
                     Log.info(
@@ -104,14 +73,19 @@ class XMakeInfoManager(val project: Project, private val scope: CoroutineScope) 
                     )
                 }
 
-                println(xmakeInfo)
-
+                project.messageBus.syncPublisher(XMAKE_INFO_TOPIC).onXMakeInfoUpdated(xmakeInfo)
             }
         }
     }
 
+    interface XMakeInfoListener {
+        fun onXMakeInfoUpdated(xmakeInfo: XMakeInfo)
+    }
+
     companion object {
         val Log = logger<XMakeInfoManager>()
+        val XMAKE_INFO_TOPIC = Topic.create("XMake Info Updated", XMakeInfoListener::class.java)
+
         fun getInstance(project: Project): XMakeInfoManager = project.serviceOrNull() ?: throw IllegalStateException()
     }
 }

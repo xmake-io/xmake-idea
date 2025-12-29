@@ -74,6 +74,10 @@ class ToolkitComboBox(toolkitProperty: KMutableProperty0<Toolkit?>) : ComboBox<T
                 val first = items.filterIsInstance<ToolkitListItem.ToolkitItem>().firstOrNull()
                 if (first != null) {
                     selectedItem = first
+                    // Force update activatedToolkit
+                    if (first is ToolkitListItem.ToolkitItem) {
+                        activatedToolkit = first.toolkit
+                    }
                 } else {
                     selectedItem = items.firstOrNull()
                 }
@@ -163,11 +167,12 @@ class ToolkitComboBox(toolkitProperty: KMutableProperty0<Toolkit?>) : ComboBox<T
                                     registerToolkit(fetchedToolkit)
                                 }
                             }
+                            activatedToolkit = fetchedToolkit
                         } else {
-                            // selectedItem toolkit is not in toolkitSet
+                            // selectedItem toolkit is not in toolkitSet, use the one from the item directly
+                            // This happens when we select an already registered toolkit that wasn't "fetched" in this session
+                            activatedToolkit = toolkitListItem.toolkit
                         }
-
-                        activatedToolkit = fetchedToolkit
                     }
                 } else {
                     activatedToolkit = null
