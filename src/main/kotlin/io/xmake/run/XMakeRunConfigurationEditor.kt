@@ -198,13 +198,13 @@ class XMakeRunConfigurationEditor(
 
         configuration.runTarget = (targetsModel.selectedItem ?: "default").toString()
 
-        configuration.runPlatform = (platformsComboBox.item ?: "default").toString()
+        configuration.runPlatform = platformsComboBox.item ?: "default"
 
-        configuration.runArchitecture = (architecturesComboBox.item ?: "default").toString()
+        configuration.runArchitecture = architecturesComboBox.item ?: "default"
 
-        configuration.runToolchain = (toolchainsComboBox.item ?: "default").toString()
+        configuration.runToolchain = toolchainsComboBox.item ?: "default"
 
-        configuration.runMode = (modesComboBox.item ?: "default").toString()
+        configuration.runMode = modesComboBox.item ?: "default"
 
         configuration.runArguments = runArguments.text
 

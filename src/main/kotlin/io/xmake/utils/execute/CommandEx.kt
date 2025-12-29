@@ -62,7 +62,6 @@ fun GeneralCommandLine.createWslProcess(wslDistribution: WSLDistribution, projec
 fun GeneralCommandLine.createProcess(toolkit: Toolkit): Process {
     return with(toolkit) {
         Log.info("createProcessWithToolkit: $toolkit")
-        Log.info("createProcessWithToolkit: $toolkit")
         when (host.type) {
             LOCAL -> {
                 this@createProcess.createLocalProcess()

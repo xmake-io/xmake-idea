@@ -75,9 +75,7 @@ class ToolkitComboBox(toolkitProperty: KMutableProperty0<Toolkit?>) : ComboBox<T
                 if (first != null) {
                     selectedItem = first
                     // Force update activatedToolkit
-                    if (first is ToolkitListItem.ToolkitItem) {
-                        activatedToolkit = first.toolkit
-                    }
+                    activatedToolkit = first.toolkit
                 } else {
                     selectedItem = items.firstOrNull()
                 }
