@@ -12,7 +12,9 @@ import com.intellij.openapi.util.Pair
 import java.util.concurrent.CompletableFuture
 import org.eclipse.lsp4j.debug.StackTraceArguments
 import org.eclipse.lsp4j.debug.ScopesArguments
-import org.eclipse.lsp4j.debug.VariablesArguments
+// import org.eclipse.lsp4j.debug.VariablesArguments
+// import org.eclipse.lsp4j.debug.InitializeRequestArguments
+// import org.eclipse.lsp4j.debug.Capabilities
 import java.util.Collections
 import java.util.WeakHashMap
 import com.intellij.execution.ExecutionException
@@ -26,6 +28,7 @@ class XMakeDapDriver(
     private val frameIds = Collections.synchronizedMap(WeakHashMap<LLFrame, Int>())
 
     override fun getFrames(thread: LLThread, start: Int, count: Int, includeInternal: Boolean): DebuggerDriver.ResultList<LLFrame> {
+        println("XMakeDapDriver: getFrames thread=${thread.id} start=$start count=$count")
         val args = StackTraceArguments().apply { 
             threadId = thread.id.toInt()
             startFrame = start
@@ -49,12 +52,13 @@ class XMakeDapDriver(
     }
 
     override fun getVariables(thread: LLThread, frame: LLFrame): List<LLValue> {
+        println("XMakeDapDriver: getVariables thread=${thread.id}") // frame.id is not accessible directly?
         val fid = frameIds[frame] ?: 0
         val scopesArgs = ScopesArguments().apply { frameId = fid }
         val scopes = server.scopes(scopesArgs).join().scopes
         
         if (scopes.isNotEmpty()) {
-            val varsArgs = VariablesArguments().apply { variablesReference = scopes[0].variablesReference }
+            val varsArgs = org.eclipse.lsp4j.debug.VariablesArguments().apply { variablesReference = scopes[0].variablesReference }
             val vars = server.variables(varsArgs).join().variables
             return vars.map { 
                 LLValue(it.name, it.type ?: "unknown", it.value ?: "null", it.variablesReference.toLong(), null as LLValue.TypeClass?, it.name)

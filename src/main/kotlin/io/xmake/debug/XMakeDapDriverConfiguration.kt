@@ -14,15 +14,17 @@ import com.jetbrains.cidr.execution.debugger.backend.dap.DapDriver
 class XMakeDapDriverConfiguration(
     project: Project,
     private val driverPath: String
-) : DapDriverConfiguration(project, "XMake Debug", false, false) {
+) : DapDriverConfiguration(project, "lldb-dap", false, false) {
 
     override fun createDriverCommandLine(driver: DebuggerDriver, arch: ArchitectureType): GeneralCommandLine {
+        println("XMakeDapDriverConfiguration: createDriverCommandLine")
         return GeneralCommandLine(driverPath)
             .withWorkDirectory(project.basePath)
             .withEnvironment(EnvironmentUtil.getEnvironmentMap())
     }
 
     override fun getDapLaunchOptions(commandLine: GeneralCommandLine): Map<String, Any> {
+        println("XMakeDapDriverConfiguration: getDapLaunchOptions")
         return mapOf(
             "program" to commandLine.exePath,
             "cwd" to (commandLine.workDirectory?.path ?: project.basePath ?: ""),
@@ -37,6 +39,7 @@ class XMakeDapDriverConfiguration(
     }
 
     override fun createDriver(handler: DebuggerDriver.Handler, architectureType: ArchitectureType): DapDriver {
+        println("XMakeDapDriverConfiguration: createDriver")
         return XMakeDapDriver(handler, this, architectureType)
     }
 }

@@ -33,6 +33,7 @@ import com.intellij.execution.configuration.EnvironmentVariablesData
 import com.intellij.util.execution.ParametersListUtil
 import com.jetbrains.cidr.execution.debugger.backend.DebuggerDriverConfiguration
 import io.xmake.debug.XMakeDapDriverConfiguration
+import io.xmake.debug.XMakeDebugProcess
 
 open class XMakeRunner : XMakeDefaultRunner() {
 
@@ -76,28 +77,10 @@ open class XMakeRunner : XMakeDefaultRunner() {
                 if (!File(driverPath).exists()) {
                     println("WARNING: wrapper not found at $driverPath")
                 }
-                
-                val driverConfig = object : DapDriverConfiguration(environment.project, "XMake Debug", false, false) {
-                    override fun createDriverCommandLine(driver: DebuggerDriver, arch: ArchitectureType): GeneralCommandLine {
-                        return GeneralCommandLine(driverPath)
-                            .withWorkDirectory(environment.project.basePath)
-                            .withEnvironment(EnvironmentUtil.getEnvironmentMap())
-                    }
 
-                    override fun getDapLaunchOptions(commandLine: GeneralCommandLine): Map<String, Any> {
-                        return mapOf(
-                            "program" to commandLine.exePath,
-                            "cwd" to (commandLine.workDirectory?.path ?: environment.project.basePath ?: ""),
-                            "env" to (commandLine.environment ?: emptyMap<String, String>()),
-                            "stopOnEntry" to true,
-                            "args" to commandLine.parametersList.list
-                        )
-                    }
+                println("Starting debug session for target: $targetName, path: $targetPath")
 
-                    override fun getDapAttachOptions(pid: Int): Map<String, Any> {
-                        return emptyMap()
-                    }
-                }
+                val driverConfig = XMakeDapDriverConfiguration(environment.project, driverPath)
 
                 val commandLine = GeneralCommandLine(targetPath)
                     .withWorkDirectory(configuration.runWorkingDir)
@@ -119,7 +102,7 @@ open class XMakeRunner : XMakeDefaultRunner() {
                     ?: TextConsoleBuilderFactory.getInstance().createBuilder(environment.project)
 
                 println("Creating CidrLocalDebugProcess...")
-                return CidrLocalDebugProcess(params, session, consoleBuilder)
+                return XMakeDebugProcess(params, session, consoleBuilder)
             }
         }).runContentDescriptor
     }
