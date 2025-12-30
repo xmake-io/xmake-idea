@@ -16,4 +16,9 @@ class XMakeDebugProcess(
         println("XMakeDebugProcess: doLoadTarget")
         return super.doLoadTarget(driver)
     }
+
+    override fun start() {
+        println("XMakeDebugProcess: start")
+        super.start()
+    }
 }
