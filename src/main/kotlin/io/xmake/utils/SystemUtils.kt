@@ -88,22 +88,85 @@ object SystemUtils {
     }
 
     fun getScriptPath(scriptName: String): String? {
+        println("Searching for script: $scriptName")
+        
+        // 1. Try to get from plugin directory (layout in sandbox or installed plugin)
         val pluginId = PluginId.getId("io.xmake")
-        val plugin = PluginManagerCore.getPlugin(pluginId) ?: return null
-        val scriptFile = File(plugin.pluginPath.toFile(), "scripts/$scriptName")
-        if (scriptFile.exists()) {
-            return scriptFile.absolutePath
+        val plugin = PluginManagerCore.getPlugin(pluginId)
+        if (plugin != null) {
+            val possiblePaths = listOf(
+                File(plugin.pluginPath.toFile(), "classes/scripts/$scriptName"),
+                File(plugin.pluginPath.toFile(), "scripts/$scriptName"),
+                File(plugin.pluginPath.toFile(), "lib/scripts/$scriptName") // Sometimes it might be here
+            )
+            
+            for (file in possiblePaths) {
+                println("Checking path: ${file.absolutePath}")
+                if (file.exists()) {
+                    println("Found at: ${file.absolutePath}")
+                    return file.absolutePath
+                }
+            }
         }
-        // Try resources
-        val url = this::class.java.getResource("/scripts/$scriptName")
-        if (url != null && url.protocol == "file") {
-            return File(url.toURI()).absolutePath
+
+        // 2. Try to get from resources (classpath)
+        val resourcePath = "/scripts/$scriptName"
+        val url = SystemUtils::class.java.getResource(resourcePath)
+        println("Resource URL: $url")
+        
+        if (url != null) {
+            if (url.protocol == "file") {
+                try {
+                    val file = File(url.toURI())
+                    println("Found resource file: ${file.absolutePath}")
+                    return file.absolutePath
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            } else if (url.protocol == "jar") {
+                // Extract from JAR to temp file
+                try {
+                    val tempFile = File.createTempFile("xmake_script_", "_$scriptName")
+                    tempFile.deleteOnExit()
+                    SystemUtils::class.java.getResourceAsStream(resourcePath)?.use { input ->
+                        tempFile.outputStream().use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    println("Extracted to temp file: ${tempFile.absolutePath}")
+                    return tempFile.absolutePath
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
         }
-        // For development environment
+
+        // 3. Fallback: try to extract from stream if URL approach failed but stream exists
+        try {
+            val stream = SystemUtils::class.java.getResourceAsStream(resourcePath)
+            if (stream != null) {
+                val tempFile = File.createTempFile("xmake_script_stream_", "_$scriptName")
+                tempFile.deleteOnExit()
+                stream.use { input ->
+                    tempFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                println("Extracted from stream to: ${tempFile.absolutePath}")
+                return tempFile.absolutePath
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        // 4. Final fallback for local development (direct file access relative to project root)
         val devPath = File("src/main/resources/scripts/$scriptName")
+        println("Checking dev path: ${devPath.absolutePath}")
         if (devPath.exists()) {
             return devPath.absolutePath
         }
+
+        println("Script not found: $scriptName")
         return null
     }
 }
