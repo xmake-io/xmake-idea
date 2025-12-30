@@ -32,6 +32,7 @@ import java.io.File
 import com.intellij.execution.configuration.EnvironmentVariablesData
 import com.intellij.util.execution.ParametersListUtil
 import com.jetbrains.cidr.execution.debugger.backend.DebuggerDriverConfiguration
+import io.xmake.debug.XMakeDapDriverConfiguration
 
 open class XMakeRunner : XMakeDefaultRunner() {
 
@@ -70,14 +71,33 @@ open class XMakeRunner : XMakeDefaultRunner() {
                     throw Exception("Target executable not found or invalid: $targetPath")
                 }
 
+                // Configure lldb-dap driver
                 val driverPath = "/usr/local/opt/llvm/bin/lldb-dap"
                 if (!File(driverPath).exists()) {
                     println("WARNING: wrapper not found at $driverPath")
                 }
+                
+                val driverConfig = object : DapDriverConfiguration(environment.project, "XMake Debug", false, false) {
+                    override fun createDriverCommandLine(driver: DebuggerDriver, arch: ArchitectureType): GeneralCommandLine {
+                        return GeneralCommandLine(driverPath)
+                            .withWorkDirectory(environment.project.basePath)
+                            .withEnvironment(EnvironmentUtil.getEnvironmentMap())
+                    }
 
-                println("Starting debug session for target: $targetName, path: $targetPath")
+                    override fun getDapLaunchOptions(commandLine: GeneralCommandLine): Map<String, Any> {
+                        return mapOf(
+                            "program" to commandLine.exePath,
+                            "cwd" to (commandLine.workDirectory?.path ?: environment.project.basePath ?: ""),
+                            "env" to (commandLine.environment ?: emptyMap<String, String>()),
+                            "stopOnEntry" to true,
+                            "args" to commandLine.parametersList.list
+                        )
+                    }
 
-                val driverConfig = XMakeDapDriverConfiguration(environment.project, driverPath)
+                    override fun getDapAttachOptions(pid: Int): Map<String, Any> {
+                        return emptyMap()
+                    }
+                }
 
                 val commandLine = GeneralCommandLine(targetPath)
                     .withWorkDirectory(configuration.runWorkingDir)
@@ -102,39 +122,6 @@ open class XMakeRunner : XMakeDefaultRunner() {
                 return CidrLocalDebugProcess(params, session, consoleBuilder)
             }
         }).runContentDescriptor
-    }
-
-    private class XMakeDapDriverConfiguration(
-        project: Project,
-        private val driverPath: String
-    ) : DapDriverConfiguration(project, "lldb-dap", false, false) {
-
-        override fun createDriverCommandLine(driver: DebuggerDriver, arch: ArchitectureType): GeneralCommandLine {
-            println("createDriverCommandLine called. Driver path: $driverPath")
-            return GeneralCommandLine(driverPath)
-                .withWorkDirectory(project.basePath)
-                .withEnvironment(EnvironmentUtil.getEnvironmentMap())
-                .withRedirectErrorStream(true) // Removed redirect
-        }
-
-        override fun getDapLaunchOptions(commandLine: GeneralCommandLine): Map<String, Any> {
-            println("getDapLaunchOptions called")
-            // lldb-dap expects these options for launch request
-            val options = mutableMapOf<String, Any>(
-                "program" to commandLine.exePath,
-                "cwd" to (commandLine.workDirectory?.path ?: project.basePath ?: ""),
-                "env" to (commandLine.environment ?: emptyMap<String, String>()),
-                "stopOnEntry" to true,
-                "args" to commandLine.parametersList.list
-            )
-            println("DAP launch options: $options")
-            return options
-        }
-
-        override fun getDapAttachOptions(pid: Int): Map<String, Any> {
-            println("getDapAttachOptions called for pid: $pid")
-            return emptyMap()
-        }
     }
 
     private fun getTargetExecutable(project: Project, targetName: String): String? {
