@@ -12,12 +12,12 @@ import com.intellij.openapi.util.Pair
 import java.util.concurrent.CompletableFuture
 import org.eclipse.lsp4j.debug.StackTraceArguments
 import org.eclipse.lsp4j.debug.ScopesArguments
-// import org.eclipse.lsp4j.debug.VariablesArguments
-// import org.eclipse.lsp4j.debug.InitializeRequestArguments
-// import org.eclipse.lsp4j.debug.Capabilities
 import java.util.Collections
 import java.util.WeakHashMap
 import com.intellij.execution.ExecutionException
+import com.jetbrains.cidr.execution.Installer
+import org.jetbrains.annotations.NotNull
+import org.jetbrains.annotations.Nullable
 
 class XMakeDapDriver(
     private val handler: DebuggerDriver.Handler,
@@ -26,6 +26,11 @@ class XMakeDapDriver(
 ) : DapDriver(handler, configuration, architectureType) {
 
     private val frameIds = Collections.synchronizedMap(WeakHashMap<LLFrame, Int>())
+
+    override fun loadForLaunch(installer: Installer, architecture: String?): DebuggerDriver.Inferior {
+        println("XMakeDapDriver: loadForLaunch")
+        return super.loadForLaunch(installer, architecture)
+    }
 
     override fun getFrames(thread: LLThread, start: Int, count: Int, includeInternal: Boolean): DebuggerDriver.ResultList<LLFrame> {
         println("XMakeDapDriver: getFrames thread=${thread.id} start=$start count=$count")
