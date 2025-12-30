@@ -70,9 +70,14 @@ open class XMakeRunner : XMakeDefaultRunner() {
                     throw Exception("Target executable not found or invalid: $targetPath")
                 }
 
+                val driverPath = "/usr/local/opt/llvm/bin/lldb-dap"
+                if (!File(driverPath).exists()) {
+                    println("WARNING: wrapper not found at $driverPath")
+                }
+
                 println("Starting debug session for target: $targetName, path: $targetPath")
 
-                val driverConfig = XMakeDapDriverConfiguration(environment.project, "/usr/local/opt/llvm/bin/lldb-dap")
+                val driverConfig = XMakeDapDriverConfiguration(environment.project, driverPath)
 
                 val commandLine = GeneralCommandLine(targetPath)
                     .withWorkDirectory(configuration.runWorkingDir)
@@ -93,6 +98,7 @@ open class XMakeRunner : XMakeDefaultRunner() {
                 val consoleBuilder = (state as? CommandLineState)?.consoleBuilder 
                     ?: TextConsoleBuilderFactory.getInstance().createBuilder(environment.project)
 
+                println("Creating CidrLocalDebugProcess...")
                 return CidrLocalDebugProcess(params, session, consoleBuilder)
             }
         }).runContentDescriptor
@@ -104,24 +110,29 @@ open class XMakeRunner : XMakeDefaultRunner() {
     ) : DapDriverConfiguration(project, "lldb-dap", false, false) {
 
         override fun createDriverCommandLine(driver: DebuggerDriver, arch: ArchitectureType): GeneralCommandLine {
+            println("createDriverCommandLine called. Driver path: $driverPath")
             return GeneralCommandLine(driverPath)
                 .withWorkDirectory(project.basePath)
                 .withEnvironment(EnvironmentUtil.getEnvironmentMap())
-                .withParentEnvironmentType(GeneralCommandLine.ParentEnvironmentType.CONSOLE)
+                .withRedirectErrorStream(true) // Removed redirect
         }
 
         override fun getDapLaunchOptions(commandLine: GeneralCommandLine): Map<String, Any> {
-            val options = mapOf(
+            println("getDapLaunchOptions called")
+            // lldb-dap expects these options for launch request
+            val options = mutableMapOf<String, Any>(
                 "program" to commandLine.exePath,
-                "args" to commandLine.parametersList.list,
-                "cwd" to (commandLine.workDirectory?.path ?: ""),
-                "env" to commandLine.environment
+                "cwd" to (commandLine.workDirectory?.path ?: project.basePath ?: ""),
+                "env" to (commandLine.environment ?: emptyMap<String, String>()),
+                "stopOnEntry" to true,
+                "args" to commandLine.parametersList.list
             )
             println("DAP launch options: $options")
             return options
         }
 
         override fun getDapAttachOptions(pid: Int): Map<String, Any> {
+            println("getDapAttachOptions called for pid: $pid")
             return emptyMap()
         }
     }
