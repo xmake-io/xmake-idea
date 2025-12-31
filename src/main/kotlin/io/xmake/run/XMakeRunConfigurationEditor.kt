@@ -350,12 +350,12 @@ class XMakeRunConfigurationEditor(
             cell(modesComboBox).align(AlignX.FILL)
         }
 
-        row("Program arguments:") {
+        row("Program Arguments:") {
             cell(runArguments).align(AlignX.FILL)
         }
 
-        // Debug Configurations
-        collapsibleGroup("Debug configurations") {
+        // Debug Configuration
+        collapsibleGroup("Debug Configuration") {
             row("") {
                 cell(dapDriverAutoDetectCheckBox)
             }
@@ -369,7 +369,7 @@ class XMakeRunConfigurationEditor(
             }
         }
 
-        collapsibleGroup("Additional Configurations") {
+        collapsibleGroup("Additional Configuration") {
             row("Environment variables") {
                 cell(environmentVariables).align(AlignX.FILL)
             }
