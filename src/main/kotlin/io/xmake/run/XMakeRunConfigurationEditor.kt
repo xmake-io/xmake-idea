@@ -354,14 +354,6 @@ class XMakeRunConfigurationEditor(
             cell(runArguments).align(AlignX.FILL)
         }
 
-        row("Environment variables") {
-            cell(environmentVariables).align(AlignX.FILL)
-        }
-
-        row("Working directory") {
-            cell(workingDirectoryBrowser).align(AlignX.FILL)
-        }
-
         // Debug Configurations
         collapsibleGroup("Debug configurations") {
             row("") {
@@ -378,6 +370,14 @@ class XMakeRunConfigurationEditor(
         }
 
         collapsibleGroup("Additional Configurations") {
+            row("Environment variables") {
+                cell(environmentVariables).align(AlignX.FILL)
+            }
+
+            row("Working directory") {
+                cell(workingDirectoryBrowser).align(AlignX.FILL)
+            }
+
             row("Build directory") {
                 cell(buildDirectoryBrowser).align(AlignX.FILL)
             }
