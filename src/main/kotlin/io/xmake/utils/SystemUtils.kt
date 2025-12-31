@@ -88,8 +88,6 @@ object SystemUtils {
     }
 
     fun getScriptPath(scriptName: String): String? {
-        println("Searching for script: $scriptName")
-        
         // 1. Try to get from plugin directory (layout in sandbox or installed plugin)
         val pluginId = PluginId.getId("io.xmake")
         val plugin = PluginManagerCore.getPlugin(pluginId)
@@ -101,9 +99,7 @@ object SystemUtils {
             )
             
             for (file in possiblePaths) {
-                println("Checking path: ${file.absolutePath}")
                 if (file.exists()) {
-                    println("Found at: ${file.absolutePath}")
                     return file.absolutePath
                 }
             }
@@ -112,13 +108,11 @@ object SystemUtils {
         // 2. Try to get from resources (classpath)
         val resourcePath = "/scripts/$scriptName"
         val url = SystemUtils::class.java.getResource(resourcePath)
-        println("Resource URL: $url")
         
         if (url != null) {
             if (url.protocol == "file") {
                 try {
                     val file = File(url.toURI())
-                    println("Found resource file: ${file.absolutePath}")
                     return file.absolutePath
                 } catch (e: Exception) {
                     e.printStackTrace()
@@ -133,7 +127,6 @@ object SystemUtils {
                             input.copyTo(output)
                         }
                     }
-                    println("Extracted to temp file: ${tempFile.absolutePath}")
                     return tempFile.absolutePath
                 } catch (e: Exception) {
                     e.printStackTrace()
@@ -152,7 +145,6 @@ object SystemUtils {
                         input.copyTo(output)
                     }
                 }
-                println("Extracted from stream to: ${tempFile.absolutePath}")
                 return tempFile.absolutePath
             }
         } catch (e: Exception) {
@@ -161,12 +153,10 @@ object SystemUtils {
 
         // 4. Final fallback for local development (direct file access relative to project root)
         val devPath = File("src/main/resources/scripts/$scriptName")
-        println("Checking dev path: ${devPath.absolutePath}")
         if (devPath.exists()) {
             return devPath.absolutePath
         }
 
-        println("Script not found: $scriptName")
         return null
     }
 }

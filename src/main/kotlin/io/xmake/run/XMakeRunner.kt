@@ -57,13 +57,10 @@ open class XMakeRunner : XMakeDefaultRunner() {
     }
 
     private fun startDebugSession(state: RunProfileState, environment: ExecutionEnvironment, configuration: XMakeRunConfiguration): RunContentDescriptor? {
-        println("XMakeRunner: startDebugSession called")
         return XDebuggerManager.getInstance(environment.project).startSession(environment, object : XDebugProcessStarter() {
             override fun start(session: XDebugSession): XDebugProcess {
-                println("XDebugProcessStarter.start() called with session: ${session::class.java.simpleName}")
                 val targetName = configuration.runTarget
                 val targetPath = getTargetExecutable(environment.project, targetName)
-                println("targetPath: ${targetPath}")
                 if (targetPath.isNullOrBlank()) {
                     throw Exception("Could not find target executable for $targetName")
                 }
@@ -81,14 +78,6 @@ open class XMakeRunner : XMakeDefaultRunner() {
                     "/usr/local/bin/lldb-dap"
                 )
                 val driverPath = possibleDriverPaths.find { File(it).exists() } ?: "/usr/local/opt/llvm/bin/lldb-dap"
-                
-                if (!File(driverPath).exists()) {
-                    println("WARNING: lldb-dap not found at any common location, last attempt: $driverPath")
-                } else {
-                    println("Using lldb-dap at: $driverPath")
-                }
-
-                println("Starting debug session for target: $targetName, path: $targetPath")
 
                 val driverConfig = XMakeDapDriverConfiguration(environment.project, driverPath)
 
@@ -100,50 +89,29 @@ open class XMakeRunner : XMakeDefaultRunner() {
                     commandLine.withParameters(ParametersListUtil.parse(configuration.runArguments))
                 }
 
-                println("Debug command line: ${commandLine.commandLineString}")
-
-                // For now, use UNKNOWN architecture to avoid compilation issues
-                val architecture = ArchitectureType.UNKNOWN
-                println("Using architecture: $architecture for target: $targetPath")
-
                 val params = TrivialRunParameters(
                     driverConfig,
                     commandLine,
-                    architecture
+                    ArchitectureType.UNKNOWN
                 )
 
                 val consoleBuilder = (state as? CommandLineState)?.consoleBuilder 
                     ?: TextConsoleBuilderFactory.getInstance().createBuilder(environment.project)
 
-                println("Creating CidrLocalDebugProcess...")
                 val debugProcess = XMakeDebugProcess(params, session, consoleBuilder)
-                println("XMakeDebugProcess created: ${debugProcess::class.java.simpleName}")
-                
-                // Manually trigger the debug process start
-                try {
-                    println("Manually starting debug process...")
-                    debugProcess.start()
-                    println("Debug process manually started")
-                } catch (e: Exception) {
-                    println("Failed to manually start debug process: ${e.message}")
-                    e.printStackTrace()
-                }
-                
+                debugProcess.start()
                 return debugProcess
             }
         }).runContentDescriptor
     }
 
     private fun getTargetExecutable(project: Project, targetName: String): String? {
-        println("getTargetExecutable ..")
         val configuration = project.xmakeConfiguration
         val toolkit = project.activatedToolkit ?: return null
         val targetPathScript = SystemUtils.getScriptPath("targetpath.lua")
         if (targetPathScript == null) {
-            println("Could not find targetpath.lua script")
             return null
         }
-        println("getTargetExecutable: ${targetPathScript}")
 
         val parameters = mutableListOf("l", targetPathScript)
         if (targetName != "default" && targetName.isNotEmpty()) {
@@ -164,7 +132,6 @@ open class XMakeRunner : XMakeDefaultRunner() {
             val process = commandLine.createProcess(toolkit)
             val (result, _) = runProcess(process)
             val output = result.getOrNull()?.trim() ?: return@runBlocking null
-            println("Target path script output: $output")
             
             // parse output with tag __begin__ ... __end__
             val regex = "__begin__([\\s\\S]*?)__end__".toRegex()

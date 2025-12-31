@@ -26,29 +26,12 @@ class XMakeDapDriver(
 ) : DapDriver(handler, configuration, architectureType) {
 
     private val frameIds = Collections.synchronizedMap(WeakHashMap<LLFrame, Int>())
-    
-    init {
-        println("XMakeDapDriver initialized")
-    }
 
     override fun loadForLaunch(installer: Installer, architecture: String?): DebuggerDriver.Inferior {
-        println("XMakeDapDriver: loadForLaunch called with architecture: $architecture")
-        try {
-            // Ensure the DAP server is properly initialized
-            println("XMakeDapDriver: server status: ${server::class.java.simpleName}")
-            
-            val inferior = super.loadForLaunch(installer, architecture)
-            println("XMakeDapDriver: loadForLaunch completed, inferior: $inferior")
-            return inferior
-        } catch (e: Exception) {
-            println("XMakeDapDriver: loadForLaunch failed: ${e.message}")
-            e.printStackTrace()
-            throw e
-        }
+        return super.loadForLaunch(installer, architecture)
     }
 
     override fun getFrames(thread: LLThread, start: Int, count: Int, includeInternal: Boolean): DebuggerDriver.ResultList<LLFrame> {
-        println("XMakeDapDriver: getFrames thread=${thread.id} start=$start count=$count")
         val args = StackTraceArguments().apply { 
             threadId = thread.id.toInt()
             startFrame = start
@@ -72,7 +55,6 @@ class XMakeDapDriver(
     }
 
     override fun getVariables(thread: LLThread, frame: LLFrame): List<LLValue> {
-        println("XMakeDapDriver: getVariables thread=${thread.id}") // frame.id is not accessible directly?
         val fid = frameIds[frame] ?: 0
         val scopesArgs = ScopesArguments().apply { frameId = fid }
         val scopes = server.scopes(scopesArgs).join().scopes
