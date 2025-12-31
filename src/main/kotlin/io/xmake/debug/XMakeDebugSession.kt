@@ -51,8 +51,8 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
         // Check if build mode supports debugging symbols first
         checkDebugModeAndPrompt()
         
-        // Build the project before debugging
-        buildProjectBeforeDebug()
+        // Check if target executable exists
+        checkTargetExecutableExists()
         
         // Create and start debug session
         XMakeLogger.d(TAG, "Creating debug session...")
@@ -88,48 +88,52 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
     }
     
     /**
-     * Build the project before debugging
+     * Check if target executable exists and prompt user to build if needed
      */
-    private fun buildProjectBeforeDebug() {
-        try {
-            val toolkit = configuration.runToolkit ?: throw Exception("XMake toolkit is not set")
-            XMakeLogger.d(TAG, "Building target '${configuration.runTarget}' with toolkit: ${toolkit.name}")
-            
-            // Create build command
-            val buildCommand = project.xmakeConfiguration
-                .makeCommandLine(listOf("build", configuration.runTarget), configuration.runEnvironment)
-                .withWorkDirectory(File(configuration.runWorkingDir))
-                .withCharset(java.nio.charset.StandardCharsets.UTF_8)
-            
-            XMakeLogger.v(TAG, "Build command: ${buildCommand.commandLineString}")
-            
-            // Execute build
-            runBlocking {
-                val process = buildCommand.createProcess(toolkit)
-                val (result, _) = runProcess(process)
-                
-                if (result.isFailure) {
-                    val error = result.exceptionOrNull()
-                    XMakeLogger.e(TAG, "Build failed", error ?: Exception("Unknown build error"))
-                    throw Exception("Build failed: ${error?.message}")
-                }
-                
-                XMakeLogger.v(TAG, "Build completed successfully for target: ${configuration.runTarget}")
-            }
-        } catch (e: Exception) {
-            XMakeLogger.e(TAG, "Build failed before debugging", e)
-            // Show notification for build failure
-            val notification = Notification(
-                "XMake Build",
-                "Build Failed",
-                "Failed to build target '<b>${configuration.runTarget}</b>' before debugging.<br/>" +
-                "Error: ${e.message}<br/>" +
-                "Please check the build output and fix any errors before debugging.",
-                NotificationType.ERROR
-            )
-            Notifications.Bus.notify(notification, project)
-            throw e
+    private fun checkTargetExecutableExists() {
+        val targetName = configuration.runTarget
+        val targetPath = getTargetExecutable(project, targetName)
+        
+        XMakeLogger.v(TAG, "Checking target executable for: $targetName")
+        
+        if (targetPath.isNullOrBlank()) {
+            XMakeLogger.e(TAG, "Could not find target executable path for $targetName")
+            showBuildRequiredNotification(targetName, "Could not determine target executable path")
+            throw Exception("Target executable not found for $targetName. Please build the project first.")
         }
+        
+        val targetFile = File(targetPath)
+        if (!targetFile.exists()) {
+            XMakeLogger.e(TAG, "Target executable not found: $targetPath")
+            showBuildRequiredNotification(targetName, "Target executable not found: $targetPath")
+            throw Exception("Target executable not found: $targetPath. Please build the project first.")
+        }
+        
+        if (!targetFile.isFile) {
+            XMakeLogger.e(TAG, "Target path is not a file: $targetPath")
+            showBuildRequiredNotification(targetName, "Target path is not a valid file: $targetPath")
+            throw Exception("Target path is not a valid file: $targetPath. Please build the project first.")
+        }
+        
+        XMakeLogger.v(TAG, "Target executable found and valid: $targetPath")
+    }
+    
+    /**
+     * Show notification to user that build is required
+     */
+    private fun showBuildRequiredNotification(targetName: String, reason: String) {
+        val notification = Notification(
+            "XMake Debug",
+            "Build Required",
+            "Target '<b>$targetName</b>' needs to be built before debugging.<br/><br/>" +
+            "Reason: $reason<br/><br/>" +
+            "Please build the project first using:<br/>" +
+            "• XMake menu → Build Project<br/>" +
+            "• Right-click target → Build<br/>" +
+            "• Ctrl+F9 (Build Project)",
+            NotificationType.ERROR
+        )
+        Notifications.Bus.notify(notification, project)
     }
     
     /**
