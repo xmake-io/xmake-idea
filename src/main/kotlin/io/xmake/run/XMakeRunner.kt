@@ -9,8 +9,12 @@ import com.intellij.execution.executors.DefaultRunExecutor
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.execution.runners.ProgramRunner
 import com.intellij.execution.ui.RunContentDescriptor
+import com.intellij.notification.Notification
+import com.intellij.notification.NotificationType
+import com.intellij.notification.Notifications
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.Messages
 import com.intellij.xdebugger.XDebugProcess
 import com.intellij.xdebugger.XDebugProcessStarter
 import com.intellij.xdebugger.XDebugSession
@@ -57,6 +61,9 @@ open class XMakeRunner : XMakeDefaultRunner() {
     }
 
     private fun startDebugSession(state: RunProfileState, environment: ExecutionEnvironment, configuration: XMakeRunConfiguration): RunContentDescriptor? {
+        // Check if build mode supports debugging symbols
+        checkDebugModeAndPrompt(environment.project, configuration.runMode)
+        
         return XDebuggerManager.getInstance(environment.project).startSession(environment, object : XDebugProcessStarter() {
             override fun start(session: XDebugSession): XDebugProcess {
                 val targetName = configuration.runTarget
@@ -139,6 +146,24 @@ open class XMakeRunner : XMakeDefaultRunner() {
                 return@runBlocking File(project.basePath, path).absolutePath
             }
             path
+        }
+    }
+
+    private fun checkDebugModeAndPrompt(project: Project, currentMode: String) {
+        val debugModes = setOf("debug", "releasedbg")
+        
+        if (currentMode !in debugModes) {
+            // Show notification in the bottom right corner instead of blocking dialog
+            val notification = Notification(
+                "XMake Debug Mode",
+                "Build Mode Warning",
+                "The current build mode '<b>$currentMode</b>' may not contain debug symbols.<br/>" +
+                "For better debugging experience, consider using 'debug' or 'releasedbg' mode.<br/>" +
+                "You can continue debugging, but some debugging features may be limited.",
+                NotificationType.WARNING
+            )
+            
+            Notifications.Bus.notify(notification, project)
         }
     }
 
