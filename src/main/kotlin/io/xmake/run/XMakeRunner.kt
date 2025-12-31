@@ -37,7 +37,6 @@ import com.intellij.execution.configuration.EnvironmentVariablesData
 import com.intellij.util.execution.ParametersListUtil
 import com.jetbrains.cidr.execution.debugger.backend.DebuggerDriverConfiguration
 import io.xmake.debug.XMakeDapDriverConfiguration
-import io.xmake.debug.XMakeDebugProcess
 
 open class XMakeRunner : XMakeDefaultRunner() {
 
@@ -61,9 +60,16 @@ open class XMakeRunner : XMakeDefaultRunner() {
     }
 
     private fun startDebugSession(state: RunProfileState, environment: ExecutionEnvironment, configuration: XMakeRunConfiguration): RunContentDescriptor? {
-        // Check if build mode supports debugging symbols
+        // Check if build mode supports debugging symbols first
         checkDebugModeAndPrompt(environment.project, configuration.runMode)
         
+        // Build the project before debugging
+        buildProjectBeforeDebug(environment.project, configuration)
+        
+        return createDebugSession(state, environment, configuration)
+    }
+
+    private fun createDebugSession(state: RunProfileState, environment: ExecutionEnvironment, configuration: XMakeRunConfiguration): RunContentDescriptor? {
         return XDebuggerManager.getInstance(environment.project).startSession(environment, object : XDebugProcessStarter() {
             override fun start(session: XDebugSession): XDebugProcess {
                 val targetName = configuration.runTarget
@@ -102,7 +108,7 @@ open class XMakeRunner : XMakeDefaultRunner() {
                 val consoleBuilder = (state as? CommandLineState)?.consoleBuilder 
                     ?: TextConsoleBuilderFactory.getInstance().createBuilder(environment.project)
 
-                val debugProcess = XMakeDebugProcess(params, session, consoleBuilder)
+                val debugProcess = CidrLocalDebugProcess(params, session, consoleBuilder)
                 debugProcess.start()
                 return debugProcess
             }
@@ -146,6 +152,44 @@ open class XMakeRunner : XMakeDefaultRunner() {
                 return@runBlocking File(project.basePath, path).absolutePath
             }
             path
+        }
+    }
+
+    private fun buildProjectBeforeDebug(project: Project, configuration: XMakeRunConfiguration) {
+        try {
+            val toolkit = configuration.runToolkit ?: throw Exception("XMake toolkit is not set")
+            
+            // Create build command
+            val buildCommand = project.xmakeConfiguration
+                .makeCommandLine(listOf("build", configuration.runTarget), configuration.runEnvironment)
+                .withWorkDirectory(java.io.File(configuration.runWorkingDir))
+                .withCharset(java.nio.charset.StandardCharsets.UTF_8)
+            
+            // Execute build
+            runBlocking {
+                val process = buildCommand.createProcess(toolkit)
+                val (result, _) = runProcess(process)
+                
+                if (result.isFailure) {
+                    val error = result.exceptionOrNull()
+                    throw Exception("Build failed: ${error?.message}")
+                }
+                
+                Log.info("Build completed successfully for target: ${configuration.runTarget}")
+            }
+        } catch (e: Exception) {
+            Log.error("Build failed before debugging", e)
+            // Show notification for build failure
+            val notification = Notification(
+                "XMake Build",
+                "Build Failed",
+                "Failed to build target '<b>${configuration.runTarget}</b>' before debugging.<br/>" +
+                "Error: ${e.message}<br/>" +
+                "Please check the build output and fix any errors before debugging.",
+                NotificationType.ERROR
+            )
+            Notifications.Bus.notify(notification, project)
+            throw e
         }
     }
 
