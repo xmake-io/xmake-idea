@@ -25,7 +25,7 @@ import io.xmake.project.toolkit.activatedToolkit
 import io.xmake.utils.SystemUtils
 import io.xmake.utils.execute.createProcess
 import io.xmake.utils.execute.runProcess
-import io.xmake.utils.XMakeLogger
+import io.xmake.utils.Logger
 import kotlinx.coroutines.runBlocking
 import java.io.File
 
@@ -45,8 +45,8 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
      * Start a complete debugging session with build, mode check, and debug process
      */
     fun startDebugSession(): com.intellij.execution.ui.RunContentDescriptor? {
-        XMakeLogger.i("XMakeDebugSession", "Logging mode: ${XMakeLogger.getLoggingMode()}")
-        XMakeLogger.d(TAG, "Starting debug session for target: ${configuration.runTarget}")
+        Logger.i("Logger", "Logging mode: ${Logger.getLoggingMode()}")
+        Logger.d(TAG, "Starting debug session for target: ${configuration.runTarget}")
         
         // Check if build mode supports debugging symbols first
         checkDebugModeAndPrompt()
@@ -55,9 +55,9 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
         checkTargetExecutableExists()
         
         // Create and start debug session
-        XMakeLogger.d(TAG, "Creating debug session...")
+        Logger.d(TAG, "Creating debug session...")
         val result = createDebugSession()
-        XMakeLogger.i(TAG, "Debug session started successfully")
+        Logger.i(TAG, "Debug session started successfully")
         return result
     }
     
@@ -67,10 +67,10 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
     private fun checkDebugModeAndPrompt() {
         val debugModes = setOf("debug", "releasedbg")
         
-        XMakeLogger.v(TAG, "Checking build mode: ${configuration.runMode}")
+        Logger.v(TAG, "Checking build mode: ${configuration.runMode}")
         
         if (configuration.runMode !in debugModes) {
-            XMakeLogger.w(TAG, "Build mode '${configuration.runMode}' may not contain debug symbols")
+            Logger.w(TAG, "Build mode '${configuration.runMode}' may not contain debug symbols")
             // Show notification in the bottom right corner instead of blocking dialog
             val notification = Notification(
                 "XMake Debug Mode",
@@ -83,7 +83,7 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
             
             Notifications.Bus.notify(notification, project)
         } else {
-            XMakeLogger.v(TAG, "Build mode '${configuration.runMode}' is suitable for debugging")
+            Logger.v(TAG, "Build mode '${configuration.runMode}' is suitable for debugging")
         }
     }
     
@@ -94,28 +94,28 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
         val targetName = configuration.runTarget
         val targetPath = getTargetExecutable(project, targetName)
         
-        XMakeLogger.v(TAG, "Checking target executable for: $targetName")
+        Logger.v(TAG, "Checking target executable for: $targetName")
         
         if (targetPath.isNullOrBlank()) {
-            XMakeLogger.e(TAG, "Could not find target executable path for $targetName")
+            Logger.e(TAG, "Could not find target executable path for $targetName")
             showBuildRequiredNotification(targetName, "Could not determine target executable path")
             throw Exception("Target executable not found for $targetName. Please build the project first.")
         }
         
         val targetFile = File(targetPath)
         if (!targetFile.exists()) {
-            XMakeLogger.e(TAG, "Target executable not found: $targetPath")
+            Logger.e(TAG, "Target executable not found: $targetPath")
             showBuildRequiredNotification(targetName, "Target executable not found: $targetPath")
             throw Exception("Target executable not found: $targetPath. Please build the project first.")
         }
         
         if (!targetFile.isFile) {
-            XMakeLogger.e(TAG, "Target path is not a file: $targetPath")
+            Logger.e(TAG, "Target path is not a file: $targetPath")
             showBuildRequiredNotification(targetName, "Target path is not a valid file: $targetPath")
             throw Exception("Target path is not a valid file: $targetPath. Please build the project first.")
         }
         
-        XMakeLogger.v(TAG, "Target executable found and valid: $targetPath")
+        Logger.v(TAG, "Target executable found and valid: $targetPath")
     }
     
     /**
@@ -143,30 +143,30 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
         return XDebuggerManager.getInstance(project).startSession(environment, object : XDebugProcessStarter() {
             override fun start(session: XDebugSession): XDebugProcess {
                 val targetName = configuration.runTarget
-                XMakeLogger.d(TAG, "Starting debug process for target: $targetName")
+                Logger.d(TAG, "Starting debug process for target: $targetName")
                 
                 val targetPath = getTargetExecutable(project, targetName)
                 if (targetPath.isNullOrBlank()) {
-                    XMakeLogger.e(TAG, "Could not find target executable for $targetName")
+                    Logger.e(TAG, "Could not find target executable for $targetName")
                     throw Exception("Could not find target executable for $targetName")
                 }
                 
-                XMakeLogger.v(TAG, "Target executable path: $targetPath")
+                Logger.v(TAG, "Target executable path: $targetPath")
                 
                 val targetFile = File(targetPath)
                 if (!targetFile.exists() || !targetFile.isFile) {
-                    XMakeLogger.e(TAG, "Target executable not found or invalid: $targetPath")
+                    Logger.e(TAG, "Target executable not found or invalid: $targetPath")
                     throw Exception("Target executable not found or invalid: $targetPath")
                 }
 
                 // Configure DAP driver
                 val dapDriverPath = configuration.getEffectiveDapDriverPath()
                 if (dapDriverPath.isBlank()) {
-                    XMakeLogger.e(TAG, "No DAP driver found")
+                    Logger.e(TAG, "No DAP driver found")
                     throw Exception("No DAP driver found. Please install lldb-dap or gdb-dap, or specify a custom path in the debug configuration.")
                 }
                 
-                XMakeLogger.v(TAG, "Using DAP driver: $dapDriverPath")
+                Logger.v(TAG, "Using DAP driver: $dapDriverPath")
                 val driverConfig = XMakeDapDriverConfiguration(project, dapDriverPath, configuration.launchConfiguration)
 
                 val commandLine = GeneralCommandLine(targetPath)
@@ -174,7 +174,7 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
                     .withEnvironment(configuration.runCommandLine.environment)
 
                 if (configuration.runArguments.isNotEmpty()) {
-                    XMakeLogger.v(TAG, "Run arguments: ${configuration.runArguments}")
+                    Logger.v(TAG, "Run arguments: ${configuration.runArguments}")
                     commandLine.withParameters(ParametersListUtil.parse(configuration.runArguments))
                 }
 
@@ -187,10 +187,10 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
                 val consoleBuilder = (state as? CommandLineState)?.consoleBuilder 
                     ?: TextConsoleBuilderFactory.getInstance().createBuilder(project)
 
-                XMakeLogger.d(TAG, "Creating CidrLocalDebugProcess...")
+                Logger.d(TAG, "Creating CidrLocalDebugProcess...")
                 val debugProcess = CidrLocalDebugProcess(params, session, consoleBuilder)
                 debugProcess.start()
-                XMakeLogger.d(TAG, "Debug process started successfully")
+                Logger.d(TAG, "Debug process started successfully")
                 return debugProcess
             }
         }).runContentDescriptor
@@ -200,12 +200,12 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
      * Get the target executable path for debugging
      */
     private fun getTargetExecutable(project: Project, targetName: String): String? {
-        XMakeLogger.v(TAG, "Getting executable path for target: $targetName")
+        Logger.v(TAG, "Getting executable path for target: $targetName")
         val configuration = project.xmakeConfiguration
         val toolkit = project.activatedToolkit ?: return null
         val targetPathScript = SystemUtils.getScriptPath("targetpath.lua")
         if (targetPathScript == null) {
-            XMakeLogger.e(TAG, "targetpath.lua script not found")
+            Logger.e(TAG, "targetpath.lua script not found")
             return null
         }
 

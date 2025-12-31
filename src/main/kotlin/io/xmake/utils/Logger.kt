@@ -7,7 +7,7 @@ import com.intellij.openapi.diagnostic.logger
  * Provides a unified logging interface for the XMake plugin
  * Uses println in debug mode and IntelliJ logger in production
  */
-object XMakeLogger {
+object Logger {
     
     // Log levels
     enum class LogLevel {
@@ -174,7 +174,7 @@ object XMakeLogger {
      */
     private fun getLogger(tag: String): com.intellij.openapi.diagnostic.Logger {
         return loggers.getOrPut(tag) {
-            logger<XMakeLogger>()
+            logger<Logger>()
         }
     }
 }

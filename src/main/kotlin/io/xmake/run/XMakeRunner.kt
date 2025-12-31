@@ -8,7 +8,7 @@ import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.execution.runners.ProgramRunner
 import com.intellij.execution.ui.RunContentDescriptor
 import io.xmake.debug.XMakeDebugSession
-import io.xmake.utils.XMakeLogger
+import io.xmake.utils.Logger
 
 open class XMakeRunner : XMakeDefaultRunner() {
 
