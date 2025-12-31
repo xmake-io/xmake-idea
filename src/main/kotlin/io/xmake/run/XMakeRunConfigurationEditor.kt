@@ -362,6 +362,21 @@ class XMakeRunConfigurationEditor(
             cell(workingDirectoryBrowser).align(AlignX.FILL)
         }
 
+        // Debug Configurations
+        collapsibleGroup("Debug configurations") {
+            row("") {
+                cell(dapDriverAutoDetectCheckBox)
+            }
+            
+            row("DAP Driver:") {
+                cell(dapDriverPathComboBox).align(AlignX.FILL).resizableColumn()
+            }
+            
+            row("Custom DAP Driver Path:") {
+                cell(dapDriverPathCustomField).align(AlignX.FILL)
+            }
+        }
+
         collapsibleGroup("Additional Configurations") {
             row("Build directory") {
                 cell(buildDirectoryBrowser).align(AlignX.FILL)
@@ -377,21 +392,6 @@ class XMakeRunConfigurationEditor(
 
             row("") {
                 cell(enableVerboseCheckBox)
-            }
-            
-            // DAP Driver Configuration
-            collapsibleGroup("DAP Driver Configuration") {
-                row("") {
-                    cell(dapDriverAutoDetectCheckBox)
-                }
-                
-                row("DAP Driver:") {
-                    cell(dapDriverPathComboBox).align(AlignX.FILL).resizableColumn()
-                }
-                
-                row("Custom DAP Driver Path:") {
-                    cell(dapDriverPathCustomField).align(AlignX.FILL)
-                }
             }
         }
 
