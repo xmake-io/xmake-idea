@@ -37,12 +37,20 @@ class XMakeDapDriverConfiguration(
     }
 
     override fun getDapLaunchOptions(commandLine: GeneralCommandLine): Map<String, Any> {
+        // Add debug environment variables
+        val debugEnv = mutableMapOf<String, String>()
+        debugEnv["DYLD_LIBRARY_PATH"] = "/usr/local/opt/llvm/lib"
+        debugEnv["LLDB_DEBUGSERVER_PATH"] = "/usr/local/opt/llvm/bin"
+        
         return mapOf(
             "program" to commandLine.exePath,
             "cwd" to (commandLine.workDirectory?.path ?: project.basePath ?: ""),
-            "env" to (commandLine.environment ?: emptyMap<String, String>()),
-            "stopOnEntry" to true,
-            "args" to commandLine.parametersList.list
+            "env" to debugEnv,
+            "stopOnEntry" to false,
+            "args" to commandLine.parametersList.list,
+            "sourceMap" to mapOf(
+                "enabled" to "true"
+            )
         )
     }
 
@@ -51,6 +59,6 @@ class XMakeDapDriverConfiguration(
     }
 
     override fun createDriver(handler: DebuggerDriver.Handler, architectureType: ArchitectureType): DapDriver {
-        return XMakeDapDriver(handler, this, architectureType)
+        return super.createDriver(handler, architectureType)
     }
 }
