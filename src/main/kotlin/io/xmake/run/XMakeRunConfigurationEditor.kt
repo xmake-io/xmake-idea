@@ -9,6 +9,10 @@ import com.intellij.openapi.ui.ComboBox
 import com.intellij.util.messages.MessageBusConnection
 import com.intellij.ui.PopupMenuListenerAdapter
 import com.intellij.ui.RawCommandLineEditor
+import com.intellij.ui.EditorTextField
+import com.intellij.openapi.editor.EditorSettings
+import com.intellij.openapi.editor.ex.EditorEx
+import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.CheckBox
 import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.AlignY
@@ -175,8 +179,29 @@ class XMakeRunConfigurationEditor(
     private val additionalConfiguration = RawCommandLineEditor()
 
     // Launch configuration for debugging (JSON format)
-    private val launchConfiguration = RawCommandLineEditor().apply {
-        text = XMakeRunConfiguration.getDefaultLaunchConfigJson()
+    private val launchConfiguration = EditorTextField(XMakeRunConfiguration.getDefaultLaunchConfigJson()).apply {
+        // Set up for multi-line JSON editing
+        setOneLineMode(false)
+        preferredSize = java.awt.Dimension(400, 120)
+        
+        // Configure editor settings when editor is created
+        editor?.let { editor ->
+            val settings = editor.settings
+            settings.isFoldingOutlineShown = false
+            settings.isLineNumbersShown = false
+            settings.isCaretRowShown = true
+            settings.isAllowSingleLogicalLineFolding = false
+            settings.isDndEnabled = false
+            // Enable scrolling
+            settings.isAnimatedScrolling = true
+        }
+    }
+    
+    // Create scrollable wrapper for the editor
+    private val scrollableLaunchConfiguration: JComponent = JBScrollPane(launchConfiguration).apply {
+        preferredSize = java.awt.Dimension(400, 120)
+        verticalScrollBarPolicy = javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED
+        horizontalScrollBarPolicy = javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED
     }
 
     // DAP driver configuration UI components
@@ -381,8 +406,13 @@ class XMakeRunConfigurationEditor(
                 cell(dapDriverPathCustomField).align(AlignX.FILL)
             }
             
-            row("Launch Configuration (JSON format):") {
-                cell(launchConfiguration).align(AlignX.FILL).resizableColumn()
+            row {
+                label("Launch Configuration (JSON format):")
+            }
+            row {
+                cell(scrollableLaunchConfiguration).align(AlignX.FILL).resizableColumn()
+            }
+            row {
                 comment("Override default debug settings with JSON configuration")
             }
         }
@@ -440,11 +470,5 @@ class XMakeRunConfigurationEditor(
 
     private fun JPanel.makeWide() {
         preferredSize = Dimension(1000, height)
-    }
-
-    companion object {
-
-        // get log
-        private val Log = Logger.getInstance(XMakeRunConfigurationEditor::class.java.getName())
     }
 }

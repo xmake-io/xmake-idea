@@ -17,7 +17,7 @@ object DefaultDebugConfigurations {
     
     // Default DAP configuration
     val defaultDapConfig = mapOf(
-        "stopOnEntry" to false,
+        "stopOnEntry" to true,
         "sourceMap" to mapOf(
             "enabled" to "true"
         ),
@@ -28,7 +28,8 @@ object DefaultDebugConfigurations {
         "displayFormat" to "hex",
         "maxChildren" to 1000,
         "maxArrayLength" to 1000,
-        "maxStringLength" to 10000
+        "maxStringLength" to 10000,
+        "initCommands" to emptyList<String>()
     )
     
     // LLDB-specific default configuration
@@ -200,8 +201,23 @@ object DefaultDebugConfigurations {
                         val userNested = value.mapValues { 
                             val element = it.value
                             when {
+                                // Special case: sourceMap.enabled should remain as string
+                                key == "sourceMap" && it.key == "enabled" -> {
+                                    when {
+                                        element.toString().toBooleanStrictOrNull() != null -> element.toString() // Keep as string
+                                        element.toString().toIntOrNull() != null -> element.toString()
+                                        element.toString().startsWith("\"") && element.toString().endsWith("\"") -> 
+                                            element.toString().substring(1, element.toString().length - 1)
+                                        else -> element.toString()
+                                    }
+                                }
+                                // Handle boolean values (but not for sourceMap.enabled)
                                 element.toString().toBooleanStrictOrNull() != null -> element.toString().toBoolean()
+                                // Handle integer values
                                 element.toString().toIntOrNull() != null -> element.toString().toInt()
+                                // Handle string values properly (remove extra quotes)
+                                element.toString().startsWith("\"") && element.toString().endsWith("\"") -> 
+                                    element.toString().substring(1, element.toString().length - 1)
                                 else -> element.toString()
                             }
                         }
@@ -209,10 +225,27 @@ object DefaultDebugConfigurations {
                     }
                     else -> {
                         // Handle primitive values and other JsonElement types
+                        val valueStr = value.toString()
                         mergedConfig[key] = when {
-                            value.toString().toBooleanStrictOrNull() != null -> value.toString().toBoolean()
-                            value.toString().toIntOrNull() != null -> value.toString().toInt()
-                            else -> value.toString()
+                            // Handle boolean values
+                            valueStr == "true" -> true
+                            valueStr == "false" -> false
+                            // Handle integer values
+                            valueStr.toIntOrNull() != null -> valueStr.toInt()
+                            // Handle string values (remove extra quotes)
+                            valueStr.startsWith("\"") && valueStr.endsWith("\"") -> 
+                                valueStr.substring(1, valueStr.length - 1)
+                            // Handle array values
+                            valueStr.startsWith("[") && valueStr.endsWith("]") -> {
+                                // Parse JSON array
+                                try {
+                                    val json = Json { ignoreUnknownKeys = true }
+                                    json.decodeFromString<List<String>>(valueStr)
+                                } catch (e: Exception) {
+                                    emptyList<String>()
+                                }
+                            }
+                            else -> valueStr
                         }
                     }
                 }

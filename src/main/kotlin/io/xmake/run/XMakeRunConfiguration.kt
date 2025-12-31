@@ -214,18 +214,12 @@ class XMakeRunConfiguration(
         
         fun getDefaultLaunchConfigJson(): String {
             return """{
-    "stopOnEntry": false,
+    "stopOnEntry": true,
     "sourceMap": {
         "enabled": "true"
     },
     "showDisassembly": "auto",
-    "enablePrettyPrinting": true,
-    "timeout": 30000,
-    "memoryReference": "hex",
-    "displayFormat": "hex",
-    "maxChildren": 1000,
-    "maxArrayLength": 1000,
-    "maxStringLength": 10000
+    "initCommands": []
 }"""
         }
     }
