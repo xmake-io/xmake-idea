@@ -57,9 +57,10 @@ open class XMakeRunner : XMakeDefaultRunner() {
     }
 
     private fun startDebugSession(state: RunProfileState, environment: ExecutionEnvironment, configuration: XMakeRunConfiguration): RunContentDescriptor? {
+        println("XMakeRunner: startDebugSession called")
         return XDebuggerManager.getInstance(environment.project).startSession(environment, object : XDebugProcessStarter() {
             override fun start(session: XDebugSession): XDebugProcess {
-                println("start ..")
+                println("XDebugProcessStarter.start() called with session: ${session::class.java.simpleName}")
                 val targetName = configuration.runTarget
                 val targetPath = getTargetExecutable(environment.project, targetName)
                 println("targetPath: ${targetPath}")
@@ -73,9 +74,18 @@ open class XMakeRunner : XMakeDefaultRunner() {
                 }
 
                 // Configure lldb-dap driver
-                val driverPath = "/usr/local/opt/llvm/bin/lldb-dap"
+                val possibleDriverPaths = listOf(
+                    "/usr/local/opt/llvm/bin/lldb-dap",
+                    "/opt/homebrew/opt/llvm/bin/lldb-dap",
+                    "/usr/bin/lldb-dap",
+                    "/usr/local/bin/lldb-dap"
+                )
+                val driverPath = possibleDriverPaths.find { File(it).exists() } ?: "/usr/local/opt/llvm/bin/lldb-dap"
+                
                 if (!File(driverPath).exists()) {
-                    println("WARNING: wrapper not found at $driverPath")
+                    println("WARNING: lldb-dap not found at any common location, last attempt: $driverPath")
+                } else {
+                    println("Using lldb-dap at: $driverPath")
                 }
 
                 println("Starting debug session for target: $targetName, path: $targetPath")
@@ -92,17 +102,34 @@ open class XMakeRunner : XMakeDefaultRunner() {
 
                 println("Debug command line: ${commandLine.commandLineString}")
 
+                // For now, use UNKNOWN architecture to avoid compilation issues
+                val architecture = ArchitectureType.UNKNOWN
+                println("Using architecture: $architecture for target: $targetPath")
+
                 val params = TrivialRunParameters(
                     driverConfig,
                     commandLine,
-                    ArchitectureType.UNKNOWN
+                    architecture
                 )
 
                 val consoleBuilder = (state as? CommandLineState)?.consoleBuilder 
                     ?: TextConsoleBuilderFactory.getInstance().createBuilder(environment.project)
 
                 println("Creating CidrLocalDebugProcess...")
-                return XMakeDebugProcess(params, session, consoleBuilder)
+                val debugProcess = XMakeDebugProcess(params, session, consoleBuilder)
+                println("XMakeDebugProcess created: ${debugProcess::class.java.simpleName}")
+                
+                // Manually trigger the debug process start
+                try {
+                    println("Manually starting debug process...")
+                    debugProcess.start()
+                    println("Debug process manually started")
+                } catch (e: Exception) {
+                    println("Failed to manually start debug process: ${e.message}")
+                    e.printStackTrace()
+                }
+                
+                return debugProcess
             }
         }).runContentDescriptor
     }

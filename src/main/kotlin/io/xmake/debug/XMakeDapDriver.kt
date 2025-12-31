@@ -26,10 +26,25 @@ class XMakeDapDriver(
 ) : DapDriver(handler, configuration, architectureType) {
 
     private val frameIds = Collections.synchronizedMap(WeakHashMap<LLFrame, Int>())
+    
+    init {
+        println("XMakeDapDriver initialized")
+    }
 
     override fun loadForLaunch(installer: Installer, architecture: String?): DebuggerDriver.Inferior {
-        println("XMakeDapDriver: loadForLaunch")
-        return super.loadForLaunch(installer, architecture)
+        println("XMakeDapDriver: loadForLaunch called with architecture: $architecture")
+        try {
+            // Ensure the DAP server is properly initialized
+            println("XMakeDapDriver: server status: ${server::class.java.simpleName}")
+            
+            val inferior = super.loadForLaunch(installer, architecture)
+            println("XMakeDapDriver: loadForLaunch completed, inferior: $inferior")
+            return inferior
+        } catch (e: Exception) {
+            println("XMakeDapDriver: loadForLaunch failed: ${e.message}")
+            e.printStackTrace()
+            throw e
+        }
     }
 
     override fun getFrames(thread: LLThread, start: Int, count: Int, includeInternal: Boolean): DebuggerDriver.ResultList<LLFrame> {
