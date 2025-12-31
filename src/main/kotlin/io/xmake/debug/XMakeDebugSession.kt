@@ -128,7 +128,7 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
             "Target '<b>$targetName</b>' needs to be built before debugging.<br/><br/>" +
             "Reason: $reason<br/><br/>" +
             "Please build the project first using:<br/>" +
-            "• XMake menu → Build Project<br/>" +
+            "• Xmake menu → Build Project<br/>" +
             "• Right-click target → Build<br/>" +
             "• Ctrl+F9 (Build Project)",
             NotificationType.ERROR

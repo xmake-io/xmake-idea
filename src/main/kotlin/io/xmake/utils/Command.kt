@@ -42,7 +42,7 @@ fun ioRunv(argv: List<String>, workDir: String? = null): List<String> {
     } catch (e: XMakeToolkitNotSetException) {
         NotificationGroupManager.getInstance()
             .getNotificationGroup("XMake")
-            .createNotification("Error with XMake Toolkit", e.message ?: "", NotificationType.ERROR)
+            .createNotification("Error with Xmake Toolkit", e.message ?: "", NotificationType.ERROR)
             .notify(project)
         return emptyList()
     } catch (e: ProcessNotCreatedException) {
