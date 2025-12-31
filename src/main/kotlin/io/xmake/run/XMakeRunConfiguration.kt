@@ -23,6 +23,7 @@ import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.SystemUtils
 import io.xmake.utils.info.XMakeInfoManager
 import io.xmake.utils.info.xmakeInfo
+import io.xmake.debug.DapDriverDetector
 import org.jdom.Element
 import kotlin.io.path.Path
 
@@ -72,6 +73,13 @@ class XMakeRunConfiguration(
 
     @OptionTag(tag = "additionalConfiguration")
     var additionalConfiguration: String = ""
+
+    // DAP driver configuration
+    @OptionTag(tag = "dapDriverPath")
+    var dapDriverPath: String = ""
+
+    @OptionTag(tag = "dapDriverAutoDetect")
+    var dapDriverAutoDetect: Boolean = true
 
     // the run command line
     val runCommandLine: GeneralCommandLine
@@ -180,6 +188,21 @@ class XMakeRunConfiguration(
 
     fun getArchitecturesByPlatform(platform: String): Array<String> {
         return (project.xmakeInfo.architectures[platform]?.toTypedArray() ?: arrayOf("default"))
+    }
+
+    // Get effective DAP driver path
+    fun getEffectiveDapDriverPath(): String {
+        return if (dapDriverAutoDetect || dapDriverPath.isBlank()) {
+            val bestDriver = DapDriverDetector.findBestDriver()
+            bestDriver?.path ?: ""
+        } else {
+            dapDriverPath
+        }
+    }
+
+    // Get available DAP drivers for UI
+    fun getAvailableDapDrivers(): List<DapDriverDetector.DapDriverInfo> {
+        return DapDriverDetector.findAvailableDrivers()
     }
 
     companion object {

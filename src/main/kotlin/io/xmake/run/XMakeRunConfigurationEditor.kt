@@ -115,6 +115,28 @@ class XMakeRunConfigurationEditor(
         targetsModel.selectedItem = if (targets.contains(selectedTarget)) selectedTarget else runConfiguration.runTarget
     }
 
+    private fun updateDapDriverComboBox() {
+        val availableDrivers = runConfiguration.getAvailableDapDrivers()
+        dapDriverPathComboBox.removeAllItems()
+        
+        if (availableDrivers.isEmpty()) {
+            dapDriverPathComboBox.addItem("No DAP drivers found")
+        } else {
+            availableDrivers.forEach { driver ->
+                dapDriverPathComboBox.addItem("${driver.displayName} - ${driver.path}")
+            }
+        }
+        
+        // Set current selection
+        val currentPath = runConfiguration.getEffectiveDapDriverPath()
+        if (currentPath.isNotBlank()) {
+            val currentIndex = availableDrivers.indexOfFirst { it.path == currentPath }
+            if (currentIndex >= 0) {
+                dapDriverPathComboBox.selectedIndex = currentIndex
+            }
+        }
+    }
+
     private var toolkit: Toolkit? = runConfiguration.runToolkit
     private val toolkitComboBox = ToolkitComboBox(::toolkit)
 
@@ -151,6 +173,12 @@ class XMakeRunConfigurationEditor(
     private val enableVerboseCheckBox = CheckBox("Enable verbose output", enableVerbose)
 
     private val additionalConfiguration = RawCommandLineEditor()
+
+    // DAP driver configuration UI components
+    private val dapDriverAutoDetectCheckBox = CheckBox("Auto-detect DAP driver", runConfiguration.dapDriverAutoDetect)
+    
+    private val dapDriverPathComboBox = ComboBox<String>()
+    private val dapDriverPathCustomField = RawCommandLineEditor()
 
     // reset editor from configuration
     override fun resetEditorFrom(configuration: XMakeRunConfiguration) {
@@ -189,6 +217,24 @@ class XMakeRunConfigurationEditor(
         enableVerboseCheckBox.setSelected(enableVerbose)
 
         additionalConfiguration.text = configuration.additionalConfiguration
+
+        // reset DAP driver configuration
+        dapDriverAutoDetectCheckBox.isSelected = configuration.dapDriverAutoDetect
+        updateDapDriverComboBox()
+        dapDriverPathCustomField.text = configuration.dapDriverPath
+        
+        // Add DAP driver checkbox listener
+        dapDriverAutoDetectCheckBox.addItemListener {
+            updateDapDriverComboBox()
+        }
+        
+        // Add DAP driver combo box listener
+        dapDriverPathComboBox.addItemListener {
+            val selectedDriver = runConfiguration.getAvailableDapDrivers().getOrNull(dapDriverPathComboBox.selectedIndex)
+            if (selectedDriver != null) {
+                dapDriverPathCustomField.text = selectedDriver.path
+            }
+        }
     }
 
     // apply editor to configuration
@@ -220,6 +266,10 @@ class XMakeRunConfigurationEditor(
         configuration.enableVerbose = enableVerbose
 
         configuration.additionalConfiguration = additionalConfiguration.text
+
+        // apply DAP driver configuration
+        configuration.dapDriverAutoDetect = dapDriverAutoDetectCheckBox.isSelected
+        configuration.dapDriverPath = dapDriverPathCustomField.text
 
         project.xmakeConfiguration.changed = true
     }
@@ -303,7 +353,7 @@ class XMakeRunConfigurationEditor(
         row("Program arguments:") {
             cell(runArguments).align(AlignX.FILL)
         }
-//        environmentVariables.label
+
         row("Environment variables") {
             cell(environmentVariables).align(AlignX.FILL)
         }
@@ -327,6 +377,21 @@ class XMakeRunConfigurationEditor(
 
             row("") {
                 cell(enableVerboseCheckBox)
+            }
+            
+            // DAP Driver Configuration
+            collapsibleGroup("DAP Driver Configuration") {
+                row("") {
+                    cell(dapDriverAutoDetectCheckBox)
+                }
+                
+                row("DAP Driver:") {
+                    cell(dapDriverPathComboBox).align(AlignX.FILL).resizableColumn()
+                }
+                
+                row("Custom DAP Driver Path:") {
+                    cell(dapDriverPathCustomField).align(AlignX.FILL)
+                }
             }
         }
 

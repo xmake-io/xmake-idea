@@ -70,16 +70,13 @@ open class XMakeRunner : XMakeDefaultRunner() {
                     throw Exception("Target executable not found or invalid: $targetPath")
                 }
 
-                // Configure lldb-dap driver
-                val possibleDriverPaths = listOf(
-                    "/usr/local/opt/llvm/bin/lldb-dap",
-                    "/opt/homebrew/opt/llvm/bin/lldb-dap",
-                    "/usr/bin/lldb-dap",
-                    "/usr/local/bin/lldb-dap"
-                )
-                val driverPath = possibleDriverPaths.find { File(it).exists() } ?: "/usr/local/opt/llvm/bin/lldb-dap"
-
-                val driverConfig = XMakeDapDriverConfiguration(environment.project, driverPath)
+                // Configure DAP driver
+                val dapDriverPath = configuration.getEffectiveDapDriverPath()
+                if (dapDriverPath.isBlank()) {
+                    throw Exception("No DAP driver found. Please install lldb-dap or gdb-dap, or specify a custom path in the debug configuration.")
+                }
+                
+                val driverConfig = XMakeDapDriverConfiguration(environment.project, dapDriverPath)
 
                 val commandLine = GeneralCommandLine(targetPath)
                     .withWorkDirectory(configuration.runWorkingDir)
