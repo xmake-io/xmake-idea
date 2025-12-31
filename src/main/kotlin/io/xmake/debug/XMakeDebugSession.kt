@@ -167,7 +167,7 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
                 }
                 
                 XMakeLogger.v(TAG, "Using DAP driver: $dapDriverPath")
-                val driverConfig = XMakeDapDriverConfiguration(project, dapDriverPath)
+                val driverConfig = XMakeDapDriverConfiguration(project, dapDriverPath, configuration.launchConfiguration)
 
                 val commandLine = GeneralCommandLine(targetPath)
                     .withWorkDirectory(configuration.runWorkingDir)

@@ -81,6 +81,10 @@ class XMakeRunConfiguration(
     @OptionTag(tag = "dapDriverAutoDetect")
     var dapDriverAutoDetect: Boolean = true
 
+    // Launch configuration for debugging (JSON format)
+    @OptionTag(tag = "launchConfiguration")
+    var launchConfiguration: String = getDefaultLaunchConfigJson()
+
     // the run command line
     val runCommandLine: GeneralCommandLine
         get() {
@@ -207,5 +211,22 @@ class XMakeRunConfiguration(
 
     companion object {
         private val Log = Logger.getInstance(XMakeRunConfiguration::class.java.getName())
+        
+        fun getDefaultLaunchConfigJson(): String {
+            return """{
+    "stopOnEntry": false,
+    "sourceMap": {
+        "enabled": "true"
+    },
+    "showDisassembly": "auto",
+    "enablePrettyPrinting": true,
+    "timeout": 30000,
+    "memoryReference": "hex",
+    "displayFormat": "hex",
+    "maxChildren": 1000,
+    "maxArrayLength": 1000,
+    "maxStringLength": 10000
+}"""
+        }
     }
 }

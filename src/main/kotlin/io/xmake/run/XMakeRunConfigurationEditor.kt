@@ -174,6 +174,11 @@ class XMakeRunConfigurationEditor(
 
     private val additionalConfiguration = RawCommandLineEditor()
 
+    // Launch configuration for debugging (JSON format)
+    private val launchConfiguration = RawCommandLineEditor().apply {
+        text = XMakeRunConfiguration.getDefaultLaunchConfigJson()
+    }
+
     // DAP driver configuration UI components
     private val dapDriverAutoDetectCheckBox = CheckBox("Auto-detect DAP driver", runConfiguration.dapDriverAutoDetect)
     
@@ -217,6 +222,12 @@ class XMakeRunConfigurationEditor(
         enableVerboseCheckBox.setSelected(enableVerbose)
 
         additionalConfiguration.text = configuration.additionalConfiguration
+
+        launchConfiguration.text = if (configuration.launchConfiguration.isBlank()) {
+            XMakeRunConfiguration.getDefaultLaunchConfigJson()
+        } else {
+            configuration.launchConfiguration
+        }
 
         // reset DAP driver configuration
         dapDriverAutoDetectCheckBox.isSelected = configuration.dapDriverAutoDetect
@@ -266,6 +277,8 @@ class XMakeRunConfigurationEditor(
         configuration.enableVerbose = enableVerbose
 
         configuration.additionalConfiguration = additionalConfiguration.text
+
+        configuration.launchConfiguration = launchConfiguration.text
 
         // apply DAP driver configuration
         configuration.dapDriverAutoDetect = dapDriverAutoDetectCheckBox.isSelected
@@ -366,6 +379,11 @@ class XMakeRunConfigurationEditor(
             
             row("Custom DAP Driver Path:") {
                 cell(dapDriverPathCustomField).align(AlignX.FILL)
+            }
+            
+            row("Launch Configuration (JSON format):") {
+                cell(launchConfiguration).align(AlignX.FILL).resizableColumn()
+                comment("Override default debug settings with JSON configuration")
             }
         }
 
