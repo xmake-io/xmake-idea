@@ -25,6 +25,7 @@ import io.xmake.project.toolkit.activatedToolkit
 import io.xmake.utils.SystemUtils
 import io.xmake.utils.execute.createProcess
 import io.xmake.utils.execute.runProcess
+import io.xmake.utils.XMakeLogger
 import kotlinx.coroutines.runBlocking
 import java.io.File
 
@@ -35,6 +36,10 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
     
     private val project: Project = environment.project
     private val configuration: XMakeRunConfiguration = environment.runProfile as XMakeRunConfiguration
+    
+    companion object {
+        private const val TAG = "XMakeDebugSession"
+    }
     
     /**
      * Start a complete debugging session with build, mode check, and debug process

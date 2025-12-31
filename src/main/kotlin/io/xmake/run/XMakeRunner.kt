@@ -7,8 +7,8 @@ import com.intellij.execution.executors.DefaultRunExecutor
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.execution.runners.ProgramRunner
 import com.intellij.execution.ui.RunContentDescriptor
-import com.intellij.openapi.diagnostic.Logger
 import io.xmake.debug.XMakeDebugSession
+import io.xmake.utils.XMakeLogger
 
 open class XMakeRunner : XMakeDefaultRunner() {
 
@@ -32,6 +32,6 @@ open class XMakeRunner : XMakeDefaultRunner() {
     }
 
     companion object {
-        private val Log = Logger.getInstance(XMakeRunner::class.java.name)
+        private const val TAG = "XMakeRunner"
     }
 }
