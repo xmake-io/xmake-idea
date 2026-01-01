@@ -166,7 +166,8 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
     fun validateXMakeToolkit() {
         scope.launch {
             try {
-                validateJob = launch { validateToolkits() }
+                validateJob?.cancel()
+                validateJob = launch { validateToolkitsImpl() }
             } catch (e: Exception) {
                 Logger.e(TAG, "Error", e)
             }
@@ -178,12 +179,18 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
         detectionJob?.cancel()
         detectionJob = scope.launch {
             try {
-                validateJob = launch { validateToolkits() }
+                validateToolkitsImpl()
             } catch (e: Exception) {
                 Logger.e(TAG, "Error", e)
             }
         }
-
+    }
+    
+    // Actual implementation of toolkit validation
+    private fun validateToolkitsImpl() {
+        // TODO: Implement actual validation logic
+        Logger.i(TAG, "Validating toolkits...")
+        // This would contain the actual validation implementation
     }
 
     // Todo: Validate toolkit.
