@@ -51,7 +51,13 @@ object DebugModuleLoader {
             val clionPlugin = pluginManager.findPlugin(PluginId.getId(CLION_PLUGIN_ID))
             val isAvailable = clionPlugin != null && clionPlugin.isEnabled
             
-            // Also check if we're running in CLion by checking the IDE name
+            // Also check if we're running in CLion by checking IDE name
+            val application = com.intellij.openapi.application.ApplicationManager.getApplication()
+            if (application == null) {
+                Logger.w(TAG, "ApplicationManager.getApplication() returned null")
+                return false
+            }
+            
             val applicationInfo = com.intellij.openapi.application.ApplicationInfo.getInstance()
             val isClionIDE = applicationInfo.build.toString().contains("CL-")
             
@@ -105,10 +111,10 @@ object DebugModuleLoader {
      * Find the debug JAR in the plugin resources
      */
     private fun findDebugJar(): String? {
-        return try {
+        try {
             // Try multiple possible locations for the debug JAR
             val possiblePaths = listOf(
-                // Development mode: in main/resources
+                // Development mode: in main/resources (relative to project root)
                 "main/resources/$DEBUG_JAR_NAME",
                 // Development mode: in build/resources/main
                 "build/resources/main/$DEBUG_JAR_NAME",
@@ -118,28 +124,60 @@ object DebugModuleLoader {
                 DEBUG_JAR_NAME
             )
             
+            // Get the project root directory by going up from current working directory
+            val currentDir = File(".")
+            val projectRoot = findProjectRoot(currentDir) ?: currentDir
+            
+            Logger.d(TAG, "Searching for debug JAR: $DEBUG_JAR_NAME")
+            Logger.d(TAG, "Current directory: ${currentDir.absolutePath}")
+            Logger.d(TAG, "Project root: ${projectRoot.absolutePath}")
+            
             for (path in possiblePaths) {
-                val file = File(path)
+                val file = File(projectRoot, path)
+                Logger.i(TAG, "Checking path: ${file.absolutePath} (exists: ${file.exists()})")
                 if (file.exists()) {
-                    Logger.d(TAG, "Found debug JAR at: ${file.absolutePath}")
+                    Logger.i(TAG, "Found debug JAR at: ${file.absolutePath}")
                     return file.absolutePath
                 }
             }
             
             // Try relative to current working directory
-            val currentDir = File(".")
             val debugJar = File(currentDir, DEBUG_JAR_NAME)
+            Logger.i(TAG, "Checking current directory: ${debugJar.absolutePath} (exists: ${debugJar.exists()})")
             if (debugJar.exists()) {
-                Logger.d(TAG, "Found debug JAR at: ${debugJar.absolutePath}")
+                Logger.i(TAG, "Found debug JAR at: ${debugJar.absolutePath}")
                 return debugJar.absolutePath
             }
             
-            Logger.w(TAG, "Debug JAR not found in any of the expected locations")
-            null
+            // Try to find it using classpath
+            val classpath = System.getProperty("java.class.path")
+            Logger.i(TAG, "Classpath: $classpath")
+            
+            Logger.e(TAG, "Debug JAR not found in any of the expected locations:")
+            possiblePaths.forEach { path ->
+                Logger.e(TAG, "  - ${File(projectRoot, path).absolutePath}")
+            }
+            
+            return null
         } catch (e: Exception) {
             Logger.e(TAG, "Failed to find debug JAR", e)
-            null
+            return null
         }
+        return null
+    }
+    
+    /**
+     * Find the project root directory by looking for build.gradle.kts
+     */
+    private fun findProjectRoot(startDir: File): File? {
+        var current = startDir
+        while (current.parentFile != null) {
+            if (File(current, "build.gradle.kts").exists()) {
+                return current
+            }
+            current = current.parentFile
+        }
+        return null
     }
     
     /**

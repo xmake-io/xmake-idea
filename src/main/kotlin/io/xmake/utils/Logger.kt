@@ -25,7 +25,7 @@ object Logger {
     private val useIntelliJLogger = java.lang.Boolean.getBoolean("xmake.production") && !java.lang.Boolean.getBoolean("xmake.debug")
     
     // Current log level (can be configured)
-    private var currentLogLevel = if (useIntelliJLogger) LogLevel.INFO else LogLevel.VERBOSE
+    private var currentLogLevel = if (useIntelliJLogger) LogLevel.INFO else LogLevel.DEBUG
     
     // IntelliJ logger instances
     private val loggers = mutableMapOf<String, com.intellij.openapi.diagnostic.Logger>()

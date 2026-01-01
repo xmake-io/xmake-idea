@@ -92,8 +92,15 @@ class XMakeDapDriverConfiguration(
      */
     fun startDebugSession(targetPath: String): Boolean {
         return try {
-            if (DebugModuleLoader.isDebuggingAvailable(project)) {
-                DebugModuleLoader.startDebugSession(project, internalDebugConfiguration ?: return false, targetPath)
+            // First try to load the debug module
+            if (DebugModuleLoader.loadDebugModuleIfNeeded(project)) {
+                Logger.d(TAG, "Debug module loaded, attempting to start debug session")
+                if (DebugModuleLoader.isDebuggingAvailable(project)) {
+                    DebugModuleLoader.startDebugSession(project, internalDebugConfiguration ?: return false, targetPath)
+                } else {
+                    Logger.d(TAG, "Debug module loaded but debugging not available")
+                    false
+                }
             } else {
                 Logger.d(TAG, "Debug module not available, cannot start debug session")
                 false
