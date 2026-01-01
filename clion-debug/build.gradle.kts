@@ -27,13 +27,16 @@ intellijPlatform {
     }
 }
 
-// Disable runIDE task for the debug module
-tasks.named("runIde") {
+// Disable problematic tasks by default
+tasks.matching { task -> task.name.contains("buildSearchableOptions") }.configureEach {
     enabled = false
 }
 
-// Disable prepareJarSearchableOptions task for the debug module
-tasks.named("prepareJarSearchableOptions") {
+tasks.matching { task -> task.name.contains("prepareJarSearchableOptions") }.configureEach {
+    enabled = false
+}
+
+tasks.matching { task -> task.name.contains("runIde") }.configureEach {
     enabled = false
 }
 

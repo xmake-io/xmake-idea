@@ -62,8 +62,16 @@ tasks {
     }
 }
 
-// Disable problematic tasks for both main project and clion-debug module
-tasks.named("buildSearchableOptions") {
+// Disable problematic tasks by default
+tasks.matching { task -> task.name.contains("buildSearchableOptions") }.configureEach {
+    enabled = false
+}
+
+tasks.matching { task -> task.name.contains("prepareJarSearchableOptions") }.configureEach {
+    enabled = false
+}
+
+tasks.matching { task -> task.name.contains("runIde") && task.project.name == "clion-debug" }.configureEach {
     enabled = false
 }
 
