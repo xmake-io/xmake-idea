@@ -1,12 +1,17 @@
 package io.xmake.debug.clion
 
 import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.execution.process.ProcessHandler
+import com.intellij.execution.ui.ConsoleView
+import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.project.Project
-import com.intellij.util.EnvironmentUtil
-import com.jetbrains.cidr.ArchitectureType
-import com.jetbrains.cidr.execution.debugger.backend.DebuggerDriver
+import com.intellij.openapi.util.SystemInfo
+import com.intellij.xdebugger.XDebugProcess
+import com.intellij.xdebugger.XDebugSession
 import com.jetbrains.cidr.execution.debugger.backend.dap.DapDriverConfiguration
+import com.jetbrains.cidr.execution.debugger.backend.DebuggerDriver
 import com.jetbrains.cidr.execution.debugger.backend.dap.DapDriver
+import com.jetbrains.cidr.ArchitectureType
 import org.jetbrains.annotations.NotNull
 import java.io.File
 
@@ -56,6 +61,20 @@ object ClionDebugModule {
     }
     
     /**
+     * Start a debug session using CLion's debugging infrastructure (overload for dynamic loading)
+     */
+    @JvmStatic
+    fun startDebugSession(project: Project, configuration: Any, targetPath: String): Boolean {
+        return try {
+            // Try to cast to the expected type and call the main method
+            startDebugSession(project, configuration as DapDriverConfiguration, targetPath)
+        } catch (e: Exception) {
+            Logger.e("ClionDebugModule", "Failed to start debug session with Any parameter", e)
+            false
+        }
+    }
+    
+    /**
      * Concrete implementation of DapDriverConfiguration for XMake
      */
     private class XMakeClionDapDriverConfiguration(
@@ -69,7 +88,7 @@ object ClionDebugModule {
             
             return GeneralCommandLine(actualDriverPath)
                 .withWorkDirectory(project.basePath)
-                .withEnvironment(EnvironmentUtil.getEnvironmentMap())
+                .withEnvironment(System.getenv())
         }
         
         override fun getDapLaunchOptions(commandLine: GeneralCommandLine): Map<String, Any> {
@@ -150,7 +169,7 @@ object ClionDebugModule {
             return try {
                 val commandLine = GeneralCommandLine(targetPath)
                     .withWorkDirectory(project.basePath)
-                    .withEnvironment(EnvironmentUtil.getEnvironmentMap())
+                    .withEnvironment(System.getenv())
                 
                 // Use reflection to create TrivialRunParameters to avoid direct dependency
                 val trivialParamsClass = Class.forName("com.jetbrains.cidr.execution.debugger.TrivialRunParameters")
