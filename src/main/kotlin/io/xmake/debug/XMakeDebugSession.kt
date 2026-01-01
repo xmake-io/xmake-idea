@@ -178,12 +178,12 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
                 
                 Logger.v(TAG, "Using DAP driver: $dapDriverPath ($driverName)")
                 
-                // Try to start debug session using the configuration
-                val debugProcess = createDebugProcess(targetPath, dapDriverPath, driverName)
+                // Try to create debug process using the configuration
+                val debugProcess = createDebugProcess(targetPath, dapDriverPath, driverName, session)
                 if (debugProcess == null) {
-                    throw Exception("Failed to start debug session")
+                    throw Exception("Failed to create debug process")
                 }
-                Logger.d(TAG, "Debug process started successfully")
+                Logger.d(TAG, "Debug process created successfully")
                 
                 return debugProcess
             }
@@ -193,26 +193,30 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
     /**
      * Create a debug process
      */
-    private fun createDebugProcess(targetPath: String, driverPath: String, driverName: String): XDebugProcess? {
+    private fun createDebugProcess(targetPath: String, driverPath: String, driverName: String, session: XDebugSession): XDebugProcess? {
         return try {
             // Try to use CLion debug module
             if (DebugModuleLoader.loadDebugModuleIfNeeded(project)) {
                 if (DebugModuleLoader.isDebuggingAvailable(project)) {
                     val launchConfig = configuration.launchConfiguration
-                    if (DebugModuleLoader.startDebugSession(project, driverPath, driverName, launchConfig, targetPath)) {
-                        Logger.d(TAG, "Debug process started successfully")
-                        
-                        // Since the CLion module handles the actual debug process, we throw an exception
-                        // to indicate that the debug process is handled externally
-                        throw NotImplementedError("Debug process is handled by CLion module directly")
+                    val args = if (configuration.runArguments.isNotBlank()) {
+                        ParametersListUtil.parse(configuration.runArguments)
+                    } else {
+                        emptyList()
+                    }
+                    val debugProcess = DebugModuleLoader.createDebugProcess(
+                        project, driverPath, driverName, launchConfig, targetPath, session,
+                        args, configuration.runEnvironment.envs
+                    )
+                    if (debugProcess != null) {
+                        Logger.d(TAG, "Debug process created successfully")
+                        return debugProcess
                     }
                 }
             }
             
+            Logger.w(TAG, "Failed to create debug process using CLion module")
             null
-        } catch (e: NotImplementedError) {
-            // Re-throw NotImplementedError to indicate external handling
-            throw e
         } catch (e: Exception) {
             Logger.e(TAG, "Failed to create debug process", e)
             null

@@ -3,6 +3,8 @@ package io.xmake.debug
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.extensions.PluginId
 import com.intellij.ide.plugins.PluginManagerCore
+import com.intellij.xdebugger.XDebugSession
+import com.intellij.xdebugger.XDebugProcess
 import io.xmake.utils.Logger
 import io.xmake.utils.SystemUtils
 import java.io.File
@@ -146,38 +148,40 @@ object DebugModuleLoader {
     }
     
     /**
-     * Start a debug session using the loaded module
+     * Create a debug process using the loaded module
      */
-    fun startDebugSession(
+    fun createDebugProcess(
         project: Project, 
         driverPath: String, 
         driverName: String,
         launchConfig: String, 
         targetPath: String,
+        session: XDebugSession,
         args: List<String> = emptyList(),
         env: Map<String, String> = emptyMap()
-    ): Boolean {
+    ): XDebugProcess? {
         if (!isLoaded || debugModuleClass == null) {
             Logger.w(TAG, "Debug module not loaded")
-            return false
+            return null
         }
         
         return try {
-            val startSessionMethod = debugModuleClass?.getMethod(
-                "startDebugSession",
+            val createProcessMethod = debugModuleClass?.getMethod(
+                "createDebugProcess",
                 Project::class.java,
                 String::class.java,
                 String::class.java,
                 String::class.java,
                 String::class.java,
+                XDebugSession::class.java,
                 List::class.java,
                 Map::class.java
             )
-            val result = startSessionMethod?.invoke(null, project, driverPath, driverName, launchConfig, targetPath, args, env)
-            result as? Boolean ?: false
+            val result = createProcessMethod?.invoke(null, project, driverPath, driverName, launchConfig, targetPath, session, args, env)
+            result as? XDebugProcess
         } catch (e: Exception) {
-            Logger.e(TAG, "Failed to start debug session", e)
-            false
+            Logger.e(TAG, "Failed to create debug process", e)
+            null
         }
     }
     

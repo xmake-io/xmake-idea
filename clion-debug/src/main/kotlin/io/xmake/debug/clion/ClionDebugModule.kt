@@ -4,6 +4,7 @@ import io.xmake.debug.clion.utils.Logger
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.openapi.project.Project
 import com.intellij.xdebugger.XDebugSession
+import com.intellij.xdebugger.XDebugProcess
 import com.intellij.xdebugger.XDebuggerManager
 import com.intellij.xdebugger.XDebugProcessStarter
 import com.intellij.execution.runners.ExecutionEnvironment
@@ -41,20 +42,20 @@ object ClionDebugModule {
     }
     
     /**
-     * Start a debug session using the provided parameters
+     * Create a debug process using CLion's infrastructure
      */
     @JvmStatic
-    fun startDebugSession(
+    fun createDebugProcess(
         project: Project, 
         driverPath: String, 
         driverName: String,
         launchConfig: String, 
         targetPath: String,
+        session: XDebugSession,
         args: List<String> = emptyList(),
-        env: Map<String, String> = emptyMap(),
-        environment: ExecutionEnvironment? = null
-    ): Boolean {
-        Logger.i(TAG, "=== Starting debug session ===")
+        env: Map<String, String> = emptyMap()
+    ): XDebugProcess {
+        Logger.i(TAG, "=== Creating debug process ===")
         Logger.i(TAG, "Project: ${project.name}")
         Logger.i(TAG, "Driver path: $driverPath")
         Logger.i(TAG, "Driver name: $driverName")
@@ -63,54 +64,22 @@ object ClionDebugModule {
         Logger.i(TAG, "Args: $args")
         Logger.i(TAG, "Env: $env")
         
-        return try {
-            val configuration = XMakeDapDriverConfiguration(project, driverPath, driverName, launchConfig, args, env)
-            startDebugSessionInternal(project, configuration, targetPath, environment)
-        } catch (e: Exception) {
-            Logger.e(TAG, "Failed to start debug session", e)
-            false
-        }
-    }
-    
-    /**
-     * Internal method to start debug session using CLion's infrastructure
-     */
-    private fun startDebugSessionInternal(project: Project, configuration: XMakeDapDriverConfiguration, targetPath: String, environment: ExecutionEnvironment?): Boolean {
-        return try {
-            val commandLine = GeneralCommandLine(targetPath)
-                .withWorkDirectory(project.basePath)
-                .withEnvironment(System.getenv())
+        val configuration = XMakeDapDriverConfiguration(project, driverPath, driverName, launchConfig, args, env)
         
-            // Create TrivialRunParameters directly using CLion API
-            val trivialParams = TrivialRunParameters(configuration, commandLine, com.jetbrains.cidr.ArchitectureType.UNKNOWN)
-            
-            // Create debug process directly using CLion API - like main plugin
-            val consoleBuilder = TextConsoleBuilderFactory.getInstance().createBuilder(project)
-            
-            if (environment != null) {
-                XDebuggerManager.getInstance(project).startSession(environment, object : XDebugProcessStarter() {
-                    override fun start(session: XDebugSession): com.intellij.xdebugger.XDebugProcess {
-                        val debugProcess = CidrLocalDebugProcess(trivialParams, session, consoleBuilder)
-                        debugProcess.start()
-                        return debugProcess
-                    }
-                })
-            } else {
-                // Fallback: create a dummy session
-                val session = XDebuggerManager.getInstance(project).currentSession
-                if (session != null) {
-                    val debugProcess = CidrLocalDebugProcess(trivialParams, session, consoleBuilder)
-                    debugProcess.start()
-                } else {
-                    Logger.e(TAG, "No active debug session found")
-                    return false
-                }
-            }
-            
-            true
-        } catch (e: Exception) {
-            Logger.e(TAG, "Failed to start debug process", e)
-            false
-        }
+        // Create command line for target executable
+        val commandLine = GeneralCommandLine(targetPath)
+            .withWorkDirectory(project.basePath)
+            .withEnvironment(System.getenv())
+        
+        // Create TrivialRunParameters directly using CLion API
+        val trivialParams = TrivialRunParameters(configuration, commandLine, ArchitectureType.UNKNOWN)
+        
+        // Create debug process directly using CLion API
+        val consoleBuilder = TextConsoleBuilderFactory.getInstance().createBuilder(project)
+        val debugProcess = CidrLocalDebugProcess(trivialParams, session, consoleBuilder)
+        debugProcess.start()
+        
+        Logger.d(TAG, "Debug process created successfully")
+        return debugProcess
     }
 }
