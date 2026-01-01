@@ -9,11 +9,27 @@ import com.intellij.execution.runners.ProgramRunner
 import com.intellij.execution.ui.RunContentDescriptor
 import io.xmake.debug.XMakeDebugSession
 import io.xmake.utils.Logger
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.extensions.PluginId
 
 open class XMakeRunner : XMakeDefaultRunner() {
 
     override fun canRun(executorId: String, profile: RunProfile): Boolean {
-        return (executorId == DefaultRunExecutor.EXECUTOR_ID || executorId == DefaultDebugExecutor.EXECUTOR_ID) && profile is XMakeRunConfiguration
+        if (profile !is XMakeRunConfiguration) {
+            return false
+        }
+        
+        // Always allow run executor
+        if (executorId == DefaultRunExecutor.EXECUTOR_ID) {
+            return true
+        }
+        
+        // Only allow debug executor if native debug is available
+        if (executorId == DefaultDebugExecutor.EXECUTOR_ID) {
+            return isNativeDebugAvailable(profile.project)
+        }
+        
+        return false
     }
 
     override fun getRunnerId(): String = "XMakeRunner"
@@ -25,10 +41,44 @@ open class XMakeRunner : XMakeDefaultRunner() {
         }
 
         if (environment.executor.id == DefaultDebugExecutor.EXECUTOR_ID) {
+            // Check if debug is available before starting debug session
+            if (!isNativeDebugAvailable(configuration.project)) {
+                Logger.w("XMakeRunner", "Debug functionality is not available in this IDE. Please use CLion for C/C++ debugging.")
+                return null
+            }
             return XMakeDebugSession(state, environment).startDebugSession()
         }
 
         return super.doExecute(state, environment)
+    }
+    
+    /**
+     * Check if native debug functionality is available
+     */
+    private fun isNativeDebugAvailable(project: Project): Boolean {
+        return try {
+            // Check if native debug plugin is available
+            val pluginManager = com.intellij.ide.plugins.PluginManagerCore
+            val nativeDebugPlugin = pluginManager.findPlugin(PluginId.getId("com.intellij.nativeDebug"))
+            
+            if (nativeDebugPlugin == null || !nativeDebugPlugin.isEnabled) {
+                Logger.d("XMakeRunner", "Native debug plugin is not available")
+                return false
+            }
+            
+            // Check if CLion-specific classes are available
+            try {
+                Class.forName("com.jetbrains.cidr.execution.debugger.CidrLocalDebugProcess")
+                Logger.d("XMakeRunner", "CLion debugging classes are available")
+                true
+            } catch (e: ClassNotFoundException) {
+                Logger.d("XMakeRunner", "CLion debugging classes are not available")
+                false
+            }
+        } catch (e: Exception) {
+            Logger.e("XMakeRunner", "Error checking debug availability", e)
+            false
+        }
     }
 
     companion object {

@@ -15,7 +15,7 @@
     <depends>com.intellij.modules.xml</depends>
     <depends>com.intellij.modules.xdebugger</depends>
 
-    <depends>com.intellij.modules.nativeDebug</depends>
+    <depends optional="true" config-file="io.xmake-native-debug.xml">com.intellij.modules.nativeDebug</depends>
 
     <depends optional="true" config-file="io.xmake-ssh.xml">
         com.intellij.modules.ssh

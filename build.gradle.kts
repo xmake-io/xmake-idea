@@ -43,6 +43,9 @@ intellijPlatform {
             select {
                 types = listOf(
                     IntelliJPlatformType.CLion,
+                    IntelliJPlatformType.IntellijIdeaCommunity,
+                    IntelliJPlatformType.IntellijIdeaUltimate,
+                    IntelliJPlatformType.AndroidStudio
                 )
                 sinceBuild = properties("pluginSinceBuild")
             }
@@ -63,6 +66,7 @@ dependencies {
     testImplementation("io.mockk:mockk:1.13.12")
     testImplementation("junit:junit:4.13.2")
     intellijPlatform {
+        // Default to CLion for development, but allow other IDEs for verification
         clion(properties("runIdeVersion"))
         bundledPlugin("com.intellij.nativeDebug")
         testFramework(TestFrameworkType.Platform)
