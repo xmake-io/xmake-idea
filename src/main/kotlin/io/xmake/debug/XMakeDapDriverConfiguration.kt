@@ -6,19 +6,23 @@ import com.intellij.util.EnvironmentUtil
 import com.intellij.openapi.util.text.StringUtil
 import com.jetbrains.cidr.ArchitectureType
 import com.jetbrains.cidr.execution.debugger.backend.DebuggerDriver
-import com.jetbrains.cidr.execution.debugger.backend.dap.DapDriver
-import com.jetbrains.cidr.execution.debugger.backend.dap.DapDriverConfiguration
 import org.jetbrains.annotations.NotNull
 import java.io.File
-import kotlin.collections.mutableMapOf
+import io.xmake.debug.loader.DebugModuleLoader
+import io.xmake.utils.Logger
 
+/**
+ * Simplified XMake DAP driver configuration that delegates to CLion-specific debug module
+ */
 class XMakeDapDriverConfiguration(
-    project: Project,
+    private val project: Project,
     private val driverPath: String,
     private val userLaunchConfig: String = ""
-) : DapDriverConfiguration(project, getDriverName(driverPath), false, false) {
+) {
     
     companion object {
+        private const val TAG = "XMakeDapDriverConfiguration"
+        
         fun getDriverName(driverPath: String): String {
             val driverInfo = DapDriverDetector.validateDriverPath(driverPath)
             return when (driverInfo?.type) {
@@ -28,49 +32,82 @@ class XMakeDapDriverConfiguration(
             }
         }
     }
-
-    override fun createDriverCommandLine(@NotNull driver: DebuggerDriver, @NotNull arch: ArchitectureType): GeneralCommandLine {
-        val actualDriverPath = if (File(driverPath).exists()) {
+    
+    private val internalDebugConfiguration: Any? by lazy {
+        try {
+            if (DebugModuleLoader.loadDebugModuleIfNeeded(project)) {
+                DebugModuleLoader.createDebugConfiguration(project, driverPath, userLaunchConfig)
+            } else {
+                Logger.d(TAG, "Debug module not available, using fallback")
+                createFallbackConfiguration()
+            }
+        } catch (e: Exception) {
+            Logger.e(TAG, "Failed to create debug configuration", e)
+            createFallbackConfiguration()
+        }
+    }
+    
+    /**
+     * Create a fallback configuration for non-CLion IDEs
+     */
+    private fun createFallbackConfiguration(): Any? {
+        return object {
+            fun getProject(): Project = project
+            fun getAdapterId(): String = getDriverName(driverPath)
+            fun isElevated(): Boolean = false
+            fun isEmulateTerminal(): Boolean = false
+            
+            fun createDriverCommandLine(@NotNull driver: DebuggerDriver, @NotNull arch: ArchitectureType) = 
+                GeneralCommandLine(getActualDriverPath())
+                    .withWorkDirectory(project.basePath)
+                    .withEnvironment(EnvironmentUtil.getEnvironmentMap())
+            
+            fun getDapLaunchOptions(commandLine: GeneralCommandLine): Map<String, Any> = 
+                emptyMap()
+            
+            fun getDapAttachOptions(pid: Int): Map<String, Any> = 
+                emptyMap()
+            
+            fun createDriver(@NotNull handler: DebuggerDriver.Handler, @NotNull architectureType: ArchitectureType): Any? = 
+                null
+        }
+    }
+    
+    private fun getActualDriverPath(): String {
+        return if (File(driverPath).exists()) {
             driverPath
         } else {
-            // Use the new detector to find best driver
             val bestDriver = DapDriverDetector.findBestDriver()
             bestDriver?.path ?: driverPath
         }
-        
-        return GeneralCommandLine(actualDriverPath)
-            .withWorkDirectory(project.basePath)
-            .withEnvironment(EnvironmentUtil.getEnvironmentMap())
     }
-
-    override fun getDapLaunchOptions(commandLine: GeneralCommandLine): Map<String, Any> {
-        // Get driver type and default configuration
-        val driverInfo = DapDriverDetector.validateDriverPath(driverPath)
-        val driverType = driverInfo?.type ?: DapDriverDetector.DapDriverType.LLDB_DAP
-        val defaultConfig = DefaultDebugConfigurations.getDefaultConfig(driverType)
-        
-        // Get user configuration from run configuration
-        val userConfigJson = userLaunchConfig
-        val mergedConfig = DefaultDebugConfigurations.mergeConfigurations(userConfigJson, defaultConfig)
-        
-        // Build final configuration
-        val finalConfig = mutableMapOf<String, Any>()
-        finalConfig.putAll(mergedConfig)
-        
-        // Override with runtime values
-        finalConfig["program"] = commandLine.exePath
-        finalConfig["cwd"] = commandLine.workDirectory?.path ?: project.basePath ?: ""
-        finalConfig["env"] = commandLine.environment
-        finalConfig["args"] = commandLine.parametersList.list
-        
-        return finalConfig
+    
+    /**
+     * Get the debug configuration for use with IntelliJ debugging system
+     */
+    fun getDebugConfiguration(): Any? = internalDebugConfiguration
+    
+    /**
+     * Start a debug session
+     */
+    fun startDebugSession(targetPath: String): Boolean {
+        return try {
+            if (DebugModuleLoader.isDebuggingAvailable(project)) {
+                DebugModuleLoader.startDebugSession(project, internalDebugConfiguration ?: return false, targetPath)
+            } else {
+                Logger.d(TAG, "Debug module not available, cannot start debug session")
+                false
+            }
+        } catch (e: Exception) {
+            Logger.e(TAG, "Failed to start debug session", e)
+            false
+        }
     }
-
-    override fun getDapAttachOptions(pid: Int): Map<String, Any> {
-        return emptyMap()
-    }
-
-    override fun createDriver(@NotNull handler: DebuggerDriver.Handler, @NotNull architectureType: ArchitectureType): DapDriver {
-        return super.createDriver(handler, architectureType)
+    
+    /**
+     * Check if debugging is available
+     */
+    fun isDebuggingAvailable(): Boolean {
+        return DebugModuleLoader.isDebuggingAvailable(project)
     }
 }

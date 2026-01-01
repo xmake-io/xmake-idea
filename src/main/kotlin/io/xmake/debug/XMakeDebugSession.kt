@@ -168,30 +168,16 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
                 
                 Logger.v(TAG, "Using DAP driver: $dapDriverPath")
                 val driverConfig = XMakeDapDriverConfiguration(project, dapDriverPath, configuration.launchConfiguration)
-
-                val commandLine = GeneralCommandLine(targetPath)
-                    .withWorkDirectory(configuration.runWorkingDir)
-                    .withEnvironment(configuration.runCommandLine.environment)
-
-                if (configuration.runArguments.isNotEmpty()) {
-                    Logger.v(TAG, "Run arguments: ${configuration.runArguments}")
-                    commandLine.withParameters(ParametersListUtil.parse(configuration.runArguments))
+                
+                // Try to start debug session using the configuration
+                if (!driverConfig.startDebugSession(targetPath)) {
+                    throw Exception("Failed to start debug session")
                 }
-
-                val params = TrivialRunParameters(
-                    driverConfig,
-                    commandLine,
-                    ArchitectureType.UNKNOWN
-                )
-
-                val consoleBuilder = (state as? CommandLineState)?.consoleBuilder 
-                    ?: TextConsoleBuilderFactory.getInstance().createBuilder(project)
-
-                Logger.d(TAG, "Creating CidrLocalDebugProcess...")
-                val debugProcess = CidrLocalDebugProcess(params, session, consoleBuilder)
-                debugProcess.start()
                 Logger.d(TAG, "Debug process started successfully")
-                return debugProcess
+                
+                // Since the CLion module handles the actual debug process, we return a dummy one
+                // The real debug process is started by the CLion module's startDebugSession method
+                throw NotImplementedError("Debug process is handled by CLion module directly")
             }
         }).runContentDescriptor
     }
