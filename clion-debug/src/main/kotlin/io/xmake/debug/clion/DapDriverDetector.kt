@@ -1,8 +1,7 @@
-package io.xmake.debug
+package io.xmake.debug.clion
 
 import com.intellij.openapi.util.SystemInfo
 import java.io.File
-import io.xmake.utils.Logger
 
 /**
  * DAP driver path detection utility
@@ -28,12 +27,16 @@ object DapDriverDetector {
      */
     fun detectDriverType(path: String): DapDriverType {
         val file = File(path)
-        if (!file.exists()) return DapDriverType.UNKNOWN
+        if (!file.exists()) {
+            return DapDriverType.UNKNOWN
+        }
         
         val fileName = file.name.lowercase()
         return when {
-            fileName.contains("lldb") && fileName.contains("dap") -> DapDriverType.LLDB_DAP
-            fileName.contains("gdb") && fileName.contains("dap") -> DapDriverType.GDB_DAP
+            fileName.contains("lldb-dap") -> DapDriverType.LLDB_DAP
+            fileName.contains("gdb-dap") -> DapDriverType.GDB_DAP
+            fileName.contains("lldb") -> DapDriverType.LLDB_DAP
+            fileName.contains("gdb") -> DapDriverType.GDB_DAP
             else -> {
                 // Try to detect by checking file content or help output
                 try {
@@ -114,7 +117,7 @@ object DapDriverDetector {
     }
     
     /**
-     * Find the best available DAP driver (prefer LLDB over GDB)
+     * Find best available DAP driver (prefer LLDB over GDB)
      */
     fun findBestDriver(): DapDriverInfo? {
         val drivers = findAvailableDrivers()
@@ -135,10 +138,10 @@ object DapDriverDetector {
         }
         
         val type = detectDriverType(path)
-        if (type == DapDriverType.UNKNOWN) {
-            return null
+        return if (type != DapDriverType.UNKNOWN) {
+            DapDriverInfo(path, type, type.displayName)
+        } else {
+            null
         }
-        
-        return DapDriverInfo(path, type, type.displayName)
     }
 }

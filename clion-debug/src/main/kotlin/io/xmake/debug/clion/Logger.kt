@@ -5,7 +5,6 @@ import java.time.format.DateTimeFormatter
 
 /**
  * Simple logger implementation for CLion debug module
- * This is a copy of the main Logger utility but simplified for the debug module
  */
 object Logger {
     
@@ -84,6 +83,21 @@ object Logger {
      */
     fun w(tag: String, message: String) {
         log(LogLevel.WARN, tag, message)
+    }
+    
+    /**
+     * Warning level log with exception and default tag
+     */
+    fun w(message: String, throwable: Throwable) {
+        w(DEFAULT_TAG, message, throwable)
+    }
+    
+    /**
+     * Warning level log with exception and tag
+     */
+    fun w(tag: String, message: String, throwable: Throwable) {
+        log(LogLevel.WARN, tag, message)
+        throwable.printStackTrace()
     }
     
     /**
