@@ -1,5 +1,10 @@
 package io.xmake.debug.clion
 
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.JsonArray
 import io.xmake.debug.clion.utils.Logger
 
 /**
@@ -23,37 +28,81 @@ object DefaultDebugConfigurations {
     )
     
     /**
-     * Parse user launch configuration
-     * Supports JSON-like key=value pairs separated by commas
+     * Parse user configuration and merge with defaults using safe JSON parsing
      */
-    fun parseLaunchConfig(config: String): Map<String, Any> {
-        if (config.isBlank()) {
+    fun parseLaunchConfig(userConfigJson: String): Map<String, Any> {
+        if (userConfigJson.isBlank()) {
             return emptyMap()
         }
         
-        val result = mutableMapOf<String, Any>()
-        
-        try {
-            // Parse key=value pairs separated by commas
-            config.split(",").forEach { pair ->
-                val parts = pair.split("=", limit = 2)
-                if (parts.size == 2) {
-                    val key = parts[0].trim()
-                    val value = parts[1].trim()
-                    
-                    // Try to parse as number or boolean, otherwise keep as string
-                    result[key] = when {
-                        value.toIntOrNull() != null -> value.toInt()
-                        value.toBooleanStrictOrNull() != null -> value.toBoolean()
-                        else -> value
+        return try {
+            val json = Json { ignoreUnknownKeys = true }
+            val userConfig = json.decodeFromString<JsonObject>(userConfigJson)
+            
+            val result = mutableMapOf<String, Any>()
+            
+            userConfig.forEach { (key, value) ->
+                when (value) {
+                    is JsonObject -> {
+                        // Handle nested objects like sourceMap
+                        val userNested = value.mapValues { 
+                            convertJsonElement(it.value, key == "sourceMap" && it.key == "enabled")
+                        }
+                        result[key] = userNested
+                    }
+                    else -> {
+                        // Handle primitive values using safe conversion
+                        result[key] = convertJsonElement(value)
                     }
                 }
             }
+            
+            result
         } catch (e: Exception) {
-            Logger.w("DefaultDebugConfigurations", "Failed to parse launch config: $config", e)
+            Logger.w("DefaultDebugConfigurations", "Failed to parse user launch configuration JSON: ${e.message}", e)
+            Logger.d("DefaultDebugConfigurations", "Invalid JSON content: $userConfigJson")
+            // If JSON parsing fails, return empty map
+            emptyMap()
         }
-        
-        return result
+    }
+    
+    /**
+     * Safely convert JsonElement to appropriate type
+     */
+    private fun convertJsonElement(element: JsonElement, forceString: Boolean = false): Any {
+        return when {
+            forceString -> {
+                // Special case: sourceMap.enabled should remain as string
+                when (element) {
+                    is kotlinx.serialization.json.JsonPrimitive -> element.content
+                    else -> element.toString()
+                }
+            }
+            element is kotlinx.serialization.json.JsonPrimitive -> {
+                when {
+                    element.content == "true" || element.content == "false" -> element.content.toBoolean()
+                    element.content.toLongOrNull() != null -> {
+                        // Try to preserve integer type when possible
+                        val longValue = element.content.toLong()
+                        if (longValue.toInt().toLong() == longValue) {
+                            longValue.toInt()
+                        } else {
+                            longValue
+                        }
+                    }
+                    else -> element.content
+                }
+            }
+            element is JsonArray -> {
+                // Convert JSON array to List<Any>
+                element.map { convertJsonElement(it) }
+            }
+            element is JsonObject -> {
+                // Convert nested object to Map<String, Any>
+                element.mapValues { convertJsonElement(it.value) }
+            }
+            else -> element.toString()
+        }
     }
     
     /**
