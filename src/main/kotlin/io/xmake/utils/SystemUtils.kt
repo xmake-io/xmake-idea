@@ -9,6 +9,8 @@ import com.intellij.openapi.extensions.PluginId
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ApplicationInfo
 import io.xmake.project.toolkit.activatedToolkit
 import io.xmake.shared.XMakeProblem
 import io.xmake.utils.exception.XMakeToolkitNotSetException
@@ -24,6 +26,7 @@ import java.util.regex.Pattern
 object SystemUtils {
     
     private const val TAG = "SystemUtils"
+    private const val CLION_PLUGIN_ID = "com.intellij.cidr.lang"
 
     // get platform
     fun platform(): String = when {
@@ -168,6 +171,39 @@ object SystemUtils {
 
     fun getScriptPath(scriptName: String): String? {
         return getResourceFilePath(scriptName, "scripts")
+    }
+    
+    /**
+     * Check if CLion is available
+     */
+    fun isClionAvailable(): Boolean {
+        return try {
+            val pluginManager = PluginManagerCore
+            val clionPlugin = pluginManager.findPlugin(PluginId.getId(CLION_PLUGIN_ID))
+            val isAvailable = clionPlugin != null && clionPlugin.isEnabled
+            
+            // Also check if we're running in CLion by checking IDE name
+            val application = ApplicationManager.getApplication()
+            if (application == null) {
+                Logger.w(TAG, "ApplicationManager.getApplication() returned null")
+                return false
+            }
+            
+            val applicationInfo = ApplicationInfo.getInstance()
+            val isClionIDE = applicationInfo.build.toString().contains("CL-")
+            
+            Logger.d(TAG, "IDE check: build=${applicationInfo.build}, isClionIDE=$isClionIDE")
+            Logger.d(TAG, "CLion availability check: plugin=${clionPlugin != null}, enabled=${clionPlugin?.isEnabled}, available=$isAvailable")
+            
+            if (!isAvailable && !isClionIDE) {
+                Logger.i(TAG, "Running in non-CLion IDE, CLion debug module will not be loaded")
+            }
+            
+            isAvailable || isClionIDE
+        } catch (e: Exception) {
+            Logger.d(TAG, "Failed to check CLion availability: ${e.message}")
+            false
+        }
     }
 }
 

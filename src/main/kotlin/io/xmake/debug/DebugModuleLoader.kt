@@ -1,8 +1,6 @@
 package io.xmake.debug
 
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.extensions.PluginId
-import com.intellij.ide.plugins.PluginManagerCore
 import com.intellij.xdebugger.XDebugSession
 import com.intellij.xdebugger.XDebugProcess
 import io.xmake.utils.Logger
@@ -18,7 +16,6 @@ object DebugModuleLoader {
     
     private const val TAG = "DebugModuleLoader"
     private const val DEBUG_JAR_NAME = "xmake-clion-debug-1.0.0-base.jar"
-    private const val CLION_PLUGIN_ID = "com.intellij.cidr.lang"
     
     private var debugClassLoader: URLClassLoader? = null
     private var debugModuleClass: Class<*>? = null
@@ -32,7 +29,7 @@ object DebugModuleLoader {
             return true
         }
         
-        if (!isClionAvailable()) {
+        if (!SystemUtils.isClionAvailable()) {
             Logger.d(TAG, "CLion not available, skipping debug module loading")
             return false
         }
@@ -46,40 +43,7 @@ object DebugModuleLoader {
     }
     
     /**
-     * Check if CLion is available
-     */
-    private fun isClionAvailable(): Boolean {
-        return try {
-            val pluginManager = PluginManagerCore
-            val clionPlugin = pluginManager.findPlugin(PluginId.getId(CLION_PLUGIN_ID))
-            val isAvailable = clionPlugin != null && clionPlugin.isEnabled
-            
-            // Also check if we're running in CLion by checking IDE name
-            val application = com.intellij.openapi.application.ApplicationManager.getApplication()
-            if (application == null) {
-                Logger.w(TAG, "ApplicationManager.getApplication() returned null")
-                return false
-            }
-            
-            val applicationInfo = com.intellij.openapi.application.ApplicationInfo.getInstance()
-            val isClionIDE = applicationInfo.build.toString().contains("CL-")
-            
-            Logger.d(TAG, "IDE check: build=${applicationInfo.build}, isClionIDE=$isClionIDE")
-            Logger.d(TAG, "CLion availability check: plugin=${clionPlugin != null}, enabled=${clionPlugin?.isEnabled}, available=$isAvailable")
-            
-            if (!isAvailable && !isClionIDE) {
-                Logger.i(TAG, "Running in non-CLion IDE, CLion debug module will not be loaded")
-            }
-            
-            isAvailable || isClionIDE
-        } catch (e: Exception) {
-            Logger.d(TAG, "Failed to check CLion availability: ${e.message}")
-            false
-        }
-    }
-    
-    /**
-     * Load debug module JAR
+     * Load the debug module JAR
      */
     private fun loadDebugModule(): Boolean {
         return try {
