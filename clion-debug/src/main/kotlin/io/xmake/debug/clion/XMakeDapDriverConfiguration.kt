@@ -34,8 +34,6 @@ class XMakeDapDriverConfiguration(
         return GeneralCommandLine(driverPath)
             .withWorkDirectory(project.basePath)
             .withEnvironment(EnvironmentUtil.getEnvironmentMap())
-            .withParameters(args)
-            .withEnvironment(env)
     }
 
     override fun getDapLaunchOptions(commandLine: GeneralCommandLine): Map<String, Any> {

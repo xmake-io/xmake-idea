@@ -204,8 +204,9 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
                     } else {
                         emptyList()
                     }
+                    val workingDir = configuration.runWorkingDir ?: project.basePath ?: ""
                     val debugProcess = DebugModuleLoader.createDebugProcess(
-                        project, driverName, driverPath, launchConfig, targetPath, session,
+                        project, driverName, driverPath, launchConfig, targetPath, workingDir, session,
                         args, configuration.runEnvironment.envs
                     )
                     if (debugProcess != null) {

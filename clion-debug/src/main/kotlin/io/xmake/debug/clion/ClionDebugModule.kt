@@ -51,6 +51,7 @@ object ClionDebugModule {
         driverPath: String, 
         launchConfig: String, 
         targetPath: String,
+        workingDir: String,
         session: XDebugSession,
         args: List<String> = emptyList(),
         env: Map<String, String> = emptyMap()
@@ -61,6 +62,7 @@ object ClionDebugModule {
         Logger.i(TAG, "Driver path: $driverPath")
         Logger.i(TAG, "Launch config: $launchConfig")
         Logger.i(TAG, "Target path: $targetPath")
+        Logger.i(TAG, "Working dir: $workingDir")
         Logger.i(TAG, "Args: $args")
         Logger.i(TAG, "Env: $env")
         
@@ -68,8 +70,8 @@ object ClionDebugModule {
         
         // Create command line for target executable
         val commandLine = GeneralCommandLine(targetPath)
-            .withWorkDirectory(project.basePath)
-            .withEnvironment(System.getenv())
+            .withWorkDirectory(workingDir.ifBlank { project.basePath })
+            .withEnvironment(env)
         
         // Create TrivialRunParameters directly using CLion API
         val trivialParams = TrivialRunParameters(configuration, commandLine, ArchitectureType.UNKNOWN)

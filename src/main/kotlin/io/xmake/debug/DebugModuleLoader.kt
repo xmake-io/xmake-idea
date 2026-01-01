@@ -120,6 +120,7 @@ object DebugModuleLoader {
         driverPath: String, 
         launchConfig: String, 
         targetPath: String,
+        workingDir: String,
         session: XDebugSession,
         args: List<String> = emptyList(),
         env: Map<String, String> = emptyMap()
@@ -137,11 +138,12 @@ object DebugModuleLoader {
                 String::class.java,
                 String::class.java,
                 String::class.java,
+                String::class.java,
                 XDebugSession::class.java,
                 List::class.java,
                 Map::class.java
             )
-            val result = createProcessMethod?.invoke(null, project, driverName, driverPath, launchConfig, targetPath, session, args, env)
+            val result = createProcessMethod?.invoke(null, project, driverName, driverPath, launchConfig, targetPath, workingDir, session, args, env)
             result as? XDebugProcess
         } catch (e: Exception) {
             Logger.e(TAG, "Failed to create debug process", e)
