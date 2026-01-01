@@ -41,19 +41,6 @@ object ClionDebugModule {
     }
     
     /**
-     * Create a debug configuration using the provided parameters
-     */
-    @JvmStatic
-    fun createDebugConfiguration(project: Project, driverPath: String, driverName: String, launchConfig: String): XMakeDapDriverConfiguration {
-        Logger.i(TAG, "Creating debug configuration")
-        Logger.d(TAG, "Driver path: $driverPath")
-        Logger.d(TAG, "Driver name: $driverName")
-        Logger.d(TAG, "Launch config: $launchConfig")
-        
-        return XMakeDapDriverConfiguration(project, driverPath, driverName, launchConfig)
-    }
-    
-    /**
      * Start a debug session using the provided parameters
      */
     @JvmStatic

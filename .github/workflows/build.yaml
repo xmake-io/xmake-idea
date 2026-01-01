@@ -31,7 +31,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v5
 
       - name: Build
-        run: ./gradlew build
+        run: ./build.sh
 
       - name: Verify Plugin
         run: ./gradlew :verifyPlugin

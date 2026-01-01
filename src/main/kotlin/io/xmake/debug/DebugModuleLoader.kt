@@ -146,30 +146,6 @@ object DebugModuleLoader {
     }
     
     /**
-     * Create a debug configuration using the loaded module
-     */
-    fun createDebugConfiguration(project: Project, driverPath: String, driverName: String, launchConfig: String): Any? {
-        if (!isLoaded || debugModuleClass == null) {
-            Logger.w(TAG, "Debug module not loaded")
-            return null
-        }
-        
-        return try {
-            val createConfigMethod = debugModuleClass?.getMethod(
-                "createDebugConfiguration",
-                Project::class.java,
-                String::class.java,
-                String::class.java,
-                String::class.java
-            )
-            createConfigMethod?.invoke(null, project, driverPath, driverName, launchConfig)
-        } catch (e: Exception) {
-            Logger.e(TAG, "Failed to create debug configuration", e)
-            null
-        }
-    }
-    
-    /**
      * Start a debug session using the loaded module
      */
     fun startDebugSession(
