@@ -9,11 +9,16 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.JsonArray
+import io.xmake.utils.Logger
 
 /**
  * Default debug configurations for different DAP drivers
  */
 object DefaultDebugConfigurations {
+    
+    private const val TAG = "DefaultDebugConfigurations"
     
     // Default DAP configuration
     val defaultDapConfig = mapOf(
@@ -177,7 +182,7 @@ object DefaultDebugConfigurations {
     }
     
     /**
-     * Parse user configuration and merge with defaults
+     * Parse user configuration and merge with defaults using safe JSON parsing
      */
     fun mergeConfigurations(
         userConfigJson: String,
@@ -199,62 +204,62 @@ object DefaultDebugConfigurations {
                         // Handle nested objects like sourceMap
                         val existingNested = (mergedConfig[key] as? Map<String, Any>) ?: emptyMap()
                         val userNested = value.mapValues { 
-                            val element = it.value
-                            when {
-                                // Special case: sourceMap.enabled should remain as string
-                                key == "sourceMap" && it.key == "enabled" -> {
-                                    when {
-                                        element.toString().toBooleanStrictOrNull() != null -> element.toString() // Keep as string
-                                        element.toString().toIntOrNull() != null -> element.toString()
-                                        element.toString().startsWith("\"") && element.toString().endsWith("\"") -> 
-                                            element.toString().substring(1, element.toString().length - 1)
-                                        else -> element.toString()
-                                    }
-                                }
-                                // Handle boolean values (but not for sourceMap.enabled)
-                                element.toString().toBooleanStrictOrNull() != null -> element.toString().toBoolean()
-                                // Handle integer values
-                                element.toString().toIntOrNull() != null -> element.toString().toInt()
-                                // Handle string values properly (remove extra quotes)
-                                element.toString().startsWith("\"") && element.toString().endsWith("\"") -> 
-                                    element.toString().substring(1, element.toString().length - 1)
-                                else -> element.toString()
-                            }
+                            convertJsonElement(it.value, key == "sourceMap" && it.key == "enabled")
                         }
                         mergedConfig[key] = existingNested + userNested
                     }
                     else -> {
-                        // Handle primitive values and other JsonElement types
-                        val valueStr = value.toString()
-                        mergedConfig[key] = when {
-                            // Handle boolean values
-                            valueStr == "true" -> true
-                            valueStr == "false" -> false
-                            // Handle integer values
-                            valueStr.toIntOrNull() != null -> valueStr.toInt()
-                            // Handle string values (remove extra quotes)
-                            valueStr.startsWith("\"") && valueStr.endsWith("\"") -> 
-                                valueStr.substring(1, valueStr.length - 1)
-                            // Handle array values
-                            valueStr.startsWith("[") && valueStr.endsWith("]") -> {
-                                // Parse JSON array
-                                try {
-                                    val json = Json { ignoreUnknownKeys = true }
-                                    json.decodeFromString<List<String>>(valueStr)
-                                } catch (e: Exception) {
-                                    emptyList<String>()
-                                }
-                            }
-                            else -> valueStr
-                        }
+                        // Handle primitive values using safe conversion
+                        mergedConfig[key] = convertJsonElement(value)
                     }
                 }
             }
             
             mergedConfig
         } catch (e: Exception) {
+            Logger.e(TAG, "Failed to parse user launch configuration JSON: ${e.message}", e)
+            Logger.d(TAG, "Invalid JSON content: $userConfigJson")
             // If JSON parsing fails, return default config
             defaultConfig
+        }
+    }
+    
+    /**
+     * Safely convert JsonElement to appropriate type
+     */
+    private fun convertJsonElement(element: JsonElement, forceString: Boolean = false): Any {
+        return when {
+            forceString -> {
+                // Special case: sourceMap.enabled should remain as string
+                when (element) {
+                    is JsonPrimitive -> element.content
+                    else -> element.toString()
+                }
+            }
+            element is JsonPrimitive -> {
+                when {
+                    element.content == "true" || element.content == "false" -> element.content.toBoolean()
+                    element.content.toLongOrNull() != null -> {
+                        // Try to preserve integer type when possible
+                        val longValue = element.content.toLong()
+                        if (longValue.toInt().toLong() == longValue) {
+                            longValue.toInt()
+                        } else {
+                            longValue
+                        }
+                    }
+                    else -> element.content
+                }
+            }
+            element is JsonArray -> {
+                // Convert JSON array to List<Any>
+                element.map { convertJsonElement(it) }
+            }
+            element is JsonObject -> {
+                // Convert nested object to Map<String, Any>
+                element.mapValues { convertJsonElement(it.value) }
+            }
+            else -> element.toString()
         }
     }
 }

@@ -261,7 +261,6 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
 
     companion object {
         private const val TAG = "ToolkitManager"
-
         fun getInstance(): ToolkitManager = serviceOrNull() ?: throw IllegalStateException()
     }
 }

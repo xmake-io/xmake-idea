@@ -22,6 +22,8 @@ import java.nio.file.Paths
 import java.util.regex.Pattern
 
 object SystemUtils {
+    
+    private const val TAG = "SystemUtils"
 
     // get platform
     fun platform(): String = when {
@@ -115,7 +117,7 @@ object SystemUtils {
                     val file = File(url.toURI())
                     return file.absolutePath
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    Logger.e(TAG, "Failed to get script path from file URI", e)
                 }
             } else if (url.protocol == "jar") {
                 // Extract from JAR to temp file
@@ -129,7 +131,7 @@ object SystemUtils {
                     }
                     return tempFile.absolutePath
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    Logger.e(TAG, "Failed to extract script from JAR", e)
                 }
             }
         }
@@ -148,7 +150,7 @@ object SystemUtils {
                 return tempFile.absolutePath
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Logger.e(TAG, "Failed to extract script from stream", e)
         }
 
         // 4. Final fallback for local development (direct file access relative to project root)

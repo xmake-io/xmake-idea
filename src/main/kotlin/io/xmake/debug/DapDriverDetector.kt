@@ -2,11 +2,14 @@ package io.xmake.debug
 
 import com.intellij.openapi.util.SystemInfo
 import java.io.File
+import io.xmake.utils.Logger
 
 /**
  * DAP driver path detection utility
  */
 object DapDriverDetector {
+    
+    private const val TAG = "DapDriverDetector"
     
     data class DapDriverInfo(
         val path: String,
@@ -14,10 +17,10 @@ object DapDriverDetector {
         val displayName: String
     )
     
-    enum class DapDriverType {
-        LLDB_DAP,
-        GDB_DAP,
-        UNKNOWN
+    enum class DapDriverType(val displayName: String) {
+        LLDB_DAP("LLDB DAP"),
+        GDB_DAP("GDB DAP"),
+        UNKNOWN("Unknown DAP")
     }
     
     /**
@@ -42,6 +45,7 @@ object DapDriverDetector {
                         else -> DapDriverType.UNKNOWN
                     }
                 } catch (e: Exception) {
+                    Logger.d(TAG, "Failed to get driver version for $path: ${e.message}")
                     DapDriverType.UNKNOWN
                 }
             }
@@ -101,12 +105,7 @@ object DapDriverDetector {
             if (file.exists() && file.canExecute()) {
                 val type = detectDriverType(path)
                 if (type != DapDriverType.UNKNOWN) {
-                    val displayName = when (type) {
-                        DapDriverType.LLDB_DAP -> "LLDB DAP"
-                        DapDriverType.GDB_DAP -> "GDB DAP"
-                        DapDriverType.UNKNOWN -> "Unknown DAP"
-                    }
-                    drivers.add(DapDriverInfo(path, type, displayName))
+                    drivers.add(DapDriverInfo(path, type, type.displayName))
                 }
             }
         }
@@ -140,12 +139,6 @@ object DapDriverDetector {
             return null
         }
         
-        val displayName = when (type) {
-            DapDriverType.LLDB_DAP -> "LLDB DAP"
-            DapDriverType.GDB_DAP -> "GDB DAP"
-            DapDriverType.UNKNOWN -> "Unknown DAP"
-        }
-        
-        return DapDriverInfo(path, type, displayName)
+        return DapDriverInfo(path, type, type.displayName)
     }
 }

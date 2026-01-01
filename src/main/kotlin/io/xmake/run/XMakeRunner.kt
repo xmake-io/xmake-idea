@@ -43,7 +43,7 @@ open class XMakeRunner : XMakeDefaultRunner() {
         if (environment.executor.id == DefaultDebugExecutor.EXECUTOR_ID) {
             // Check if debug is available before starting debug session
             if (!isNativeDebugAvailable(configuration.project)) {
-                Logger.w("XMakeRunner", "Debug functionality is not available in this IDE. Please use CLion for C/C++ debugging.")
+                Logger.w(TAG, "Debug functionality is not available in this IDE. Please use CLion for C/C++ debugging.")
                 return null
             }
             return XMakeDebugSession(state, environment).startDebugSession()
@@ -62,21 +62,21 @@ open class XMakeRunner : XMakeDefaultRunner() {
             val nativeDebugPlugin = pluginManager.findPlugin(PluginId.getId("com.intellij.nativeDebug"))
             
             if (nativeDebugPlugin == null || !nativeDebugPlugin.isEnabled) {
-                Logger.d("XMakeRunner", "Native debug plugin is not available")
+                Logger.d(TAG, "Native debug plugin is not available")
                 return false
             }
             
             // Check if CLion-specific classes are available
             try {
                 Class.forName("com.jetbrains.cidr.execution.debugger.CidrLocalDebugProcess")
-                Logger.d("XMakeRunner", "CLion debugging classes are available")
+                Logger.d(TAG, "CLion debugging classes are available")
                 true
             } catch (e: ClassNotFoundException) {
-                Logger.d("XMakeRunner", "CLion debugging classes are not available")
+                Logger.d(TAG, "CLion debugging classes are not available")
                 false
             }
         } catch (e: Exception) {
-            Logger.e("XMakeRunner", "Error checking debug availability", e)
+            Logger.e(TAG, "Error checking debug availability", e)
             false
         }
     }

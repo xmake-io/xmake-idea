@@ -259,9 +259,16 @@ class XMakeRunConfigurationEditor(
         updateDapDriverComboBox()
         dapDriverPathCustomField.text = configuration.dapDriverPath
         
+        // Set initial enabled state based on auto-detect setting
+        val isAutoDetect = dapDriverAutoDetectCheckBox.isSelected
+        dapDriverPathComboBox.isEnabled = !isAutoDetect
+        dapDriverPathCustomField.isEnabled = !isAutoDetect
+        
         // Add DAP driver checkbox listener
         dapDriverAutoDetectCheckBox.addItemListener {
-            updateDapDriverComboBox()
+            val isAutoDetect = dapDriverAutoDetectCheckBox.isSelected
+            dapDriverPathComboBox.isEnabled = !isAutoDetect
+            dapDriverPathCustomField.isEnabled = !isAutoDetect
         }
         
         // Add DAP driver combo box listener

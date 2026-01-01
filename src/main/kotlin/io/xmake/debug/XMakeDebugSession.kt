@@ -45,7 +45,7 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
      * Start a complete debugging session with build, mode check, and debug process
      */
     fun startDebugSession(): com.intellij.execution.ui.RunContentDescriptor? {
-        Logger.i("Logger", "Logging mode: ${Logger.getLoggingMode()}")
+        Logger.i(TAG, "Logging mode: ${Logger.getLoggingMode()}")
         Logger.d(TAG, "Starting debug session for target: ${configuration.runTarget}")
         
         // Check if build mode supports debugging symbols first
