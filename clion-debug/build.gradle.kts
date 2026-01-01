@@ -64,10 +64,10 @@ tasks {
         }
     }
     
-    // Create a task to copy the JAR to the main plugin resources
+    // Create a task to copy the JAR to the main plugin resources/lib
     register<Copy>("copyToPluginResources") {
         dependsOn(jar)
         from(jar.get())
-        into("../main/resources")
+        into("../src/main/resources/lib")
     }
 }

@@ -4,6 +4,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.extensions.PluginId
 import com.intellij.ide.plugins.PluginManagerCore
 import io.xmake.utils.Logger
+import io.xmake.utils.SystemUtils
 import java.io.File
 import java.net.URLClassLoader
 import java.lang.reflect.Method
@@ -111,59 +112,23 @@ object DebugModuleLoader {
      * Find the debug JAR in the plugin resources
      */
     private fun findDebugJar(): String? {
-        try {
-            // Try multiple possible locations for the debug JAR
-            val possiblePaths = listOf(
-                // Development mode: in main/resources (relative to project root)
-                "main/resources/$DEBUG_JAR_NAME",
-                // Development mode: in build/resources/main
-                "build/resources/main/$DEBUG_JAR_NAME",
-                // Production mode: in plugin resources
-                "resources/$DEBUG_JAR_NAME",
-                // Same directory as plugin
-                DEBUG_JAR_NAME
-            )
-            
-            // Get the project root directory by going up from current working directory
-            val currentDir = File(".")
-            val projectRoot = findProjectRoot(currentDir) ?: currentDir
-            
+        return try {
             Logger.d(TAG, "Searching for debug JAR: $DEBUG_JAR_NAME")
-            Logger.d(TAG, "Current directory: ${currentDir.absolutePath}")
-            Logger.d(TAG, "Project root: ${projectRoot.absolutePath}")
             
-            for (path in possiblePaths) {
-                val file = File(projectRoot, path)
-                Logger.i(TAG, "Checking path: ${file.absolutePath} (exists: ${file.exists()})")
-                if (file.exists()) {
-                    Logger.i(TAG, "Found debug JAR at: ${file.absolutePath}")
-                    return file.absolutePath
-                }
+            // Use the getModulePath method to get the debug module JAR
+            val jarPath = SystemUtils.getModulePath(DEBUG_JAR_NAME)
+            
+            if (jarPath != null) {
+                Logger.i(TAG, "Found debug JAR at: $jarPath")
+                return jarPath
+            } else {
+                Logger.e(TAG, "Debug JAR not found: $DEBUG_JAR_NAME")
+                return null
             }
-            
-            // Try relative to current working directory
-            val debugJar = File(currentDir, DEBUG_JAR_NAME)
-            Logger.i(TAG, "Checking current directory: ${debugJar.absolutePath} (exists: ${debugJar.exists()})")
-            if (debugJar.exists()) {
-                Logger.i(TAG, "Found debug JAR at: ${debugJar.absolutePath}")
-                return debugJar.absolutePath
-            }
-            
-            // Try to find it using classpath
-            val classpath = System.getProperty("java.class.path")
-            Logger.i(TAG, "Classpath: $classpath")
-            
-            Logger.e(TAG, "Debug JAR not found in any of the expected locations:")
-            possiblePaths.forEach { path ->
-                Logger.e(TAG, "  - ${File(projectRoot, path).absolutePath}")
-            }
-            
-            return null
         } catch (e: Exception) {
             Logger.e(TAG, "Failed to find debug JAR", e)
-            return null
+            null
         }
-        return null
     }
     
     /**

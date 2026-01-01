@@ -88,6 +88,10 @@ tasks.named("classes") {
     dependsOn(":clion-debug:build", ":clion-debug:copyToPluginResources")
 }
 
+tasks.named("processResources") {
+    dependsOn(":clion-debug:copyToPluginResources")
+}
+
 tasks.named("jar") {
     dependsOn(":clion-debug:build", ":clion-debug:copyToPluginResources")
 }

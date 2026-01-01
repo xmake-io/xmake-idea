@@ -89,15 +89,19 @@ object SystemUtils {
         }
     }
 
-    fun getScriptPath(scriptName: String): String? {
+    fun getModulePath(moduleName: String): String? {
+        return getResourceFilePath(moduleName, "lib")
+    }
+
+    fun getResourceFilePath(resourceName: String, resourceDir: String = "lib"): String? {
         // 1. Try to get from plugin directory (layout in sandbox or installed plugin)
         val pluginId = PluginId.getId("io.xmake")
         val plugin = PluginManagerCore.getPlugin(pluginId)
         if (plugin != null) {
             val possiblePaths = listOf(
-                File(plugin.pluginPath.toFile(), "classes/scripts/$scriptName"),
-                File(plugin.pluginPath.toFile(), "scripts/$scriptName"),
-                File(plugin.pluginPath.toFile(), "lib/scripts/$scriptName") // Sometimes it might be here
+                File(plugin.pluginPath.toFile(), "classes/$resourceDir/$resourceName"),
+                File(plugin.pluginPath.toFile(), "$resourceDir/$resourceName"),
+                File(plugin.pluginPath.toFile(), "lib/$resourceDir/$resourceName") // Sometimes it might be here
             )
             
             for (file in possiblePaths) {
@@ -108,7 +112,7 @@ object SystemUtils {
         }
 
         // 2. Try to get from resources (classpath)
-        val resourcePath = "/scripts/$scriptName"
+        val resourcePath = "/$resourceDir/$resourceName"
         val url = SystemUtils::class.java.getResource(resourcePath)
         
         if (url != null) {
@@ -117,12 +121,12 @@ object SystemUtils {
                     val file = File(url.toURI())
                     return file.absolutePath
                 } catch (e: Exception) {
-                    Logger.e(TAG, "Failed to get script path from file URI", e)
+                    Logger.e(TAG, "Failed to get resource path from file URI", e)
                 }
             } else if (url.protocol == "jar") {
                 // Extract from JAR to temp file
                 try {
-                    val tempFile = File.createTempFile("xmake_script_", "_$scriptName")
+                    val tempFile = File.createTempFile("xmake_resource_", "_$resourceName")
                     tempFile.deleteOnExit()
                     SystemUtils::class.java.getResourceAsStream(resourcePath)?.use { input ->
                         tempFile.outputStream().use { output ->
@@ -131,7 +135,7 @@ object SystemUtils {
                     }
                     return tempFile.absolutePath
                 } catch (e: Exception) {
-                    Logger.e(TAG, "Failed to extract script from JAR", e)
+                    Logger.e(TAG, "Failed to extract resource from JAR", e)
                 }
             }
         }
@@ -140,7 +144,7 @@ object SystemUtils {
         try {
             val stream = SystemUtils::class.java.getResourceAsStream(resourcePath)
             if (stream != null) {
-                val tempFile = File.createTempFile("xmake_script_stream_", "_$scriptName")
+                val tempFile = File.createTempFile("xmake_resource_stream_", "_$resourceName")
                 tempFile.deleteOnExit()
                 stream.use { input ->
                     tempFile.outputStream().use { output ->
@@ -150,16 +154,20 @@ object SystemUtils {
                 return tempFile.absolutePath
             }
         } catch (e: Exception) {
-            Logger.e(TAG, "Failed to extract script from stream", e)
+            Logger.e(TAG, "Failed to extract resource from stream", e)
         }
 
         // 4. Final fallback for local development (direct file access relative to project root)
-        val devPath = File("src/main/resources/scripts/$scriptName")
+        val devPath = File("src/main/resources/$resourceDir/$resourceName")
         if (devPath.exists()) {
             return devPath.absolutePath
         }
 
         return null
+    }
+
+    fun getScriptPath(scriptName: String): String? {
+        return getResourceFilePath(scriptName, "scripts")
     }
 }
 
