@@ -38,16 +38,21 @@ intellijPlatform {
         }
     }
 
-    pluginVerification {
-        ides {
-            select {
-                types = listOf(
-                    IntelliJPlatformType.CLion,
-                    IntelliJPlatformType.IntellijIdeaCommunity,
-                    IntelliJPlatformType.IntellijIdeaUltimate,
-                    IntelliJPlatformType.AndroidStudio
-                )
-                sinceBuild = properties("pluginSinceBuild")
+    dependencies {
+        // Default to CLion for development, but allow other IDEs for verification
+        clion(properties("runIdeVersion"))
+        bundledPlugin("com.intellij.nativeDebug")
+        testFramework(TestFrameworkType.Platform)
+        
+        pluginVerification {
+            ides {
+                // Use specific versions that are available
+                named("CLion") {
+                    version = properties("runIdeVersion")
+                }
+                named("IntelliJ IDEA Community") {
+                    version = "2024.3" // Use a stable version that's available
+                }
             }
         }
     }
@@ -65,12 +70,6 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
     testImplementation("io.mockk:mockk:1.13.12")
     testImplementation("junit:junit:4.13.2")
-    intellijPlatform {
-        // Default to CLion for development, but allow other IDEs for verification
-        clion(properties("runIdeVersion"))
-        bundledPlugin("com.intellij.nativeDebug")
-        testFramework(TestFrameworkType.Platform)
-    }
 }
 
 val Project.dependencyCachePath

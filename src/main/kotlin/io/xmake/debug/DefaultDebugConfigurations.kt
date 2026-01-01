@@ -202,7 +202,7 @@ object DefaultDebugConfigurations {
                 when (value) {
                     is JsonObject -> {
                         // Handle nested objects like sourceMap
-                        val existingNested = (mergedConfig[key] as? Map<String, Any>) ?: emptyMap()
+                        val existingNested = (mergedConfig[key] as? Map<String, Any>) ?: emptyMap<String, Any>()
                         val userNested = value.mapValues { 
                             convertJsonElement(it.value, key == "sourceMap" && it.key == "enabled")
                         }
