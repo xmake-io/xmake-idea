@@ -62,16 +62,8 @@ tasks {
     }
 }
 
-// Disable problematic tasks by default
+// Disable buildSearchableOptions (due to CLion traverseUI issues)
 tasks.matching { task -> task.name.contains("buildSearchableOptions") }.configureEach {
-    enabled = false
-}
-
-tasks.matching { task -> task.name.contains("prepareJarSearchableOptions") }.configureEach {
-    enabled = false
-}
-
-tasks.matching { task -> task.name.contains("runIde") && task.project.name == "clion-debug" }.configureEach {
     enabled = false
 }
 

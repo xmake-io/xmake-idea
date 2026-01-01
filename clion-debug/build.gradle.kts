@@ -27,15 +27,12 @@ intellijPlatform {
     }
 }
 
-// Disable problematic tasks by default
+// Disable buildSearchableOptions for CLion module only (due to traverseUI issues)
 tasks.matching { task -> task.name.contains("buildSearchableOptions") }.configureEach {
     enabled = false
 }
 
-tasks.matching { task -> task.name.contains("prepareJarSearchableOptions") }.configureEach {
-    enabled = false
-}
-
+// Disable runIde for CLion module (should not run IDE from debug module)
 tasks.matching { task -> task.name.contains("runIde") }.configureEach {
     enabled = false
 }
