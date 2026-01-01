@@ -1,5 +1,6 @@
 package io.xmake.debug.clion
 
+import io.xmake.debug.clion.utils.Logger
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.openapi.project.Project
 import com.intellij.xdebugger.XDebugSession

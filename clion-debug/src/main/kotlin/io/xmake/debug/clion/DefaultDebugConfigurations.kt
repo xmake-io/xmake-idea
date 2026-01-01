@@ -1,5 +1,7 @@
 package io.xmake.debug.clion
 
+import io.xmake.debug.clion.utils.Logger
+
 /**
  * Default debug configurations for XMake debugging
  */

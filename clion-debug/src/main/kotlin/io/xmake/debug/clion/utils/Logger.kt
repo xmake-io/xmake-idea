@@ -1,4 +1,4 @@
-package io.xmake.debug.clion
+package io.xmake.debug.clion.utils
 
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
