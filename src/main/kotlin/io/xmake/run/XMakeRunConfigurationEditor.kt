@@ -127,14 +127,35 @@ class XMakeRunConfigurationEditor(
             dapDriverPathComboBox.addItem("No DAP drivers found")
         } else {
             availableDrivers.forEach { driver ->
-                dapDriverPathComboBox.addItem("${driver.displayName} - ${driver.path}")
+                try {
+                    val displayNameField = driver.javaClass.getDeclaredField("displayName")
+                    displayNameField.isAccessible = true
+                    val displayName = displayNameField.get(driver) as? String ?: "Unknown"
+                    
+                    val pathField = driver.javaClass.getDeclaredField("path")
+                    pathField.isAccessible = true
+                    val path = pathField.get(driver) as? String ?: ""
+                    
+                    dapDriverPathComboBox.addItem("$displayName - $path")
+                } catch (e: Exception) {
+                    dapDriverPathComboBox.addItem("Unknown driver")
+                }
             }
         }
         
         // Set current selection
         val currentPath = runConfiguration.getEffectiveDapDriverPath()
         if (currentPath.isNotBlank()) {
-            val currentIndex = availableDrivers.indexOfFirst { it.path == currentPath }
+            val currentIndex = availableDrivers.indexOfFirst { driver ->
+                try {
+                    val pathField = driver.javaClass.getDeclaredField("path")
+                    pathField.isAccessible = true
+                    val path = pathField.get(driver) as? String ?: ""
+                    path == currentPath
+                } catch (e: Exception) {
+                    false
+                }
+            }
             if (currentIndex >= 0) {
                 dapDriverPathComboBox.selectedIndex = currentIndex
             }
@@ -275,7 +296,14 @@ class XMakeRunConfigurationEditor(
         dapDriverPathComboBox.addItemListener {
             val selectedDriver = runConfiguration.getAvailableDapDrivers().getOrNull(dapDriverPathComboBox.selectedIndex)
             if (selectedDriver != null) {
-                dapDriverPathCustomField.text = selectedDriver.path
+                try {
+                    val pathField = selectedDriver.javaClass.getDeclaredField("path")
+                    pathField.isAccessible = true
+                    val path = pathField.get(selectedDriver) as? String ?: ""
+                    dapDriverPathCustomField.text = path
+                } catch (e: Exception) {
+                    dapDriverPathCustomField.text = ""
+                }
             }
         }
     }

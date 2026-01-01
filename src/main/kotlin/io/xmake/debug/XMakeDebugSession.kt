@@ -178,7 +178,7 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
                 }
                 Logger.d(TAG, "Debug process started successfully")
                 
-                debugProcess
+                return debugProcess
             }
         }).runContentDescriptor
     }
@@ -202,17 +202,10 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
                 }
             }
             
-            // Fallback: create a dummy debug process
-            object : XDebugProcess {
-                override fun getSession(): XDebugSession = throw NotImplementedError("Not implemented")
-                override fun getProcessHandler(): ProcessHandler = throw NotImplementedError("Not implemented")
-                override fun getConsoleView(): ConsoleView = throw NotImplementedError("Not implemented")
-                override fun isHidden(): Boolean = false
-                override fun getRestartAction(): AnAction? = null
-                override fun start() {}
-                override fun stop() {}
-                override fun isStopped(): Boolean = false
-            }
+            null
+        } catch (e: NotImplementedError) {
+            // Re-throw NotImplementedError to indicate external handling
+            throw e
         } catch (e: Exception) {
             Logger.e(TAG, "Failed to create debug process", e)
             null
@@ -248,7 +241,7 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
         }
 
         return runBlocking {
-            val process = commandLine.createProcess(toolkit)
+            val process = commandLine.createProcess()
             val (result, _) = runProcess(process)
             val output = result.getOrNull()?.trim() ?: return@runBlocking null
             

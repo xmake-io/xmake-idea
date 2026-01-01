@@ -3,6 +3,10 @@ package io.xmake.debug.clion
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.openapi.project.Project
 import com.intellij.xdebugger.XDebugSession
+import com.intellij.xdebugger.XDebuggerManager
+import com.intellij.xdebugger.XDebugProcessStarter
+import com.intellij.execution.runners.ExecutionEnvironment
+import com.intellij.execution.filters.TextConsoleBuilderFactory
 import com.jetbrains.cidr.execution.debugger.backend.dap.DapDriverConfiguration
 import com.jetbrains.cidr.execution.debugger.backend.DebuggerDriver
 import com.jetbrains.cidr.execution.TrivialRunParameters
@@ -57,7 +61,8 @@ object ClionDebugModule {
         launchConfig: String, 
         targetPath: String,
         args: List<String> = emptyList(),
-        env: Map<String, String> = emptyMap()
+        env: Map<String, String> = emptyMap(),
+        environment: ExecutionEnvironment? = null
     ): Boolean {
         Logger.i(TAG, "=== Starting debug session ===")
         Logger.i(TAG, "Project: ${project.name}")
@@ -69,7 +74,7 @@ object ClionDebugModule {
         
         return try {
             val configuration = XMakeDapDriverConfiguration(project, driverPath, launchConfig, args, env)
-            startDebugSessionInternal(project, configuration, targetPath)
+            startDebugSessionInternal(project, configuration, targetPath, environment)
         } catch (e: Exception) {
             Logger.e(TAG, "Failed to start debug session", e)
             false
@@ -79,25 +84,37 @@ object ClionDebugModule {
     /**
      * Internal method to start debug session using CLion's infrastructure
      */
-    private fun startDebugSessionInternal(project: Project, configuration: XMakeDapDriverConfiguration, targetPath: String): Boolean {
+    private fun startDebugSessionInternal(project: Project, configuration: XMakeDapDriverConfiguration, targetPath: String, environment: ExecutionEnvironment?): Boolean {
         return try {
-            val commandLine = GeneralCommandLine(configuration.driverPath)
+            val commandLine = GeneralCommandLine(targetPath)
                 .withWorkDirectory(project.basePath)
                 .withEnvironment(System.getenv())
-                .withParameters(configuration.args)
-                .withEnvironment(configuration.env)
         
             // Create TrivialRunParameters directly using CLion API
-            val trivialParams = TrivialRunParameters(configuration, commandLine, ArchitectureType.SYSTEM_TYPE)
+            val trivialParams = TrivialRunParameters(configuration, commandLine, com.jetbrains.cidr.ArchitectureType.UNKNOWN)
             
-            // Create debug process directly using CLion API
-            val debugProcess = CidrLocalDebugProcess(
-                trivialParams,
-                project.xdebugSession as XDebugSession
-            )
+            // Create debug process directly using CLion API - like main plugin
+            val consoleBuilder = TextConsoleBuilderFactory.getInstance().createBuilder(project)
             
-            // Start debug process
-            debugProcess.start()
+            if (environment != null) {
+                XDebuggerManager.getInstance(project).startSession(environment, object : XDebugProcessStarter() {
+                    override fun start(session: XDebugSession): com.intellij.xdebugger.XDebugProcess {
+                        val debugProcess = CidrLocalDebugProcess(trivialParams, session, consoleBuilder)
+                        debugProcess.start()
+                        return debugProcess
+                    }
+                })
+            } else {
+                // Fallback: create a dummy session
+                val session = XDebuggerManager.getInstance(project).currentSession
+                if (session != null) {
+                    val debugProcess = CidrLocalDebugProcess(trivialParams, session, consoleBuilder)
+                    debugProcess.start()
+                } else {
+                    Logger.e(TAG, "No active debug session found")
+                    return false
+                }
+            }
             
             true
         } catch (e: Exception) {
