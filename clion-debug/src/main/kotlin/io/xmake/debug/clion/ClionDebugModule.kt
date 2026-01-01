@@ -47,8 +47,8 @@ object ClionDebugModule {
     @JvmStatic
     fun createDebugProcess(
         project: Project, 
-        driverPath: String, 
         driverName: String,
+        driverPath: String, 
         launchConfig: String, 
         targetPath: String,
         session: XDebugSession,
@@ -57,8 +57,8 @@ object ClionDebugModule {
     ): XDebugProcess {
         Logger.i(TAG, "=== Creating debug process ===")
         Logger.i(TAG, "Project: ${project.name}")
-        Logger.i(TAG, "Driver path: $driverPath")
         Logger.i(TAG, "Driver name: $driverName")
+        Logger.i(TAG, "Driver path: $driverPath")
         Logger.i(TAG, "Launch config: $launchConfig")
         Logger.i(TAG, "Target path: $targetPath")
         Logger.i(TAG, "Args: $args")

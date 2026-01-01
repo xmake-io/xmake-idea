@@ -179,7 +179,7 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
                 Logger.v(TAG, "Using DAP driver: $dapDriverPath ($driverName)")
                 
                 // Try to create debug process using the configuration
-                val debugProcess = createDebugProcess(targetPath, dapDriverPath, driverName, session)
+                val debugProcess = createDebugProcess(targetPath, driverName, dapDriverPath, session)
                 if (debugProcess == null) {
                     throw Exception("Failed to create debug process")
                 }
@@ -193,7 +193,7 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
     /**
      * Create a debug process
      */
-    private fun createDebugProcess(targetPath: String, driverPath: String, driverName: String, session: XDebugSession): XDebugProcess? {
+    private fun createDebugProcess(targetPath: String, driverName: String, driverPath: String, session: XDebugSession): XDebugProcess? {
         return try {
             // Try to use CLion debug module
             if (DebugModuleLoader.loadDebugModuleIfNeeded(project)) {
@@ -205,7 +205,7 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
                         emptyList()
                     }
                     val debugProcess = DebugModuleLoader.createDebugProcess(
-                        project, driverPath, driverName, launchConfig, targetPath, session,
+                        project, driverName, driverPath, launchConfig, targetPath, session,
                         args, configuration.runEnvironment.envs
                     )
                     if (debugProcess != null) {
