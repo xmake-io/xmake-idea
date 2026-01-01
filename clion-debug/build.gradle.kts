@@ -1,5 +1,3 @@
-import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
-
 plugins {
     kotlin("jvm")
     id("org.jetbrains.intellij.platform") version "2.7.2"
@@ -22,11 +20,21 @@ intellijPlatform {
             bundledPlugin("com.intellij.nativeDebug")
         }
     }
+    
+    // Disable plugin verification and runIDE for the debug module
+    pluginVerification {
+        ides { }
+    }
 }
 
-dependencies {
-    // Kotlin standard library
-    implementation(kotlin("stdlib"))
+// Disable runIDE task for the debug module
+tasks.named("runIde") {
+    enabled = false
+}
+
+// Disable prepareJarSearchableOptions task for the debug module
+tasks.named("prepareJarSearchableOptions") {
+    enabled = false
 }
 
 tasks {

@@ -62,11 +62,34 @@ tasks {
     }
 }
 
+// Disable problematic tasks for both main project and clion-debug module
+tasks.named("buildSearchableOptions") {
+    enabled = false
+}
+
 dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib:2.1.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
     testImplementation("io.mockk:mockk:1.13.12")
     testImplementation("junit:junit:4.13.2")
+}
+
+// Add compilation order dependency - build clion-debug first
+tasks.named("compileKotlin") {
+    dependsOn(":clion-debug:build", ":clion-debug:copyToPluginResources")
+}
+
+tasks.named("build") {
+    dependsOn(":clion-debug:build", ":clion-debug:copyToPluginResources")
+}
+
+// Also ensure all CLion tasks complete before main plugin compilation
+tasks.named("classes") {
+    dependsOn(":clion-debug:build", ":clion-debug:copyToPluginResources")
+}
+
+tasks.named("jar") {
+    dependsOn(":clion-debug:build", ":clion-debug:copyToPluginResources")
 }
 
 val Project.dependencyCachePath
