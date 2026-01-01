@@ -77,11 +77,11 @@ object DebugModuleLoader {
     }
     
     /**
-     * Load the debug module JAR
+     * Load debug module JAR
      */
     private fun loadDebugModule(): Boolean {
         return try {
-            // Find the debug JAR in resources
+            // Find debug JAR in resources
             val jarPath = findDebugJar()
             if (jarPath == null) {
                 Logger.w(TAG, "Debug JAR not found: $DEBUG_JAR_NAME")
@@ -90,12 +90,12 @@ object DebugModuleLoader {
             
             Logger.d(TAG, "Loading debug module from: $jarPath")
             
-            // Create class loader for the JAR
+            // Create class loader for JAR
             val jarFile = File(jarPath)
             val jarUrl = jarFile.toURI().toURL()
             debugClassLoader = URLClassLoader(arrayOf(jarUrl), this::class.java.classLoader)
             
-            // Load the main debug module class
+            // Load main debug module class
             debugModuleClass = debugClassLoader?.loadClass("io.xmake.debug.clion.ClionDebugModule")
             
             isLoaded = true
@@ -109,13 +109,13 @@ object DebugModuleLoader {
     }
     
     /**
-     * Find the debug JAR in the plugin resources
+     * Find debug JAR in plugin resources
      */
     private fun findDebugJar(): String? {
         return try {
             Logger.d(TAG, "Searching for debug JAR: $DEBUG_JAR_NAME")
             
-            // Use the getModulePath method to get the debug module JAR
+            // Use getModulePath method to get the debug module JAR
             val jarPath = SystemUtils.getModulePath(DEBUG_JAR_NAME)
             
             if (jarPath != null) {
@@ -132,7 +132,7 @@ object DebugModuleLoader {
     }
     
     /**
-     * Find the project root directory by looking for build.gradle.kts
+     * Find project root directory by looking for build.gradle.kts
      */
     private fun findProjectRoot(startDir: File): File? {
         var current = startDir
@@ -221,7 +221,7 @@ object DebugModuleLoader {
     }
     
     /**
-     * Unload the debug module
+     * Unload debug module
      */
     fun unloadDebugModule() {
         try {
