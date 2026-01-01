@@ -49,7 +49,20 @@ object DebugModuleLoader {
         return try {
             val pluginManager = PluginManagerCore
             val clionPlugin = pluginManager.findPlugin(PluginId.getId(CLION_PLUGIN_ID))
-            clionPlugin != null && clionPlugin.isEnabled
+            val isAvailable = clionPlugin != null && clionPlugin.isEnabled
+            
+            // Also check if we're running in CLion by checking the IDE name
+            val applicationInfo = com.intellij.openapi.application.ApplicationInfo.getInstance()
+            val isClionIDE = applicationInfo.build.toString().contains("CL-")
+            
+            Logger.d(TAG, "IDE check: build=${applicationInfo.build}, isClionIDE=$isClionIDE")
+            Logger.d(TAG, "CLion availability check: plugin=${clionPlugin != null}, enabled=${clionPlugin?.isEnabled}, available=$isAvailable")
+            
+            if (!isAvailable && !isClionIDE) {
+                Logger.i(TAG, "Running in non-CLion IDE, CLion debug module will not be loaded")
+            }
+            
+            isAvailable || isClionIDE
         } catch (e: Exception) {
             Logger.d(TAG, "Failed to check CLion availability: ${e.message}")
             false
@@ -93,23 +106,36 @@ object DebugModuleLoader {
      */
     private fun findDebugJar(): String? {
         return try {
-            // Try to find in plugin resources directory
-            val pluginDir = File(this::class.java.protectionDomain.codeSource.location.toURI()).parentFile
-            val resourcesDir = File(pluginDir, "resources")
-            val debugJar = File(resourcesDir, DEBUG_JAR_NAME)
+            // Try multiple possible locations for the debug JAR
+            val possiblePaths = listOf(
+                // Development mode: in main/resources
+                "main/resources/$DEBUG_JAR_NAME",
+                // Development mode: in build/resources/main
+                "build/resources/main/$DEBUG_JAR_NAME",
+                // Production mode: in plugin resources
+                "resources/$DEBUG_JAR_NAME",
+                // Same directory as plugin
+                DEBUG_JAR_NAME
+            )
             
-            if (debugJar.exists()) {
-                debugJar.absolutePath
-            } else {
-                // Try to find in the same directory as the plugin JAR
-                val pluginJarDir = pluginDir
-                val altDebugJar = File(pluginJarDir, DEBUG_JAR_NAME)
-                if (altDebugJar.exists()) {
-                    altDebugJar.absolutePath
-                } else {
-                    null
+            for (path in possiblePaths) {
+                val file = File(path)
+                if (file.exists()) {
+                    Logger.d(TAG, "Found debug JAR at: ${file.absolutePath}")
+                    return file.absolutePath
                 }
             }
+            
+            // Try relative to current working directory
+            val currentDir = File(".")
+            val debugJar = File(currentDir, DEBUG_JAR_NAME)
+            if (debugJar.exists()) {
+                Logger.d(TAG, "Found debug JAR at: ${debugJar.absolutePath}")
+                return debugJar.absolutePath
+            }
+            
+            Logger.w(TAG, "Debug JAR not found in any of the expected locations")
+            null
         } catch (e: Exception) {
             Logger.e(TAG, "Failed to find debug JAR", e)
             null

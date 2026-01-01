@@ -5,10 +5,13 @@ import com.intellij.execution.configuration.EnvironmentVariablesData
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.configurations.RunProfileState
 import com.intellij.execution.filters.TextConsoleBuilderFactory
+import com.intellij.execution.process.ProcessHandler
 import com.intellij.execution.runners.ExecutionEnvironment
+import com.intellij.execution.ui.ConsoleView
 import com.intellij.notification.Notification
 import com.intellij.notification.NotificationType
 import com.intellij.notification.Notifications
+import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.project.Project
 import com.intellij.util.execution.ParametersListUtil
 import com.intellij.xdebugger.XDebugProcess
@@ -175,8 +178,8 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
                 }
                 Logger.d(TAG, "Debug process started successfully")
                 
-                // Since the CLion module handles the actual debug process, we return a dummy one
-                // The real debug process is started by the CLion module's startDebugSession method
+                // Since the CLion module handles the actual debug process, we throw an exception
+                // to indicate that the debug process is handled externally
                 throw NotImplementedError("Debug process is handled by CLion module directly")
             }
         }).runContentDescriptor
