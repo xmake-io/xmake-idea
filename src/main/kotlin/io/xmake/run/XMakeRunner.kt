@@ -61,7 +61,7 @@ open class XMakeRunner : XMakeDefaultRunner() {
             val pluginManager = com.intellij.ide.plugins.PluginManagerCore
             val nativeDebugPlugin = pluginManager.findPlugin(PluginId.getId("com.intellij.nativeDebug"))
             
-            if (nativeDebugPlugin == null || !nativeDebugPlugin.enabled) {
+            if (nativeDebugPlugin == null || !nativeDebugPlugin.isEnabled) {
                 Logger.d(TAG, "Native debug plugin is not available")
                 return false
             }

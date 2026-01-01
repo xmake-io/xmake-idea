@@ -39,21 +39,18 @@ intellijPlatform {
     }
 
     dependencies {
-        // Default to CLion for development, but allow other IDEs for verification
-        clion(properties("runIdeVersion"))
-        bundledPlugin("com.intellij.nativeDebug")
-        testFramework(TestFrameworkType.Platform)
-        
-        pluginVerification {
-            ides {
-                // Use specific versions that are available
-                named("CLion") {
-                    version = properties("runIdeVersion")
-                }
-                named("IntelliJ IDEA Community") {
-                    version = "2024.3" // Use a stable version that's available
-                }
-            }
+        // Default to CLion for development
+        intellijPlatform {
+            clion(properties("runIdeVersion"))
+            bundledPlugin("com.intellij.nativeDebug")
+            testFramework(TestFrameworkType.Platform)
+        }
+    }
+    
+    pluginVerification {
+        ides {
+            create(IntelliJPlatformType.CLion, properties("runIdeVersion")) {}
+            create(IntelliJPlatformType.IntellijIdeaCommunity, "2024.3") {}
         }
     }
 }
