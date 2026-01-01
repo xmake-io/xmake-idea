@@ -23,6 +23,7 @@ import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.SystemUtils
 import io.xmake.utils.info.XMakeInfoManager
 import io.xmake.utils.info.xmakeInfo
+import io.xmake.debug.DapDriverDetector
 import org.jdom.Element
 import kotlin.io.path.Path
 
@@ -196,44 +197,21 @@ class XMakeRunConfiguration(
     // Get effective DAP driver path
     fun getEffectiveDapDriverPath(): String {
         return if (dapDriverAutoDetect || dapDriverPath.isBlank()) {
-            try {
-                // Use reflection to call DapDriverDetector from debug module
-                val detectorClass = Class.forName("io.xmake.debug.clion.DapDriverDetector")
-                val findBestDriverMethod = detectorClass.getMethod("findBestDriver")
-                val bestDriver = findBestDriverMethod.invoke(null)
-                val pathField = bestDriver?.javaClass?.getDeclaredField("path")
-                pathField?.get(bestDriver) as? String ?: ""
-            } catch (e: Exception) {
-                ""
-            }
+            val bestDriver = DapDriverDetector.findBestDriver()
+            bestDriver?.path ?: ""
         } else {
             dapDriverPath
         }
     }
 
     // Get available DAP drivers for UI
-    fun getAvailableDapDrivers(): List<Any> {
-        return try {
-            // Use reflection to call DapDriverDetector from debug module
-            val detectorClass = Class.forName("io.xmake.debug.clion.DapDriverDetector")
-            val findAvailableDriversMethod = detectorClass.getMethod("findAvailableDrivers")
-            @Suppress("UNCHECKED_CAST")
-            findAvailableDriversMethod.invoke(null) as? List<Any> ?: emptyList()
-        } catch (e: Exception) {
-            emptyList()
-        }
+    fun getAvailableDapDrivers(): List<DapDriverDetector.DapDriverInfo> {
+        return DapDriverDetector.findAvailableDrivers()
     }
 
     // Validate DAP driver path
     fun validateDapDriverPath(path: String): Boolean {
-        return try {
-            // Use reflection to call DapDriverDetector from debug module
-            val detectorClass = Class.forName("io.xmake.debug.clion.DapDriverDetector")
-            val validateDriverPathMethod = detectorClass.getMethod("validateDriverPath", String::class.java)
-            validateDriverPathMethod.invoke(null, path) != null
-        } catch (e: Exception) {
-            false
-        }
+        return DapDriverDetector.validateDriverPath(path) != null
     }
 
     companion object {

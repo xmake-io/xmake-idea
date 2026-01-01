@@ -19,34 +19,18 @@ import java.util.*
 class XMakeDapDriverConfiguration(
     project: Project,
     private val driverPath: String,
+    private val driverName: String,
     private val userLaunchConfig: String = "",
     private val args: List<String> = emptyList(),
     private val env: Map<String, String> = emptyMap()
-) : DapDriverConfiguration(project, getDriverName(driverPath), false, false) {
+) : DapDriverConfiguration(project, driverName, false, false) {
     
     companion object {
         private const val TAG = "XMakeDapDriverConfig"
-        
-        fun getDriverName(driverPath: String): String {
-            val driverInfo = DapDriverDetector.validateDriverPath(driverPath)
-            return when (driverInfo?.type) {
-                DapDriverDetector.DapDriverType.LLDB_DAP -> "lldb-dap"
-                DapDriverDetector.DapDriverType.GDB_DAP -> "gdb-dap"
-                else -> "lldb-dap" // fallback
-            }
-        }
     }
 
     override fun createDriverCommandLine(@NotNull driver: DebuggerDriver, @NotNull arch: ArchitectureType): GeneralCommandLine {
-        val actualDriverPath = if (File(driverPath).exists()) {
-            driverPath
-        } else {
-            // Use the new detector to find best driver
-            val bestDriver = DapDriverDetector.findBestDriver()
-            bestDriver?.path ?: driverPath
-        }
-        
-        return GeneralCommandLine(actualDriverPath)
+        return GeneralCommandLine(driverPath)
             .withWorkDirectory(project.basePath)
             .withEnvironment(EnvironmentUtil.getEnvironmentMap())
             .withParameters(args)
@@ -54,10 +38,11 @@ class XMakeDapDriverConfiguration(
     }
 
     override fun getDapLaunchOptions(commandLine: GeneralCommandLine): Map<String, Any> {
-        // Get driver type and default configuration
-        val driverInfo = DapDriverDetector.validateDriverPath(driverPath)
-        val driverType = driverInfo?.type ?: DapDriverDetector.DapDriverType.LLDB_DAP
-        val defaultConfig = DefaultDebugConfigurations.getDefaultConfigForDriver(driverType.displayName)
+        // Get default configuration based on driver name
+        val defaultConfig = when (driverName) {
+            "gdb-dap" -> DefaultDebugConfigurations.getDefaultConfigForDriver("gdb-dap")
+            else -> DefaultDebugConfigurations.getDefaultConfigForDriver("lldb-dap")
+        }
         
         // Get user configuration from run configuration
         val userConfigJson = userLaunchConfig

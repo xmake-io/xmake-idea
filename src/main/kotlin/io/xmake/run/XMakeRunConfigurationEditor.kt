@@ -28,6 +28,7 @@ import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.execute.SyncDirection
 import io.xmake.utils.execute.transferFolderByToolkit
 import io.xmake.utils.info.XMakeInfo
+import io.xmake.debug.DapDriverDetector
 import io.xmake.utils.info.XMakeInfoManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -127,35 +128,14 @@ class XMakeRunConfigurationEditor(
             dapDriverPathComboBox.addItem("No DAP drivers found")
         } else {
             availableDrivers.forEach { driver ->
-                try {
-                    val displayNameField = driver.javaClass.getDeclaredField("displayName")
-                    displayNameField.isAccessible = true
-                    val displayName = displayNameField.get(driver) as? String ?: "Unknown"
-                    
-                    val pathField = driver.javaClass.getDeclaredField("path")
-                    pathField.isAccessible = true
-                    val path = pathField.get(driver) as? String ?: ""
-                    
-                    dapDriverPathComboBox.addItem("$displayName - $path")
-                } catch (e: Exception) {
-                    dapDriverPathComboBox.addItem("Unknown driver")
-                }
+                dapDriverPathComboBox.addItem("${driver.displayName} - ${driver.path}")
             }
         }
         
         // Set current selection
         val currentPath = runConfiguration.getEffectiveDapDriverPath()
         if (currentPath.isNotBlank()) {
-            val currentIndex = availableDrivers.indexOfFirst { driver ->
-                try {
-                    val pathField = driver.javaClass.getDeclaredField("path")
-                    pathField.isAccessible = true
-                    val path = pathField.get(driver) as? String ?: ""
-                    path == currentPath
-                } catch (e: Exception) {
-                    false
-                }
-            }
+            val currentIndex = availableDrivers.indexOfFirst { it.path == currentPath }
             if (currentIndex >= 0) {
                 dapDriverPathComboBox.selectedIndex = currentIndex
             }
@@ -296,14 +276,7 @@ class XMakeRunConfigurationEditor(
         dapDriverPathComboBox.addItemListener {
             val selectedDriver = runConfiguration.getAvailableDapDrivers().getOrNull(dapDriverPathComboBox.selectedIndex)
             if (selectedDriver != null) {
-                try {
-                    val pathField = selectedDriver.javaClass.getDeclaredField("path")
-                    pathField.isAccessible = true
-                    val path = pathField.get(selectedDriver) as? String ?: ""
-                    dapDriverPathCustomField.text = path
-                } catch (e: Exception) {
-                    dapDriverPathCustomField.text = ""
-                }
+                dapDriverPathCustomField.text = selectedDriver.path
             }
         }
     }

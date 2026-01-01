@@ -1,6 +1,7 @@
-package io.xmake.debug.clion
+package io.xmake.debug
 
 import com.intellij.openapi.util.SystemInfo
+import io.xmake.utils.Logger
 import java.io.File
 
 /**

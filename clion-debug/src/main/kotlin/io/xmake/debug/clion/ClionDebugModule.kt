@@ -43,12 +43,13 @@ object ClionDebugModule {
      * Create a debug configuration using the provided parameters
      */
     @JvmStatic
-    fun createDebugConfiguration(project: Project, driverPath: String, launchConfig: String): XMakeDapDriverConfiguration {
+    fun createDebugConfiguration(project: Project, driverPath: String, driverName: String, launchConfig: String): XMakeDapDriverConfiguration {
         Logger.i(TAG, "Creating debug configuration")
         Logger.d(TAG, "Driver path: $driverPath")
+        Logger.d(TAG, "Driver name: $driverName")
         Logger.d(TAG, "Launch config: $launchConfig")
         
-        return XMakeDapDriverConfiguration(project, driverPath, launchConfig)
+        return XMakeDapDriverConfiguration(project, driverPath, driverName, launchConfig)
     }
     
     /**
@@ -58,6 +59,7 @@ object ClionDebugModule {
     fun startDebugSession(
         project: Project, 
         driverPath: String, 
+        driverName: String,
         launchConfig: String, 
         targetPath: String,
         args: List<String> = emptyList(),
@@ -67,13 +69,14 @@ object ClionDebugModule {
         Logger.i(TAG, "=== Starting debug session ===")
         Logger.i(TAG, "Project: ${project.name}")
         Logger.i(TAG, "Driver path: $driverPath")
+        Logger.i(TAG, "Driver name: $driverName")
         Logger.i(TAG, "Launch config: $launchConfig")
         Logger.i(TAG, "Target path: $targetPath")
         Logger.i(TAG, "Args: $args")
         Logger.i(TAG, "Env: $env")
         
         return try {
-            val configuration = XMakeDapDriverConfiguration(project, driverPath, launchConfig, args, env)
+            val configuration = XMakeDapDriverConfiguration(project, driverPath, driverName, launchConfig, args, env)
             startDebugSessionInternal(project, configuration, targetPath, environment)
         } catch (e: Exception) {
             Logger.e(TAG, "Failed to start debug session", e)

@@ -148,7 +148,7 @@ object DebugModuleLoader {
     /**
      * Create a debug configuration using the loaded module
      */
-    fun createDebugConfiguration(project: Project, driverPath: String, launchConfig: String): Any? {
+    fun createDebugConfiguration(project: Project, driverPath: String, driverName: String, launchConfig: String): Any? {
         if (!isLoaded || debugModuleClass == null) {
             Logger.w(TAG, "Debug module not loaded")
             return null
@@ -159,9 +159,10 @@ object DebugModuleLoader {
                 "createDebugConfiguration",
                 Project::class.java,
                 String::class.java,
+                String::class.java,
                 String::class.java
             )
-            createConfigMethod?.invoke(null, project, driverPath, launchConfig)
+            createConfigMethod?.invoke(null, project, driverPath, driverName, launchConfig)
         } catch (e: Exception) {
             Logger.e(TAG, "Failed to create debug configuration", e)
             null
@@ -174,6 +175,7 @@ object DebugModuleLoader {
     fun startDebugSession(
         project: Project, 
         driverPath: String, 
+        driverName: String,
         launchConfig: String, 
         targetPath: String,
         args: List<String> = emptyList(),
@@ -191,10 +193,11 @@ object DebugModuleLoader {
                 String::class.java,
                 String::class.java,
                 String::class.java,
+                String::class.java,
                 List::class.java,
                 Map::class.java
             )
-            val result = startSessionMethod?.invoke(null, project, driverPath, launchConfig, targetPath, args, env)
+            val result = startSessionMethod?.invoke(null, project, driverPath, driverName, launchConfig, targetPath, args, env)
             result as? Boolean ?: false
         } catch (e: Exception) {
             Logger.e(TAG, "Failed to start debug session", e)

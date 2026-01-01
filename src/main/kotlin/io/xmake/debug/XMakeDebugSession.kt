@@ -169,10 +169,17 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
                     throw Exception("No DAP driver found. Please install lldb-dap or gdb-dap, or specify a custom path in the debug configuration.")
                 }
                 
-                Logger.v(TAG, "Using DAP driver: $dapDriverPath")
+                // Get driver name from DapDriverDetector
+                val driverInfo = io.xmake.debug.DapDriverDetector.validateDriverPath(dapDriverPath)
+                val driverName = when (driverInfo?.type) {
+                    io.xmake.debug.DapDriverDetector.DapDriverType.GDB_DAP -> "gdb-dap"
+                    else -> "lldb-dap"
+                }
+                
+                Logger.v(TAG, "Using DAP driver: $dapDriverPath ($driverName)")
                 
                 // Try to start debug session using the configuration
-                val debugProcess = createDebugProcess(targetPath, dapDriverPath)
+                val debugProcess = createDebugProcess(targetPath, dapDriverPath, driverName)
                 if (debugProcess == null) {
                     throw Exception("Failed to start debug session")
                 }
@@ -186,13 +193,13 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
     /**
      * Create a debug process
      */
-    private fun createDebugProcess(targetPath: String, driverPath: String): XDebugProcess? {
+    private fun createDebugProcess(targetPath: String, driverPath: String, driverName: String): XDebugProcess? {
         return try {
             // Try to use CLion debug module
             if (DebugModuleLoader.loadDebugModuleIfNeeded(project)) {
                 if (DebugModuleLoader.isDebuggingAvailable(project)) {
                     val launchConfig = configuration.launchConfiguration
-                    if (DebugModuleLoader.startDebugSession(project, driverPath, launchConfig, targetPath)) {
+                    if (DebugModuleLoader.startDebugSession(project, driverPath, driverName, launchConfig, targetPath)) {
                         Logger.d(TAG, "Debug process started successfully")
                         
                         // Since the CLion module handles the actual debug process, we throw an exception
