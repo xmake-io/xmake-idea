@@ -219,7 +219,14 @@ class XMakeRunConfiguration(
         "enabled": "true"
     },
     "showDisassembly": "auto",
-    "initCommands": []
+    "initCommands": [],
+    "variables": {
+        "showArguments": true,
+        "showLocals": true,
+        "showGlobals": true,
+        "showStatics": true,
+        "showRegisters": true
+    }
 }"""
         }
     }
