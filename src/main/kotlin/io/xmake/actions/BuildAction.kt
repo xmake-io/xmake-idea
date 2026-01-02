@@ -21,6 +21,7 @@
 package io.xmake.actions
 
 import com.intellij.execution.process.ProcessEvent
+import com.intellij.execution.ExecutionException
 import com.intellij.execution.process.ProcessListener
 import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.notification.NotificationGroupManager
@@ -71,6 +72,15 @@ class BuildAction : AnAction() {
             NotificationGroupManager.getInstance()
                 .getNotificationGroup("XMake.NotificationGroup")
                 .createNotification("Error with XMake Configuration", e.message ?: "", NotificationType.ERROR)
+                .notify(project)
+        } catch (e: ExecutionException) {
+            project.xmakeConsoleView.print(
+                "An error occurred during build: ${e.message}\n",
+                ConsoleViewContentType.ERROR_OUTPUT
+            )
+            NotificationGroupManager.getInstance()
+                .getNotificationGroup("XMake.NotificationGroup")
+                .createNotification("Error with XMake Build", e.message ?: "", NotificationType.ERROR)
                 .notify(project)
         }
     }

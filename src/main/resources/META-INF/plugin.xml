@@ -40,9 +40,6 @@
         <directoryProjectGenerator implementation="io.xmake.project.wizard.XMakeProjectDirectoryGenerator"/>
 
         <!-- xmake toolkit configurations -->
-        <applicationConfigurable instance="io.xmake.project.XMakeProjectToolkitConfigurable"
-                                 displayName="Toolkit" parentId="io.xmake.project.XMakeSettingsConfigurable"/>
-
         <projectConfigurable instance="io.xmake.project.XMakeSettingsConfigurable"
                              displayName="Xmake" groupId="build"/>
 

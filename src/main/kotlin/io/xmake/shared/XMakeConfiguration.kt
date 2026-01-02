@@ -159,7 +159,7 @@ class XMakeConfiguration(val project: Project) {
 
     val updateCompileCommandsLine: GeneralCommandLine
         get() {
-            val parameters = mutableListOf("project", "-k", "compile_commands")
+            val parameters = mutableListOf("project", "-k", "compile_commands", "--lsp=clangd")
             val outputDir = project.xmakeSettings.state.compileCommandsPath
             if (outputDir.isNotEmpty()) {
                 parameters.add(outputDir)
@@ -178,7 +178,7 @@ class XMakeConfiguration(val project: Project) {
     ): GeneralCommandLine {
 
         // make command
-        return GeneralCommandLine(project.activatedToolkit!!.path)
+        return GeneralCommandLine(project.activatedToolkit?.path ?: "xmake")
             .withParameters(parameters)
             .withCharset(Charsets.UTF_8)
             // Todo: Check if correct.

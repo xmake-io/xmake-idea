@@ -21,12 +21,16 @@
 package io.xmake.actions
 
 import com.intellij.execution.process.ProcessEvent
+import com.intellij.execution.ExecutionException
 import com.intellij.execution.process.ProcessListener
 import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.runWriteAction
+import com.intellij.openapi.vfs.VirtualFileManager
 import io.xmake.project.toolkit.activatedToolkit
 import io.xmake.project.xmakeConsoleView
 import io.xmake.shared.xmakeConfiguration
@@ -50,7 +54,7 @@ class UpdateCompileCommandsAction : AnAction() {
                 SystemUtils.runvInConsole(project, xmakeConfiguration.configurationCommandLine)
                     ?.addProcessListener(object : ProcessListener {
                         override fun processTerminated(e: ProcessEvent) {
-                            syncBeforeFetch(project, project.activatedToolkit!!)
+                            project.activatedToolkit?.let { syncBeforeFetch(project, it) }
 
                             SystemUtils.runvInConsole(
                                 project,
@@ -62,11 +66,16 @@ class UpdateCompileCommandsAction : AnAction() {
                                 ?.addProcessListener(
                                     object : ProcessListener {
                                         override fun processTerminated(e: ProcessEvent) {
-                                            fetchGeneratedFile(
-                                                project,
-                                                project.activatedToolkit!!,
-                                                "compile_commands.json"
-                                            )
+                                            val toolkit = project.activatedToolkit
+                                            if (toolkit != null) {
+                                                fetchGeneratedFile(project, toolkit, "compile_commands.json")
+                                            } else {
+                                                ApplicationManager.getApplication().invokeLater {
+                                                    runWriteAction {
+                                                        VirtualFileManager.getInstance().syncRefresh()
+                                                    }
+                                                }
+                                            }
                                             // Todo: Reload from disks after download from remote.
                                         }
                                     }
@@ -79,7 +88,16 @@ class UpdateCompileCommandsAction : AnAction() {
                     ?.addProcessListener(
                         object : ProcessListener {
                             override fun processTerminated(e: ProcessEvent) {
-                                fetchGeneratedFile(project, project.activatedToolkit!!, "compile_commands.json")
+                                val toolkit = project.activatedToolkit
+                                if (toolkit != null) {
+                                    fetchGeneratedFile(project, toolkit, "compile_commands.json")
+                                } else {
+                                    ApplicationManager.getApplication().invokeLater {
+                                        runWriteAction {
+                                            VirtualFileManager.getInstance().syncRefresh()
+                                        }
+                                    }
+                                }
                             }
                         }
                     )
@@ -92,6 +110,15 @@ class UpdateCompileCommandsAction : AnAction() {
             NotificationGroupManager.getInstance()
                 .getNotificationGroup("XMake.NotificationGroup")
                 .createNotification("Error with XMake Configuration", e.message ?: "", NotificationType.ERROR)
+                .notify(project)
+        } catch (e: ExecutionException) {
+            project.xmakeConsoleView.print(
+                "An error occurred during update: ${e.message}\n",
+                ConsoleViewContentType.ERROR_OUTPUT
+            )
+            NotificationGroupManager.getInstance()
+                .getNotificationGroup("XMake.NotificationGroup")
+                .createNotification("Error with XMake Update", e.message ?: "", NotificationType.ERROR)
                 .notify(project)
         }
     }
