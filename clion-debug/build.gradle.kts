@@ -42,6 +42,10 @@ tasks {
         compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
     
+    compileJava {
+        options.release.set(17)
+    }
+    
     jar {
         archiveBaseName.set("xmake-clion-debug")
         
