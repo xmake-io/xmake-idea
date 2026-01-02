@@ -11,6 +11,7 @@ import io.xmake.project.xmakeConsoleView
 import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.SystemUtils
 import io.xmake.utils.exception.XMakeRunConfigurationNotSetException
+import com.intellij.openapi.fileEditor.FileDocumentManager
 
 class BuildAction : AnAction() {
 
@@ -18,6 +19,9 @@ class BuildAction : AnAction() {
 
         // the project
         val project = e.project ?: return
+
+        // save all files
+        FileDocumentManager.getInstance().saveAllDocuments()
 
         // clear console first
         project.xmakeConsoleView.clear()

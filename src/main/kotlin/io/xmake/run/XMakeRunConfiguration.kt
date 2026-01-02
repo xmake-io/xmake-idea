@@ -16,6 +16,7 @@ import com.intellij.util.execution.ParametersListUtil
 import com.intellij.util.xmlb.XmlSerializer
 import com.intellij.util.xmlb.annotations.OptionTag
 import com.intellij.util.xmlb.annotations.Transient
+import com.intellij.openapi.fileEditor.FileDocumentManager
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitManager
 import io.xmake.project.xmakeConsoleView
@@ -143,6 +144,9 @@ class XMakeRunConfiguration(
         XMakeRunConfigurationEditor(project, this)
 
     override fun getState(executor: Executor, environment: ExecutionEnvironment): RunProfileState? {
+
+        // save all files
+        FileDocumentManager.getInstance().saveAllDocuments()
 
         if (executor.id == DefaultDebugExecutor.EXECUTOR_ID) {
             return object : CommandLineState(environment) {
