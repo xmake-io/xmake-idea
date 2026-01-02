@@ -56,15 +56,7 @@ object ClionDebugModule {
         args: List<String> = emptyList(),
         env: Map<String, String> = emptyMap()
     ): XDebugProcess {
-        Logger.i(TAG, "=== Creating debug process ===")
-        Logger.i(TAG, "Project: ${project.name}")
-        Logger.i(TAG, "Driver name: $driverName")
-        Logger.i(TAG, "Driver path: $driverPath")
-        Logger.i(TAG, "Launch config: $launchConfig")
-        Logger.i(TAG, "Target path: $targetPath")
-        Logger.i(TAG, "Working dir: $workingDir")
-        Logger.i(TAG, "Args: $args")
-        Logger.i(TAG, "Env: $env")
+        Logger.i(TAG, "Creating debug process: project=${project.name}, driver=$driverName, path=$driverPath, target=$targetPath, workDir=$workingDir, args=$args, env=$env")
         
         val configuration = XMakeDapDriverConfiguration(project, driverPath, driverName, launchConfig, args, env)
         

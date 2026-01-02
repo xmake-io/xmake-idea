@@ -69,7 +69,6 @@ open class XMakeRunner : XMakeDefaultRunner() {
             // Check if CLion-specific classes are available
             try {
                 Class.forName("com.jetbrains.cidr.execution.debugger.CidrLocalDebugProcess")
-                Logger.d(TAG, "CLion debugging classes are available")
                 true
             } catch (e: ClassNotFoundException) {
                 Logger.d(TAG, "CLion debugging classes are not available")
