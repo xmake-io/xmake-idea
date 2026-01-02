@@ -1,32 +1,15 @@
-/*!A Xmake integration in IntelliJ IDEA/Clion
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * Copyright (C) 2015-present, Xmake Open Source Community.
- *
- * @author      ruki
- * @file        XMakeProjectToolkitConfigurable.kt
- *
- */
 package io.xmake.project
 
 import com.intellij.openapi.options.Configurable
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.ui.ColoredListCellRenderer
 import com.intellij.ui.SimpleTextAttributes
 import com.intellij.ui.ToolbarDecorator
 import com.intellij.ui.components.JBList
 import com.intellij.ui.dsl.builder.Align
+import com.intellij.ui.dsl.builder.bindSelected
+import com.intellij.ui.dsl.builder.bindText
 import com.intellij.ui.dsl.builder.panel
 import io.xmake.project.toolkit.ToolkitManager
 import io.xmake.project.toolkit.ui.ToolkitListItem
@@ -34,9 +17,10 @@ import javax.swing.DefaultListModel
 import javax.swing.JComponent
 import javax.swing.JList
 
-class XMakeProjectToolkitConfigurable : Configurable, Configurable.NoScroll {
-
+class XMakeSettingsConfigurable(private val project: Project) : Configurable {
+    private val settings = XMakeSettings.getInstance(project)
     private val toolkitManager = ToolkitManager.getInstance()
+    private var myPanel: com.intellij.openapi.ui.DialogPanel? = null
 
     override fun createComponent(): JComponent {
         val registeredToolkit = toolkitManager.getRegisteredToolkits()
@@ -83,23 +67,39 @@ class XMakeProjectToolkitConfigurable : Configurable, Configurable.NoScroll {
             }
         }
 
-        return panel {
-            row {
-                cell(decorator.createPanel()).align(Align.FILL)
+        val panel = panel {
+            group("Intellisense") {
+                row("Compile commands path:") {
+                    textField()
+                        .bindText(settings.state::compileCommandsPath)
+                        .comment("Path to generate compile_commands.json (relative to project root). Default: ./compile_commands.json")
+                }
+                row {
+                    checkBox("Auto-update compile_commands.json after build")
+                        .bindSelected(settings.state::autoUpdateCompileCommands)
+                }
+            }
+            group("Toolkit") {
+                row {
+                    cell(decorator.createPanel()).align(Align.FILL)
+                }
             }
         }
+        myPanel = panel
+        return panel
     }
 
     override fun isModified(): Boolean {
-        return false
+        return myPanel?.isModified() ?: false
     }
 
     override fun apply() {
-
+        myPanel?.apply()
     }
 
-    override fun getDisplayName(): String {
-        return "Xmake Project Toolkit"
+    override fun reset() {
+        myPanel?.reset()
     }
 
+    override fun getDisplayName() = "Xmake"
 }

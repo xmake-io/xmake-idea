@@ -34,6 +34,7 @@ import io.xmake.project.toolkit.activatedToolkit
 import io.xmake.shared.XMakeProblem
 import io.xmake.utils.exception.XMakeToolkitNotSetException
 import io.xmake.utils.execute.createProcess
+import io.xmake.utils.execute.createLocalProcess
 import io.xmake.utils.execute.runProcessWithHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -98,9 +99,13 @@ object SystemUtils {
         showExitCode: Boolean = false
     ) = runProcessWithHandler(project, commandLine, showConsole, showProblem, showExitCode) {
         try {
-            val activatedToolkit = project.activatedToolkit ?: throw XMakeToolkitNotSetException()
-            runBlocking(Dispatchers.Default) {
-                commandLine.createProcess(activatedToolkit)
+            val activatedToolkit = project.activatedToolkit
+            if (activatedToolkit != null) {
+                runBlocking(Dispatchers.Default) {
+                    commandLine.createProcess(activatedToolkit)
+                }
+            } else {
+                commandLine.createLocalProcess()
             }
         } catch (e: XMakeToolkitNotSetException) {
             NotificationGroupManager.getInstance()

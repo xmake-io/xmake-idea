@@ -21,6 +21,7 @@
 package io.xmake.actions
 
 import com.intellij.execution.process.ProcessEvent
+import com.intellij.execution.ExecutionException
 import com.intellij.execution.process.ProcessListener
 import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.notification.NotificationGroupManager
@@ -32,6 +33,7 @@ import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.SystemUtils
 import io.xmake.utils.exception.XMakeRunConfigurationNotSetException
 import com.intellij.openapi.fileEditor.FileDocumentManager
+import io.xmake.project.xmakeSettings
 
 class BuildAction : AnAction() {
 
@@ -53,12 +55,14 @@ class BuildAction : AnAction() {
                 SystemUtils.runvInConsole(project, xmakeConfiguration.configurationCommandLine)
                     ?.addProcessListener(object : ProcessListener {
                         override fun processTerminated(e: ProcessEvent) {
-                            SystemUtils.runvInConsole(project, xmakeConfiguration.buildCommandLine, false, true, true)
+                            if (e.exitCode == 0) {
+                                runBuild(project, xmakeConfiguration)
+                            }
                         }
                     })
                 xmakeConfiguration.changed = false
             } else {
-                SystemUtils.runvInConsole(project, xmakeConfiguration.buildCommandLine, true, true, true)
+                runBuild(project, xmakeConfiguration)
             }
         } catch (e: XMakeRunConfigurationNotSetException) {
             project.xmakeConsoleView.print(
@@ -69,6 +73,26 @@ class BuildAction : AnAction() {
                 .getNotificationGroup("XMake.NotificationGroup")
                 .createNotification("Error with XMake Configuration", e.message ?: "", NotificationType.ERROR)
                 .notify(project)
+        } catch (e: ExecutionException) {
+            project.xmakeConsoleView.print(
+                "An error occurred during build: ${e.message}\n",
+                ConsoleViewContentType.ERROR_OUTPUT
+            )
+            NotificationGroupManager.getInstance()
+                .getNotificationGroup("XMake.NotificationGroup")
+                .createNotification("Error with XMake Build", e.message ?: "", NotificationType.ERROR)
+                .notify(project)
         }
+    }
+
+    private fun runBuild(project: com.intellij.openapi.project.Project, xmakeConfiguration: io.xmake.shared.XMakeConfiguration) {
+        SystemUtils.runvInConsole(project, xmakeConfiguration.buildCommandLine, true, true, true)
+            ?.addProcessListener(object : ProcessListener {
+                override fun processTerminated(e: ProcessEvent) {
+                    if (e.exitCode == 0 && project.xmakeSettings.state.autoUpdateCompileCommands) {
+                        SystemUtils.runvInConsole(project, xmakeConfiguration.updateCompileCommandsLine, false, true, true)
+                    }
+                }
+            })
     }
 }

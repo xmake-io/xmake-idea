@@ -40,10 +40,6 @@ import com.intellij.xdebugger.XDebugProcess
 import com.intellij.xdebugger.XDebugProcessStarter
 import com.intellij.xdebugger.XDebugSession
 import com.intellij.xdebugger.XDebuggerManager
-import com.jetbrains.cidr.execution.TrivialRunParameters
-import com.jetbrains.cidr.execution.debugger.CidrLocalDebugProcess
-import com.jetbrains.cidr.ArchitectureType
-import com.jetbrains.cidr.execution.debugger.backend.dap.DapDriverConfiguration
 import io.xmake.run.XMakeRunConfiguration
 import io.xmake.shared.xmakeConfiguration
 import io.xmake.project.toolkit.activatedToolkit

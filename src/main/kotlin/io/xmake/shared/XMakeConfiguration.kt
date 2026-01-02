@@ -30,6 +30,7 @@ import com.intellij.util.execution.ParametersListUtil
 import io.xmake.project.toolkit.activatedToolkit
 import io.xmake.run.XMakeRunConfiguration
 import io.xmake.utils.exception.XMakeRunConfigurationNotSetException
+import io.xmake.project.xmakeSettings
 
 @Service(Service.Level.PROJECT)
 class XMakeConfiguration(val project: Project) {
@@ -157,7 +158,14 @@ class XMakeConfiguration(val project: Project) {
         get() = makeCommandLine(mutableListOf("project", "-k", "cmake", "-y"))
 
     val updateCompileCommandsLine: GeneralCommandLine
-        get() = makeCommandLine(mutableListOf("project", "-k", "compile_commands"))
+        get() {
+            val parameters = mutableListOf("project", "-k", "compile_commands", "--lsp=clangd")
+            val outputDir = project.xmakeSettings.state.compileCommandsPath
+            if (outputDir.isNotEmpty()) {
+                parameters.add(outputDir)
+            }
+            return makeCommandLine(parameters)
+        }
 
 
     // configuration is changed?
@@ -170,7 +178,7 @@ class XMakeConfiguration(val project: Project) {
     ): GeneralCommandLine {
 
         // make command
-        return GeneralCommandLine(project.activatedToolkit!!.path)
+        return GeneralCommandLine(project.activatedToolkit?.path ?: "xmake")
             .withParameters(parameters)
             .withCharset(Charsets.UTF_8)
             // Todo: Check if correct.

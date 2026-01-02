@@ -133,8 +133,10 @@ fun runProcessWithHandler(
     })
 
     if (showConsole) {
-        project.xmakeToolWindow?.show {
-            project.xmakeOutputPanel.showPanel()
+        com.intellij.openapi.application.ApplicationManager.getApplication().invokeLater {
+            project.xmakeToolWindow?.show {
+                project.xmakeOutputPanel.showPanel()
+            }
         }
     }
 
