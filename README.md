@@ -108,7 +108,22 @@ Please see [xmake-github](https://github.com/xmake-io/xmake) and [website](http:
 
 ## Debug
 
-> Only support Clion (>= 2020.1)
+### DAP Debugging (Recommended)
+
+> Only support CLion (>= 2025.3)
+
+XMake now supports native debugging via the Debug Adapter Protocol (DAP). This allows you to debug your XMake targets directly without generating CMakeLists.txt.
+
+1. Install `lldb-dap` (recommended) or `gdb-dap` on your system.
+2. Open the "Run Configuration" for your XMake target.
+3. In the "Debug Configuration" section, you can:
+    - Enable "Auto-detect DAP driver" to let the plugin find the driver automatically.
+    - Or manually select/input the path to your DAP driver executable (e.g., `/usr/bin/lldb-dap`).
+4. Click the Debug button to start debugging.
+
+### Legacy Debugging (CMake)
+
+> Support CLion (>= 2020.1)
 
 1. Click "Update CmakeLists" to create or update "CmakeLists.txt" file.
 2. Click "File > open..." to choose this file.
