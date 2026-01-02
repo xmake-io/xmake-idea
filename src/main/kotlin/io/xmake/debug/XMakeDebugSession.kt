@@ -9,9 +9,11 @@ import com.intellij.execution.process.ProcessHandler
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.execution.ui.ConsoleView
 import com.intellij.notification.Notification
+import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.notification.Notifications
 import com.intellij.openapi.actionSystem.AnAction
+import com.intellij.openapi.application.ApplicationInfo
 import com.intellij.openapi.project.Project
 import com.intellij.util.execution.ParametersListUtil
 import com.intellij.xdebugger.XDebugProcess
@@ -196,28 +198,54 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
     private fun createDebugProcess(targetPath: String, driverName: String, driverPath: String, session: XDebugSession): XDebugProcess? {
         return try {
             // Try to use CLion debug module
-            if (DebugModuleLoader.loadDebugModuleIfNeeded(project)) {
-                if (DebugModuleLoader.isDebuggingAvailable(project)) {
-                    val launchConfig = configuration.launchConfiguration
-                    val args = if (configuration.runArguments.isNotBlank()) {
-                        ParametersListUtil.parse(configuration.runArguments)
-                    } else {
-                        emptyList()
-                    }
-                    val workingDir = configuration.runWorkingDir ?: project.basePath ?: ""
-                    val debugProcess = DebugModuleLoader.createDebugProcess(
-                        project, driverName, driverPath, launchConfig, targetPath, workingDir, session,
-                        args, configuration.runEnvironment.envs
-                    )
-                    return debugProcess
+            if (DebugModuleLoader.loadDebugModuleIfNeeded(project) && DebugModuleLoader.isDebuggingAvailable(project)) {
+                val launchConfig = configuration.launchConfiguration
+                val args = if (configuration.runArguments.isNotBlank()) {
+                    ParametersListUtil.parse(configuration.runArguments)
+                } else {
+                    emptyList()
                 }
+                val workingDir = configuration.runWorkingDir ?: project.basePath ?: ""
+                val debugProcess = DebugModuleLoader.createDebugProcess(
+                    project, driverName, driverPath, launchConfig, targetPath, workingDir, session,
+                    args, configuration.runEnvironment.envs
+                )
+                return debugProcess
             }
             
             Logger.w(TAG, "Failed to create debug process using CLion module")
+            notifyDebugFailure(project)
             null
         } catch (e: Exception) {
             Logger.e(TAG, "Failed to create debug process", e)
             null
+        }
+    }
+
+    private fun notifyDebugFailure(project: Project) {
+        // Notify failure
+        NotificationGroupManager.getInstance()
+            .getNotificationGroup("XMake.NotificationGroup")
+            .createNotification(
+                "XMake Debug Support",
+                "Failed to load XMake debug module. Debugging features will be unavailable.",
+                NotificationType.ERROR
+            )
+            .notify(project)
+
+        // Check version compatibility
+        val appInfo = ApplicationInfo.getInstance()
+        val build = appInfo.build
+        // CLion 2025.3 corresponds to baseline version 253
+        if (build.productCode == "CL" && build.baselineVersion < 253) {
+            NotificationGroupManager.getInstance()
+                .getNotificationGroup("XMake.NotificationGroup")
+                .createNotification(
+                    "XMake Debug Support",
+                    "Debugging is only supported in CLion 2025.3 or later. You are using ${appInfo.fullVersion}.",
+                    NotificationType.WARNING
+                )
+                .notify(project)
         }
     }
     
