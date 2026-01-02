@@ -1,0 +1,17 @@
+<idea-plugin>
+    <id>io.xmake.debug.clion</id>
+    <name>CLion Debug Module</name>
+    <vendor email="support@xmake.io" url="https://xmake.io">XMake</vendor>
+
+    <description><![CDATA[
+    CLion-specific debugging module for XMake integration.
+    This module provides DAP driver configuration and debug session management for CLion IDE.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.cidr.lang</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Add extensions if needed -->
+    </extensions>
+</idea-plugin>

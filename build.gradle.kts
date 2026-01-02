@@ -38,14 +38,19 @@ intellijPlatform {
         }
     }
 
+    dependencies {
+        // Default to CLion for development
+        intellijPlatform {
+            clion(properties("runIdeVersion"))
+            bundledPlugin("com.intellij.nativeDebug")
+            testFramework(TestFrameworkType.Platform)
+        }
+    }
+    
     pluginVerification {
         ides {
-            select {
-                types = listOf(
-                    IntelliJPlatformType.CLion,
-                )
-                sinceBuild = properties("pluginSinceBuild")
-            }
+            create(IntelliJPlatformType.CLion, properties("runIdeVersion")) {}
+            create(IntelliJPlatformType.IntellijIdeaCommunity, "2024.3") {}
         }
     }
 }
@@ -57,15 +62,38 @@ tasks {
     }
 }
 
+// Disable buildSearchableOptions (due to CLion traverseUI issues)
+tasks.matching { task -> task.name.contains("buildSearchableOptions") }.configureEach {
+    enabled = false
+}
+
 dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib:2.1.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
     testImplementation("io.mockk:mockk:1.13.12")
     testImplementation("junit:junit:4.13.2")
-    intellijPlatform {
-        clion(properties("runIdeVersion"))
-        testFramework(TestFrameworkType.Platform)
-    }
+}
+
+// Add compilation order dependency - build clion-debug first
+tasks.named("compileKotlin") {
+    dependsOn(":clion-debug:build", ":clion-debug:copyToPluginResources")
+}
+
+tasks.named("build") {
+    dependsOn(":clion-debug:build", ":clion-debug:copyToPluginResources")
+}
+
+// Also ensure all CLion tasks complete before main plugin compilation
+tasks.named("classes") {
+    dependsOn(":clion-debug:build", ":clion-debug:copyToPluginResources")
+}
+
+tasks.named("processResources") {
+    dependsOn(":clion-debug:copyToPluginResources")
+}
+
+tasks.named("jar") {
+    dependsOn(":clion-debug:build", ":clion-debug:copyToPluginResources")
 }
 
 val Project.dependencyCachePath

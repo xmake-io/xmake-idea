@@ -10,3 +10,4 @@ deps/
 .idea
 .intellijPlatform/
 .kotlin/
+src/main/resources/lib/

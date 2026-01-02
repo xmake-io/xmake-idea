@@ -1,14 +1,20 @@
 package io.xmake.run
 
+import com.intellij.openapi.ui.TextFieldWithBrowseButton
+import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
+import com.intellij.openapi.ui.TextComponentAccessor
 import com.intellij.execution.configuration.EnvironmentVariablesTextFieldWithBrowseButton
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.util.messages.MessageBusConnection
 import com.intellij.ui.PopupMenuListenerAdapter
 import com.intellij.ui.RawCommandLineEditor
+import com.intellij.ui.EditorTextField
+import com.intellij.openapi.editor.EditorSettings
+import com.intellij.openapi.editor.ex.EditorEx
+import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.components.CheckBox
 import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.AlignY
@@ -24,6 +30,7 @@ import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.execute.SyncDirection
 import io.xmake.utils.execute.transferFolderByToolkit
 import io.xmake.utils.info.XMakeInfo
+import io.xmake.debug.DapDriverDetector
 import io.xmake.utils.info.XMakeInfoManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -115,6 +122,28 @@ class XMakeRunConfigurationEditor(
         targetsModel.selectedItem = if (targets.contains(selectedTarget)) selectedTarget else runConfiguration.runTarget
     }
 
+    private fun updateDapDriverComboBox() {
+        val availableDrivers = runConfiguration.getAvailableDapDrivers()
+        dapDriverPathComboBox.removeAllItems()
+        
+        if (availableDrivers.isEmpty()) {
+            dapDriverPathComboBox.addItem("No DAP drivers found")
+        } else {
+            availableDrivers.forEach { driver ->
+                dapDriverPathComboBox.addItem("${driver.displayName} - ${driver.path}")
+            }
+        }
+        
+        // Set current selection
+        val currentPath = runConfiguration.getEffectiveDapDriverPath()
+        if (currentPath.isNotBlank()) {
+            val currentIndex = availableDrivers.indexOfFirst { it.path == currentPath }
+            if (currentIndex >= 0) {
+                dapDriverPathComboBox.selectedIndex = currentIndex
+            }
+        }
+    }
+
     private var toolkit: Toolkit? = runConfiguration.runToolkit
     private val toolkitComboBox = ToolkitComboBox(::toolkit)
 
@@ -151,6 +180,46 @@ class XMakeRunConfigurationEditor(
     private val enableVerboseCheckBox = CheckBox("Enable verbose output", enableVerbose)
 
     private val additionalConfiguration = RawCommandLineEditor()
+
+    // Launch configuration for debugging (JSON format)
+    private val launchConfiguration = EditorTextField(XMakeRunConfiguration.getDefaultLaunchConfigJson()).apply {
+        // Set up for multi-line JSON editing
+        setOneLineMode(false)
+        preferredSize = java.awt.Dimension(400, 120)
+        
+        // Configure editor settings when editor is created
+        editor?.let { editor ->
+            val settings = editor.settings
+            settings.isFoldingOutlineShown = false
+            settings.isLineNumbersShown = false
+            settings.isCaretRowShown = true
+            settings.isAllowSingleLogicalLineFolding = false
+            settings.isDndEnabled = false
+            // Enable scrolling
+            settings.isAnimatedScrolling = true
+        }
+    }
+    
+    // Create scrollable wrapper for the editor
+    private val scrollableLaunchConfiguration: JComponent = JBScrollPane(launchConfiguration).apply {
+        preferredSize = java.awt.Dimension(400, 120)
+        verticalScrollBarPolicy = javax.swing.ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED
+        horizontalScrollBarPolicy = javax.swing.ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED
+    }
+
+    // DAP driver configuration UI components
+    private val dapDriverAutoDetectCheckBox = CheckBox("Auto-detect DAP driver", runConfiguration.dapDriverAutoDetect)
+    
+    private val dapDriverPathComboBox = ComboBox<String>()
+    private val dapDriverPathCustomField = TextFieldWithBrowseButton().apply {
+        textField.isEditable = true
+        addBrowseFolderListener(
+            "Select DAP Driver",
+            "Select the DAP driver executable (lldb-dap or gdb-dap)",
+            project,
+            FileChooserDescriptorFactory.createSingleFileDescriptor()
+        )
+    }
 
     // reset editor from configuration
     override fun resetEditorFrom(configuration: XMakeRunConfiguration) {
@@ -189,6 +258,37 @@ class XMakeRunConfigurationEditor(
         enableVerboseCheckBox.setSelected(enableVerbose)
 
         additionalConfiguration.text = configuration.additionalConfiguration
+
+        launchConfiguration.text = if (configuration.launchConfiguration.isBlank()) {
+            XMakeRunConfiguration.getDefaultLaunchConfigJson()
+        } else {
+            configuration.launchConfiguration
+        }
+
+        // reset DAP driver configuration
+        dapDriverAutoDetectCheckBox.isSelected = configuration.dapDriverAutoDetect
+        updateDapDriverComboBox()
+        dapDriverPathCustomField.text = configuration.dapDriverPath
+        
+        // Set initial enabled state based on auto-detect setting
+        val isAutoDetect = dapDriverAutoDetectCheckBox.isSelected
+        dapDriverPathComboBox.isEnabled = !isAutoDetect
+        dapDriverPathCustomField.isEnabled = !isAutoDetect
+        
+        // Add DAP driver checkbox listener
+        dapDriverAutoDetectCheckBox.addItemListener {
+            val isAutoDetect = dapDriverAutoDetectCheckBox.isSelected
+            dapDriverPathComboBox.isEnabled = !isAutoDetect
+            dapDriverPathCustomField.isEnabled = !isAutoDetect
+        }
+        
+        // Add DAP driver combo box listener
+        dapDriverPathComboBox.addItemListener {
+            val selectedDriver = runConfiguration.getAvailableDapDrivers().getOrNull(dapDriverPathComboBox.selectedIndex)
+            if (selectedDriver != null) {
+                dapDriverPathCustomField.text = selectedDriver.path
+            }
+        }
     }
 
     // apply editor to configuration
@@ -220,6 +320,12 @@ class XMakeRunConfigurationEditor(
         configuration.enableVerbose = enableVerbose
 
         configuration.additionalConfiguration = additionalConfiguration.text
+
+        configuration.launchConfiguration = launchConfiguration.text
+
+        // apply DAP driver configuration
+        configuration.dapDriverAutoDetect = dapDriverAutoDetectCheckBox.isSelected
+        configuration.dapDriverPath = dapDriverPathCustomField.text
 
         project.xmakeConfiguration.changed = true
     }
@@ -300,19 +406,44 @@ class XMakeRunConfigurationEditor(
             cell(modesComboBox).align(AlignX.FILL)
         }
 
-        row("Program arguments:") {
+        row("Program Arguments:") {
             cell(runArguments).align(AlignX.FILL)
         }
-//        environmentVariables.label
-        row("Environment variables") {
-            cell(environmentVariables).align(AlignX.FILL)
+
+        // Debug Configuration
+        collapsibleGroup("Debug Configuration") {
+            row("") {
+                cell(dapDriverAutoDetectCheckBox)
+            }
+            
+            row("DAP Driver:") {
+                cell(dapDriverPathComboBox).align(AlignX.FILL).resizableColumn()
+            }
+            
+            row("Custom DAP Driver Path:") {
+                cell(dapDriverPathCustomField).align(AlignX.FILL)
+            }
+            
+            row {
+                label("Launch Configuration (JSON format):")
+            }
+            row {
+                cell(scrollableLaunchConfiguration).align(AlignX.FILL).resizableColumn()
+            }
+            row {
+                comment("Override default debug settings with JSON configuration")
+            }
         }
 
-        row("Working directory") {
-            cell(workingDirectoryBrowser).align(AlignX.FILL)
-        }
+        collapsibleGroup("Additional Configuration") {
+            row("Environment variables") {
+                cell(environmentVariables).align(AlignX.FILL)
+            }
 
-        collapsibleGroup("Additional Configurations") {
+            row("Working directory") {
+                cell(workingDirectoryBrowser).align(AlignX.FILL)
+            }
+
             row("Build directory") {
                 cell(buildDirectoryBrowser).align(AlignX.FILL)
             }
@@ -357,11 +488,5 @@ class XMakeRunConfigurationEditor(
 
     private fun JPanel.makeWide() {
         preferredSize = Dimension(1000, height)
-    }
-
-    companion object {
-
-        // get log
-        private val Log = Logger.getInstance(XMakeRunConfigurationEditor::class.java.getName())
     }
 }

@@ -6,7 +6,6 @@ import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.execution.wsl.WSLUtil
 import com.intellij.execution.wsl.WslDistributionManager
 import com.intellij.openapi.components.*
-import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.extensions.ExtensionPointName
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
@@ -16,6 +15,7 @@ import io.xmake.project.toolkit.ToolkitHostType.*
 import io.xmake.run.XMakeRunConfiguration
 import io.xmake.utils.execute.*
 import io.xmake.utils.extension.ToolkitHostExtension
+import io.xmake.utils.Logger
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import java.util.*
@@ -56,17 +56,17 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
     private fun toolkitHostFlow(project: Project? = null): Flow<ToolkitHost> = flow {
         val wslDistributions = scope.async { WslDistributionManager.getInstance().installedDistributions }
 
-        emit(ToolkitHost(LOCAL).also { host -> Log.info("emit host: $host") })
+        emit(ToolkitHost(LOCAL).also { host -> Logger.i(TAG, "emit host: $host") })
 
         if (WSLUtil.isSystemCompatible()) {
             wslDistributions.await().forEach {
-                emit(ToolkitHost(WSL, it).also { host -> Log.info("emit host: $host") })
+                emit(ToolkitHost(WSL, it).also { host -> Logger.i(TAG, "emit host: $host") })
             }
         }
 
         EP_NAME.extensions.filter { it.KEY == "SSH" }.forEach {
             it.getToolkitHosts(project).forEach {
-                emit(it).also { host -> Log.info("emit host: $host") }
+                emit(it).also { host -> Logger.i(TAG, "emit host: $host") }
             }
         }
     }
@@ -81,12 +81,12 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
         }
 
         with(process.getBareExecutionResult()){
-            Log.info("Host: ${host.type} ExitCode: $exitCode Output: ${stdOut.toString(Charsets.UTF_8)}")
+            Logger.i(TAG, "Host: ${host.type} ExitCode: $exitCode Output: ${stdOut.toString(Charsets.UTF_8)}")
             val paths = stdOut.toString(Charsets.UTF_8)
                 .split(Regex("\\r\\n|\\n|\\r"))
                 .filterNot { it.isBlank() || it.contains("not found") }
                 .distinct()
-            paths.forEach { emit(it); Log.info("emit path on ${host.type}: $it") }
+            paths.forEach { emit(it); Logger.i(TAG, "emit path on ${host.type}: $it") }
         }
     }
 
@@ -100,7 +100,7 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
         }
         val (stdout, exitCode) = runProcess(process)
         val versionString = stdout.getOrElse { "" }.split(Regex(",")).first().split(" ").last()
-        Log.info("ExitCode: $exitCode Version: $versionString")
+        Logger.i(TAG, "ExitCode: $exitCode Version: $versionString")
         emit(versionString)
     }
 
@@ -111,18 +111,18 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
 
             val pathFlow = toolkitFlow.flatMapMerge { host ->
                 detectToolkitLocation(host).catch {
-                    Log.warn(it.message)
+                    Logger.w(TAG, it.message ?: "Unknown error")
                 }.flowOn(Dispatchers.IO).buffer()
                     .distinctUntilChanged()
                     .filterNot { it.isBlank() }
-                    .onEach { Log.info("output path: $it") }
+                    .onEach { Logger.i(TAG, "output path: $it") }
                     .map { path -> host to path }
             }.flowOn(Dispatchers.Default).buffer()
 
             val versionFlow = pathFlow.flatMapMerge { (host, path) ->
-                Log.info("detecting version: host: $host, path: $path")
+                Logger.i(TAG, "detecting version: host: $host, path: $path")
                 detectToolkitVersion(host, path).catch {
-                    Log.warn(it.message)
+                    Logger.w(TAG, it.message ?: "Unknown error")
                 }.flowOn(Dispatchers.IO).buffer().filterNot { it.isBlank() }.map { versionString ->
                     when (host.type) {
                         LOCAL -> {
@@ -150,7 +150,7 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
                 listenerList.forEach { listener ->
                     listener.onToolkitDetected(ToolkitDetectEvent(toolkit))
                 }
-                Log.info("toolkit added: $toolkit")
+                Logger.i(TAG, "toolkit added: $toolkit")
             }
             listenerList.forEach { it.onAllToolkitsDetected() }
         }
@@ -166,16 +166,31 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
     fun validateXMakeToolkit() {
         scope.launch {
             try {
-                validateJob = launch { validateToolkits() }
+                validateJob?.cancel()
+                validateJob = launch { validateToolkitsImpl() }
             } catch (e: Exception) {
-                Log.error("Error: ${e.message}")
+                Logger.e(TAG, "Error", e)
             }
         }
     }
 
     // Todo: Validate toolkit.
     fun validateToolkits(){
-
+        detectionJob?.cancel()
+        detectionJob = scope.launch {
+            try {
+                validateToolkitsImpl()
+            } catch (e: Exception) {
+                Logger.e(TAG, "Error", e)
+            }
+        }
+    }
+    
+    // Actual implementation of toolkit validation
+    private fun validateToolkitsImpl() {
+        // TODO: Implement actual validation logic
+        Logger.i(TAG, "Validating toolkits...")
+        // This would contain the actual validation implementation
     }
 
     // Todo: Validate toolkit.
@@ -213,7 +228,7 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
         } else {
             loadToolkit(findRegisteredToolkitById(toolkit.id)!!)
         }
-        Log.info("load registered toolkit: ${toolkit.name}, ${toolkit.id}")
+        Logger.i(TAG, "load registered toolkit: ${toolkit.name}, ${toolkit.id}")
     }
 
     // Todo: Increase robustness of this method
@@ -245,8 +260,7 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
     }
 
     companion object {
-        private val Log = logger<ToolkitManager>()
-
+        private const val TAG = "ToolkitManager"
         fun getInstance(): ToolkitManager = serviceOrNull() ?: throw IllegalStateException()
     }
 }

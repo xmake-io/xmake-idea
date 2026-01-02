@@ -3,6 +3,9 @@ package io.xmake.run
 import com.intellij.execution.Executor
 import com.intellij.execution.configuration.EnvironmentVariablesData
 import com.intellij.execution.configurations.*
+import com.intellij.execution.executors.DefaultDebugExecutor
+import com.intellij.execution.process.NopProcessHandler
+import com.intellij.execution.process.ProcessHandler
 import com.intellij.execution.process.ProcessEvent
 import com.intellij.execution.process.ProcessListener
 import com.intellij.execution.runners.ExecutionEnvironment
@@ -20,6 +23,7 @@ import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.SystemUtils
 import io.xmake.utils.info.XMakeInfoManager
 import io.xmake.utils.info.xmakeInfo
+import io.xmake.debug.DapDriverDetector
 import org.jdom.Element
 import kotlin.io.path.Path
 
@@ -70,6 +74,17 @@ class XMakeRunConfiguration(
     @OptionTag(tag = "additionalConfiguration")
     var additionalConfiguration: String = ""
 
+    // DAP driver configuration
+    @OptionTag(tag = "dapDriverPath")
+    var dapDriverPath: String = ""
+
+    @OptionTag(tag = "dapDriverAutoDetect")
+    var dapDriverAutoDetect: Boolean = true
+
+    // Launch configuration for debugging (JSON format)
+    @OptionTag(tag = "launchConfiguration")
+    var launchConfiguration: String = getDefaultLaunchConfigJson()
+
     // the run command line
     val runCommandLine: GeneralCommandLine
         get() {
@@ -115,7 +130,7 @@ class XMakeRunConfiguration(
 
     override fun checkConfiguration() {
         if (runToolkit == null) {
-            throw RuntimeConfigurationError("XMake toolkit is not set!")
+            throw RuntimeConfigurationError("Xmake toolkit is not set!")
         }
 
         // Todo: Check whether working directory is valid.
@@ -128,6 +143,14 @@ class XMakeRunConfiguration(
         XMakeRunConfigurationEditor(project, this)
 
     override fun getState(executor: Executor, environment: ExecutionEnvironment): RunProfileState? {
+
+        if (executor.id == DefaultDebugExecutor.EXECUTOR_ID) {
+            return object : CommandLineState(environment) {
+                override fun startProcess(): ProcessHandler {
+                    return NopProcessHandler()
+                }
+            }
+        }
 
         // clear console first
         project.xmakeConsoleView.clear()
@@ -171,7 +194,45 @@ class XMakeRunConfiguration(
         return (project.xmakeInfo.architectures[platform]?.toTypedArray() ?: arrayOf("default"))
     }
 
+    // Get effective DAP driver path
+    fun getEffectiveDapDriverPath(): String {
+        return if (dapDriverAutoDetect || dapDriverPath.isBlank()) {
+            val bestDriver = DapDriverDetector.findBestDriver()
+            bestDriver?.path ?: ""
+        } else {
+            dapDriverPath
+        }
+    }
+
+    // Get available DAP drivers for UI
+    fun getAvailableDapDrivers(): List<DapDriverDetector.DapDriverInfo> {
+        return DapDriverDetector.findAvailableDrivers()
+    }
+
+    // Validate DAP driver path
+    fun validateDapDriverPath(path: String): Boolean {
+        return DapDriverDetector.validateDriverPath(path) != null
+    }
+
     companion object {
         private val Log = Logger.getInstance(XMakeRunConfiguration::class.java.getName())
+        
+        fun getDefaultLaunchConfigJson(): String {
+            return """{
+    "stopOnEntry": true,
+    "sourceMap": {
+        "enabled": "true"
+    },
+    "showDisassembly": "auto",
+    "initCommands": [],
+    "variables": {
+        "showArguments": true,
+        "showLocals": true,
+        "showGlobals": true,
+        "showStatics": true,
+        "showRegisters": true
+    }
+}"""
+        }
     }
 }

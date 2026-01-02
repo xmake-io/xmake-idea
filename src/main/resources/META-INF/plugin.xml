@@ -15,6 +15,8 @@
     <depends>com.intellij.modules.xml</depends>
     <depends>com.intellij.modules.xdebugger</depends>
 
+    <depends optional="true" config-file="io.xmake-native-debug.xml">com.intellij.modules.nativeDebug</depends>
+
     <depends optional="true" config-file="io.xmake-ssh.xml">
         com.intellij.modules.ssh
     </depends>
@@ -39,7 +41,7 @@
 
         <!-- xmake toolkit configurations -->
         <applicationConfigurable instance="io.xmake.project.XMakeProjectToolkitConfigurable"
-                                 displayName="XMake Toolkit" groupId="build"/>
+                                 displayName="Xmake Toolkit" groupId="build"/>
 
         <toolWindow id="XMake" anchor="bottom" factoryClass="io.xmake.project.XMakeToolWindowFactory"
                     icon="/icons/xmake-dark.svg"/>
@@ -72,7 +74,7 @@
          https://github.com/centic9/IntelliJ-Action-IDs
     -->
     <actions>
-        <group id="XMake.Menu" text="XMake" popup="true" description="XMake menu">
+        <group id="XMake.Menu" text="Xmake" popup="true" description="XMake menu">
             <add-to-group group-id="MainMenu"
                           anchor="after"
                           relative-to-action="RunMenu"/>
