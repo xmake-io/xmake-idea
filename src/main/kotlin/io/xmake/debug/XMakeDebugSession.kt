@@ -209,10 +209,7 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
                         project, driverName, driverPath, launchConfig, targetPath, workingDir, session,
                         args, configuration.runEnvironment.envs
                     )
-                    if (debugProcess != null) {
-                        Logger.d(TAG, "Debug process created successfully")
-                        return debugProcess
-                    }
+                    return debugProcess
                 }
             }
             
