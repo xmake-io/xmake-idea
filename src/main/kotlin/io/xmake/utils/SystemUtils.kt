@@ -97,12 +97,14 @@ object SystemUtils {
 
     fun getResourceFilePath(resourceName: String, resourceDir: String = "lib"): String? {
         // 1. Try to get from plugin directory (layout in sandbox or installed plugin)
-        val pluginId = PluginId.getId("io.xmake")
         
         // Try to get plugin path using reflection to avoid internal API
         try {
             val pluginManagerClass = Class.forName("com.intellij.ide.plugins.PluginManager")
-            val getPluginMethod = pluginManagerClass.getMethod("getPlugin", PluginId::class.java)
+            val getPluginMethod = pluginManagerClass.getMethod("getPlugin", com.intellij.openapi.extensions.PluginId::class.java)
+            val pluginIdClass = Class.forName("com.intellij.openapi.extensions.PluginId")
+            val getIdMethod = pluginIdClass.getMethod("getId", String::class.java)
+            val pluginId = getIdMethod.invoke(null, "io.xmake")
             val plugin = getPluginMethod.invoke(null, pluginId)
             
             if (plugin != null) {
@@ -200,8 +202,11 @@ object SystemUtils {
             // Try to check CLion plugin using reflection to avoid internal API
             try {
                 val pluginManagerClass = Class.forName("com.intellij.ide.plugins.PluginManager")
-                val findPluginMethod = pluginManagerClass.getMethod("findPlugin", PluginId::class.java)
-                val clionPlugin = findPluginMethod.invoke(null, PluginId.getId(CLION_PLUGIN_ID))
+                val findPluginMethod = pluginManagerClass.getMethod("findPlugin", com.intellij.openapi.extensions.PluginId::class.java)
+                val pluginIdClass = Class.forName("com.intellij.openapi.extensions.PluginId")
+                val getIdMethod = pluginIdClass.getMethod("getId", String::class.java)
+                val clionPluginId = getIdMethod.invoke(null, CLION_PLUGIN_ID)
+                val clionPlugin = findPluginMethod.invoke(null, clionPluginId)
                 
                 if (clionPlugin != null) {
                     val isEnabledMethod = clionPlugin.javaClass.getMethod("isEnabled")
