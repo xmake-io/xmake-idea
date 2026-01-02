@@ -42,7 +42,7 @@
 
 ## Introduction
 
-A XMake integration in IntelliJ IDEA.
+A XMake integration in IntelliJ IDEA/Clion.
 
 It is deeply integrated with [xmake](https://github.com/xmake-io/xmake) and Intellij-IDEA to provide a convenient and fast cross-platform c/c++ development and building.
 
