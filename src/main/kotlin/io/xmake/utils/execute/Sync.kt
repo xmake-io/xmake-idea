@@ -20,6 +20,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.guessProjectDir
 import com.intellij.openapi.util.io.toCanonicalPath
 import com.intellij.openapi.vfs.VirtualFileManager
+import org.jetbrains.annotations.ApiStatus
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHost
 import io.xmake.project.toolkit.ToolkitHostType
@@ -53,6 +54,7 @@ fun SyncDirection.toBoolean(): Boolean = when (this) {
     SyncDirection.UPSTREAM_TO_LOCAL -> true
 }
 
+@ApiStatus.Experimental
 fun syncProjectByWslSync(
     scope: CoroutineScope,
     project: Project,
@@ -92,7 +94,7 @@ fun syncProjectByWslSync(
                             TargetEnvironment.UploadRoot(
                                 project.guessProjectDir()!!.toNioPath(),
                                 TargetEnvironment.TargetPath.Persistent(directoryPath),
-                            ).also { println(it.targetRootPath) }.apply {
+                            ).apply {
                                 this.volumeData
                             }
                         )
