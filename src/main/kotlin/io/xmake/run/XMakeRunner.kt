@@ -10,7 +10,6 @@ import com.intellij.execution.ui.RunContentDescriptor
 import io.xmake.debug.XMakeDebugSession
 import io.xmake.utils.Logger
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.extensions.PluginId
 
 open class XMakeRunner : XMakeDefaultRunner() {
 
@@ -57,22 +56,38 @@ open class XMakeRunner : XMakeDefaultRunner() {
      */
     private fun isNativeDebugAvailable(project: Project): Boolean {
         return try {
-            // Check if native debug plugin is available
-            val pluginManager = com.intellij.ide.plugins.PluginManagerCore
-            val nativeDebugPlugin = pluginManager.findPlugin(PluginId.getId("com.intellij.nativeDebug"))
+            var pluginAvailable = false
             
-            if (nativeDebugPlugin == null || !nativeDebugPlugin.isEnabled) {
-                Logger.d(TAG, "Native debug plugin is not available")
-                return false
+            // Check if native debug plugin is available using reflection
+            try {
+                val pluginManagerClass = Class.forName("com.intellij.ide.plugins.PluginManager")
+                val findPluginMethod = pluginManagerClass.getMethod("findPlugin", com.intellij.openapi.extensions.PluginId::class.java)
+                val nativeDebugPlugin = findPluginMethod.invoke(null, com.intellij.openapi.extensions.PluginId.getId("com.intellij.nativeDebug"))
+                
+                if (nativeDebugPlugin != null) {
+                    val isEnabledMethod = nativeDebugPlugin.javaClass.getMethod("isEnabled")
+                    val isEnabled = isEnabledMethod.invoke(nativeDebugPlugin) as Boolean
+                    pluginAvailable = isEnabled
+                    
+                    if (!isEnabled) {
+                        Logger.d(TAG, "Native debug plugin is not enabled")
+                    }
+                } else {
+                    Logger.d(TAG, "Native debug plugin is not available")
+                }
+            } catch (e: Exception) {
+                Logger.d(TAG, "Failed to check native debug plugin: ${e.message}")
             }
             
             // Check if CLion-specific classes are available
             try {
                 Class.forName("com.jetbrains.cidr.execution.debugger.CidrLocalDebugProcess")
+                // Classes are available, return true regardless of plugin status
                 true
             } catch (e: ClassNotFoundException) {
                 Logger.d(TAG, "CLion debugging classes are not available")
-                false
+                // Classes not available, return plugin status
+                pluginAvailable
             }
         } catch (e: Exception) {
             Logger.e(TAG, "Error checking debug availability", e)
