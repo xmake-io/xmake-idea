@@ -1,9 +1,7 @@
 <!-- Optional native debug extensions for CLion and compatible IDEs -->
 <idea-plugin>
     <extensions defaultExtensionNs="com.intellij">
-        <!-- Debug configuration extensions -->
-        <programRunner implementation="io.xmake.run.XMakeRunner"/>
-        <configurationType implementation="io.xmake.run.XMakeRunConfigurationType"/>
-        <runConfigurationProducer implementation="io.xmake.run.XMakeRunConfigurationProducer"/>
+        <!-- Debug configuration extensions are now in main plugin.xml -->
+        <!-- No need to duplicate configuration types here -->
     </extensions>
 </idea-plugin>
