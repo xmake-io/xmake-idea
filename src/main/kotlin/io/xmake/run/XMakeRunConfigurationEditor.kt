@@ -1,8 +1,10 @@
 package io.xmake.run
 
+import com.intellij.openapi.ui.TextFieldWithBrowseButton
+import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
+import com.intellij.openapi.ui.TextComponentAccessor
 import com.intellij.execution.configuration.EnvironmentVariablesTextFieldWithBrowseButton
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.ComboBox
@@ -209,7 +211,15 @@ class XMakeRunConfigurationEditor(
     private val dapDriverAutoDetectCheckBox = CheckBox("Auto-detect DAP driver", runConfiguration.dapDriverAutoDetect)
     
     private val dapDriverPathComboBox = ComboBox<String>()
-    private val dapDriverPathCustomField = RawCommandLineEditor()
+    private val dapDriverPathCustomField = TextFieldWithBrowseButton().apply {
+        textField.isEditable = true
+        addBrowseFolderListener(
+            "Select DAP Driver",
+            "Select the DAP driver executable (lldb-dap or gdb-dap)",
+            project,
+            FileChooserDescriptorFactory.createSingleFileDescriptor()
+        )
+    }
 
     // reset editor from configuration
     override fun resetEditorFrom(configuration: XMakeRunConfiguration) {
