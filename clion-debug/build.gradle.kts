@@ -48,6 +48,8 @@ tasks {
     
     jar {
         archiveBaseName.set("xmake-clion-debug")
+        archiveVersion.set("")
+        archiveClassifier.set("")
         
         // Include all dependencies in the JAR so it's self-contained
         from({

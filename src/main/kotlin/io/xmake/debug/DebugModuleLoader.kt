@@ -15,7 +15,7 @@ import java.lang.reflect.Method
 object DebugModuleLoader {
     
     private const val TAG = "DebugModuleLoader"
-    private const val DEBUG_JAR_NAME = "xmake-clion-debug-1.0.0-base.jar"
+    private const val DEBUG_JAR_NAME = "xmake-clion-debug.jar"
     
     private var debugClassLoader: URLClassLoader? = null
     private var debugModuleClass: Class<*>? = null
