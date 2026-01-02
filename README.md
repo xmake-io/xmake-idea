@@ -1,5 +1,5 @@
 <div align="center">
-  <a href="http://xmake.io">
+  <a href="https://xmake.io">
     <img width="200" heigth="200" src="https://github.com/xmake-io/xmake-idea/raw/master/res/logo256.png">
   </a>
 
@@ -42,7 +42,7 @@
 
 ## Introduction
 
-A XMake integration in IntelliJ IDEA/Clion.
+A Xmake integration in IntelliJ IDEA/Clion.
 
 It is deeply integrated with [xmake](https://github.com/xmake-io/xmake) and Intellij-IDEA to provide a convenient and fast cross-platform c/c++ development and building.
 
@@ -50,7 +50,7 @@ And It also support other Intellij-based platform, like Clion, Android Studio an
 
 You need install [xmake](https://github.com/xmake-io/xmake) first and a project with `xmake.lua`.
 
-Please see [xmake-github](https://github.com/xmake-io/xmake) and [website](http://xmake.io) if you want to known more about xmake.
+Please see [xmake-github](https://github.com/xmake-io/xmake) and [website](https://xmake.io) if you want to known more about xmake.
 
 ## Features
 

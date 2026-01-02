@@ -32,6 +32,7 @@ import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.SystemUtils
 import io.xmake.utils.exception.XMakeRunConfigurationNotSetException
 import com.intellij.openapi.fileEditor.FileDocumentManager
+import io.xmake.project.xmakeSettings
 
 class BuildAction : AnAction() {
 
@@ -53,12 +54,14 @@ class BuildAction : AnAction() {
                 SystemUtils.runvInConsole(project, xmakeConfiguration.configurationCommandLine)
                     ?.addProcessListener(object : ProcessListener {
                         override fun processTerminated(e: ProcessEvent) {
-                            SystemUtils.runvInConsole(project, xmakeConfiguration.buildCommandLine, false, true, true)
+                            if (e.exitCode == 0) {
+                                runBuild(project, xmakeConfiguration)
+                            }
                         }
                     })
                 xmakeConfiguration.changed = false
             } else {
-                SystemUtils.runvInConsole(project, xmakeConfiguration.buildCommandLine, true, true, true)
+                runBuild(project, xmakeConfiguration)
             }
         } catch (e: XMakeRunConfigurationNotSetException) {
             project.xmakeConsoleView.print(
@@ -70,5 +73,16 @@ class BuildAction : AnAction() {
                 .createNotification("Error with XMake Configuration", e.message ?: "", NotificationType.ERROR)
                 .notify(project)
         }
+    }
+
+    private fun runBuild(project: com.intellij.openapi.project.Project, xmakeConfiguration: io.xmake.shared.XMakeConfiguration) {
+        SystemUtils.runvInConsole(project, xmakeConfiguration.buildCommandLine, true, true, true)
+            ?.addProcessListener(object : ProcessListener {
+                override fun processTerminated(e: ProcessEvent) {
+                    if (e.exitCode == 0 && project.xmakeSettings.state.autoUpdateCompileCommands) {
+                        SystemUtils.runvInConsole(project, xmakeConfiguration.updateCompileCommandsLine, false, true, true)
+                    }
+                }
+            })
     }
 }
