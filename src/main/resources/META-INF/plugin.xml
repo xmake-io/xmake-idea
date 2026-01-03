@@ -135,7 +135,6 @@
             <reference id="editRunConfigurations"/>
             <reference id="XMake.CleanConfiguration"/>
             <separator/>
-            <reference id="XMake.QuickStart"/>
             <reference id="XMake.UpdateCompileCommands"/>
         </group>
     </actions>
