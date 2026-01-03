@@ -85,6 +85,7 @@ object DapDriverDetector {
         if (SystemInfo.isMac) {
             // macOS paths
             paths.addAll(listOf(
+                "/Applications/Xcode.app/Contents/Developer/usr/bin/lldb-dap",
                 "/usr/local/opt/llvm/bin/lldb-dap",
                 "/opt/homebrew/opt/llvm/bin/lldb-dap",
                 "/usr/bin/lldb-dap",
