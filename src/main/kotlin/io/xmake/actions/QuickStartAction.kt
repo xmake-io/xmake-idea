@@ -20,26 +20,109 @@
  */
 package io.xmake.actions
 
+import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.execution.process.OSProcessHandler
+import com.intellij.execution.process.ProcessAdapter
+import com.intellij.execution.process.ProcessEvent
 import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.vfs.VfsUtil
+import com.intellij.openapi.wm.RegisterToolWindowTask
+import com.intellij.openapi.wm.ToolWindowAnchor
+import com.intellij.openapi.wm.ToolWindowManager
+import io.xmake.icons.XMakeIcons
+import io.xmake.project.XMakeToolWindowFactory
+import io.xmake.project.toolkit.activatedToolkit
 import io.xmake.project.xmakeConsoleView
 import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.SystemUtils
 import io.xmake.utils.exception.XMakeRunConfigurationNotSetException
+import java.io.File
 
 class QuickStartAction : AnAction() {
 
     override fun update(e: AnActionEvent) {
-        e.presentation.isEnabledAndVisible = e.project != null
+        val project = e.project
+        if (project == null) {
+            e.presentation.isEnabledAndVisible = false
+            return
+        }
+        e.presentation.isVisible = true
+        // Disable in xmake project (grayed out)
+        e.presentation.isEnabled = !SystemUtils.isXMakeProject(project)
     }
 
     override fun actionPerformed(e: AnActionEvent) {
 
         // the project
         val project = e.project ?: return
+
+        if (!SystemUtils.isXMakeProject(project)) {
+            val xmakePath = project.activatedToolkit?.path ?: "xmake"
+            val commandLine = GeneralCommandLine(xmakePath, "create", "-P", ".")
+            commandLine.workDirectory = File(project.basePath ?: return)
+
+            try {
+                val processHandler = OSProcessHandler(commandLine)
+                processHandler.addProcessListener(object : ProcessAdapter() {
+                    override fun processTerminated(event: ProcessEvent) {
+                        if (event.exitCode == 0) {
+                            NotificationGroupManager.getInstance()
+                                .getNotificationGroup("XMake.NotificationGroup")
+                                .createNotification("XMake project created successfully!", NotificationType.INFORMATION)
+                                .notify(project)
+
+                            ApplicationManager.getApplication().invokeLater {
+                                // Refresh VFS
+                                project.basePath?.let { path ->
+                                    val file = LocalFileSystem.getInstance().findFileByPath(path)
+                                    file?.let {
+                                        VfsUtil.markDirtyAndRefresh(false, true, true, it)
+                                    }
+                                }
+
+                                // Show Tool Window
+                                val toolWindowManager = ToolWindowManager.getInstance(project)
+                                var toolWindow = toolWindowManager.getToolWindow("XMake")
+                                if (toolWindow == null) {
+                                    val task = RegisterToolWindowTask(
+                                        id = "XMake",
+                                        anchor = ToolWindowAnchor.BOTTOM,
+                                        component = null,
+                                        canCloseContent = true,
+                                        canWorkInDumbMode = true,
+                                        shouldBeAvailable = true,
+                                        contentFactory = null,
+                                        icon = XMakeIcons.XMAKE,
+                                        stripeTitle = null
+                                    )
+                                    toolWindow = toolWindowManager.registerToolWindow(task)
+                                    XMakeToolWindowFactory().createToolWindowContent(project, toolWindow)
+                                }
+                                toolWindow.show(null)
+                            }
+                        } else {
+                            NotificationGroupManager.getInstance()
+                                .getNotificationGroup("XMake.NotificationGroup")
+                                .createNotification("Failed to create XMake project.", NotificationType.ERROR)
+                                .notify(project)
+                        }
+                    }
+                })
+                processHandler.startNotify()
+            } catch (e: Exception) {
+                NotificationGroupManager.getInstance()
+                    .getNotificationGroup("XMake.NotificationGroup")
+                    .createNotification("Failed to start xmake create: ${e.message}", NotificationType.ERROR)
+                    .notify(project)
+            }
+            return
+        }
 
         // clear console first
         project.xmakeConsoleView.clear()
