@@ -254,12 +254,28 @@ object SystemUtils {
         }
     }
 
-    /**
-     * Check if the project is a XMake project (has xmake.lua in root)
-     */
+    // check if xmake project
     fun isXMakeProject(project: Project): Boolean {
-        val basePath = project.basePath ?: return false
-        return File(basePath, "xmake.lua").exists()
+        return project.basePath?.let { File(it, "xmake.lua").exists() } == true
+    }
+
+    /**
+     * Check if native debug functionality is available
+     */
+    fun isNativeDebugAvailable(project: Project): Boolean {
+        return try {
+            // Check if CLion-specific classes are available
+            try {
+                Class.forName("com.jetbrains.cidr.execution.debugger.CidrLocalDebugProcess")
+                true
+            } catch (e: ClassNotFoundException) {
+                Logger.d(TAG, "CLion debugging classes are not available")
+                false
+            }
+        } catch (e: Exception) {
+            Logger.e(TAG, "Error checking debug availability", e)
+            false
+        }
     }
 }
 

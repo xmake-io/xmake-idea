@@ -30,6 +30,7 @@ import com.intellij.execution.ui.RunContentDescriptor
 import io.xmake.debug.XMakeDebugSession
 import io.xmake.utils.Logger
 import com.intellij.openapi.project.Project
+import io.xmake.utils.SystemUtils
 
 open class XMakeRunner : XMakeDefaultRunner() {
 
@@ -45,7 +46,7 @@ open class XMakeRunner : XMakeDefaultRunner() {
         
         // Only allow debug executor if native debug is available
         if (executorId == DefaultDebugExecutor.EXECUTOR_ID) {
-            return isNativeDebugAvailable(profile.project)
+            return SystemUtils.isNativeDebugAvailable(profile.project)
         }
         
         return false
@@ -61,7 +62,7 @@ open class XMakeRunner : XMakeDefaultRunner() {
 
         if (environment.executor.id == DefaultDebugExecutor.EXECUTOR_ID) {
             // Check if debug is available before starting debug session
-            if (!isNativeDebugAvailable(configuration.project)) {
+            if (!SystemUtils.isNativeDebugAvailable(configuration.project)) {
                 Logger.w(TAG, "Debug functionality is not available in this IDE. Please use CLion for C/C++ debugging.")
                 return null
             }
@@ -71,25 +72,6 @@ open class XMakeRunner : XMakeDefaultRunner() {
         return super.doExecute(state, environment)
     }
     
-    /**
-     * Check if native debug functionality is available
-     */
-    private fun isNativeDebugAvailable(project: Project): Boolean {
-        return try {
-            // Check if CLion-specific classes are available
-            try {
-                Class.forName("com.jetbrains.cidr.execution.debugger.CidrLocalDebugProcess")
-                true
-            } catch (e: ClassNotFoundException) {
-                Logger.d(TAG, "CLion debugging classes are not available")
-                false
-            }
-        } catch (e: Exception) {
-            Logger.e(TAG, "Error checking debug availability", e)
-            false
-        }
-    }
-
     companion object {
         private const val TAG = "XMakeRunner"
     }

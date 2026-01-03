@@ -83,6 +83,11 @@
                     text="Run Target"
                     icon="AllIcons.Actions.Execute"
                     description="Run the current target."/>
+            <action id="XMake.Debug"
+                    class="io.xmake.actions.DebugAction"
+                    text="Debug Target"
+                    icon="AllIcons.Actions.StartDebugger"
+                    description="Debug the current target."/>
             <action id="XMake.Build"
                     class="io.xmake.actions.BuildAction"
                     text="Build Project"
@@ -128,6 +133,7 @@
 
         <group id="XMake.ToolBar" text="Xmake Toolbar" description="XMake toolbar">
             <reference id="XMake.Run"/>
+            <reference id="XMake.Debug"/>
             <reference id="XMake.Build"/>
             <reference id="XMake.Rebuild"/>
             <reference id="XMake.Clean"/>
