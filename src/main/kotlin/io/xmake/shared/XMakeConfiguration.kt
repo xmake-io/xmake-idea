@@ -24,7 +24,6 @@ import com.intellij.execution.RunManager
 import com.intellij.execution.configuration.EnvironmentVariablesData
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.openapi.components.Service
-import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import com.intellij.util.execution.ParametersListUtil
 import io.xmake.project.toolkit.activatedToolkit
@@ -195,11 +194,6 @@ class XMakeConfiguration(val project: Project) {
                 configuration.runArchitecture = architectures[0]
             }
         }*/
-
-    companion object {
-        // get log
-        private val Log = Logger.getInstance(XMakeConfiguration::class.java.getName())
-    }
 }
 
 val Project.xmakeConfiguration: XMakeConfiguration

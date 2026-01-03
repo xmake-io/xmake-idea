@@ -24,7 +24,6 @@ import com.intellij.execution.RunManager
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.ActionToolbar
 import com.intellij.openapi.actionSystem.DefaultActionGroup
-import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.editor.markup.EffectType
 import com.intellij.openapi.editor.markup.TextAttributes
 import com.intellij.openapi.fileEditor.FileEditorManager
@@ -185,9 +184,5 @@ class XMakeToolWindowProblemPanel(project: Project) : SimpleToolWindowPanel(fals
                 }
             }
         })
-    }
-
-    companion object {
-        private val Log = Logger.getInstance(XMakeToolWindowProblemPanel::class.java.getName())
     }
 }

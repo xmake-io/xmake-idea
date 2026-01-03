@@ -30,7 +30,7 @@ import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.SystemUtils
 import io.xmake.utils.exception.XMakeRunConfigurationNotSetException
 
-class QuickStartAction : AnAction() {
+class QuickStartAction : XMakeBaseAction() {
 
     override fun actionPerformed(e: AnActionEvent) {
 

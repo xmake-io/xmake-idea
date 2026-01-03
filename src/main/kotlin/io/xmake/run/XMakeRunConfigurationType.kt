@@ -25,7 +25,6 @@ import com.intellij.execution.configurations.ConfigurationFactory
 import com.intellij.execution.configurations.ConfigurationTypeBase
 import com.intellij.execution.configurations.ConfigurationTypeUtil
 import com.intellij.execution.configurations.RunConfiguration
-import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
 import io.xmake.icons.XMakeIcons
@@ -65,8 +64,5 @@ class XMakeRunConfigurationType : ConfigurationTypeBase(
     companion object {
         fun getInstance(): XMakeRunConfigurationType =
             ConfigurationTypeUtil.findConfigurationType(XMakeRunConfigurationType::class.java)
-
-        // get log
-        private val Log = Logger.getInstance(XMakeRunConfigurationType::class.java.getName())
     }
 }

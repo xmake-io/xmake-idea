@@ -35,7 +35,7 @@ import io.xmake.utils.exception.XMakeRunConfigurationNotSetException
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import io.xmake.project.xmakeSettings
 
-class BuildAction : AnAction() {
+class BuildAction : XMakeBaseAction() {
 
     override fun actionPerformed(e: AnActionEvent) {
 

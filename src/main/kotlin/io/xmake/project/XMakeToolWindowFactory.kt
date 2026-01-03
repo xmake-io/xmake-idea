@@ -27,8 +27,14 @@ import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.ui.content.ContentFactory
 import io.xmake.shared.XMakeProblem
+import io.xmake.utils.SystemUtils
 
 class XMakeToolWindowFactory : ToolWindowFactory {
+
+    override fun isApplicable(project: Project): Boolean {
+        return SystemUtils.isXMakeProject(project)
+    }
+
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
 
         // add output tab/panel

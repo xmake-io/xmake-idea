@@ -33,7 +33,7 @@ import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.SystemUtils
 import io.xmake.utils.exception.XMakeRunConfigurationNotSetException
 
-class RebuildAction : AnAction() {
+class RebuildAction : XMakeBaseAction() {
 
     override fun actionPerformed(e: AnActionEvent) {
 

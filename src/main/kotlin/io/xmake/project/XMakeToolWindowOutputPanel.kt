@@ -26,7 +26,6 @@ import com.intellij.openapi.Disposable
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.ActionToolbar
 import com.intellij.openapi.actionSystem.DefaultActionGroup
-import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.SimpleToolWindowPanel
 import com.intellij.openapi.util.Disposer
@@ -73,9 +72,5 @@ class XMakeToolWindowOutputPanel(// the project
     fun showPanel() {
         val contentManager = project.xmakeToolWindow?.contentManager
         contentManager?.setSelectedContent(contentManager.getContent(0)!!)
-    }
-
-    companion object {
-        private val Log = Logger.getInstance(XMakeToolWindowOutputPanel::class.java.getName())
     }
 }

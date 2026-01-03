@@ -29,7 +29,6 @@ import com.intellij.execution.process.ProcessHandler
 import com.intellij.execution.process.ProcessEvent
 import com.intellij.execution.process.ProcessListener
 import com.intellij.execution.runners.ExecutionEnvironment
-import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.project.Project
 import com.intellij.util.execution.ParametersListUtil
@@ -239,7 +238,6 @@ class XMakeRunConfiguration(
     }
 
     companion object {
-        private val Log = Logger.getInstance(XMakeRunConfiguration::class.java.getName())
         
         fun getDefaultLaunchConfigJson(): String {
             return """{

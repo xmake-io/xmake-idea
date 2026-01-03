@@ -20,7 +20,6 @@
  */
 package io.xmake.project
 
-import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.module.ModuleConfigurationEditor
 //import com.intellij.openapi.roots.ui.configuration.DefaultModuleConfigurationEditorFactory
 import com.intellij.openapi.roots.ui.configuration.ModuleConfigurationEditorProvider
@@ -38,9 +37,5 @@ class XMakeModuleConfigurationEditorProvider : ModuleConfigurationEditorProvider
         editors += factory.createClasspathEditor(moduleConfigurationState)
         */
         return editors
-    }
-
-    companion object {
-        private val Log = Logger.getInstance(XMakeModuleConfigurationEditorProvider::class.java.getName())
     }
 }

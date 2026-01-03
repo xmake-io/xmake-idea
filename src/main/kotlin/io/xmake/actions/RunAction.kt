@@ -33,7 +33,7 @@ import io.xmake.utils.SystemUtils
 import io.xmake.utils.exception.XMakeRunConfigurationNotSetException
 import com.intellij.openapi.fileEditor.FileDocumentManager
 
-class RunAction : AnAction() {
+class RunAction : XMakeBaseAction() {
 
     override fun actionPerformed(e: AnActionEvent) {
 

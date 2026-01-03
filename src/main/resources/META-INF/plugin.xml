@@ -15,7 +15,7 @@
     <depends>com.intellij.modules.xml</depends>
     <depends>com.intellij.modules.xdebugger</depends>
 
-    <depends optional="true" config-file="io.xmake-native-debug.xml">com.intellij.modules.nativeDebug</depends>
+    <depends optional="true">com.intellij.modules.nativeDebug</depends>
 
     <depends optional="true" config-file="io.xmake-ssh.xml">
         com.intellij.modules.ssh
@@ -74,7 +74,7 @@
          https://github.com/centic9/IntelliJ-Action-IDs
     -->
     <actions>
-        <group id="XMake.Menu" text="Xmake" popup="true" description="XMake menu">
+        <group id="XMake.Menu" class="io.xmake.actions.XMakeMenuGroup" text="Xmake" popup="true" description="XMake menu">
             <add-to-group group-id="MainMenu"
                           anchor="after"
                           relative-to-action="RunMenu"/>

@@ -32,7 +32,7 @@ import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.SystemUtils
 import io.xmake.utils.exception.XMakeRunConfigurationNotSetException
 
-class CleanAction : AnAction() {
+class CleanAction : XMakeBaseAction() {
 
     override fun actionPerformed(e: AnActionEvent) {
 

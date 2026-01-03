@@ -35,7 +35,7 @@ import io.xmake.utils.exception.XMakeRunConfigurationNotSetException
 import io.xmake.utils.execute.fetchGeneratedFile
 import io.xmake.utils.execute.syncBeforeFetch
 
-class UpdateCmakeListsAction : AnAction() {
+class UpdateCmakeListsAction : XMakeBaseAction() {
     override fun actionPerformed(e: AnActionEvent) {
         // the project
         val project = e.project ?: return

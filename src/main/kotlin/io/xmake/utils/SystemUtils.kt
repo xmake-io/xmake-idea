@@ -253,6 +253,14 @@ object SystemUtils {
             false
         }
     }
+
+    /**
+     * Check if the project is a XMake project (has xmake.lua in root)
+     */
+    fun isXMakeProject(project: Project): Boolean {
+        val basePath = project.basePath ?: return false
+        return File(basePath, "xmake.lua").exists()
+    }
 }
 
 val VirtualFile.pathAsPath: Path get() = Paths.get(path)
