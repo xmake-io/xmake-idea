@@ -63,7 +63,7 @@ class XMakeToolWindowProblemPanel(project: Project) : SimpleToolWindowPanel(fals
     // the toolbar
     val toolbar: ActionToolbar = run {
         val actionManager = ActionManager.getInstance()
-        actionManager.createActionToolbar("XMake Toolbar", actionManager.getAction("XMake.Menu") as DefaultActionGroup, false)
+        actionManager.createActionToolbar("XMake Toolbar", actionManager.getAction("XMake.ToolBar") as DefaultActionGroup, false)
     }
 
     // the problem list

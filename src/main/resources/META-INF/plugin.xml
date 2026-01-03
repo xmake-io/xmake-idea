@@ -125,6 +125,19 @@
                     description="Create or update  compile_commands.js.">
             </action>
         </group>
+
+        <group id="XMake.ToolBar" text="Xmake Toolbar" description="XMake toolbar">
+            <reference id="XMake.Run"/>
+            <reference id="XMake.Build"/>
+            <reference id="XMake.Rebuild"/>
+            <reference id="XMake.Clean"/>
+            <separator/>
+            <reference id="editRunConfigurations"/>
+            <reference id="XMake.CleanConfiguration"/>
+            <separator/>
+            <reference id="XMake.QuickStart"/>
+            <reference id="XMake.UpdateCompileCommands"/>
+        </group>
     </actions>
 
 </idea-plugin>

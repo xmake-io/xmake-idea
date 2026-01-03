@@ -39,7 +39,7 @@ class XMakeToolWindowOutputPanel(// the project
         val actionManager = ActionManager.getInstance()
         actionManager.createActionToolbar(
             "XMake Toolbar",
-            actionManager.getAction("XMake.Menu") as DefaultActionGroup,
+            actionManager.getAction("XMake.ToolBar") as DefaultActionGroup,
             false
         )
     }

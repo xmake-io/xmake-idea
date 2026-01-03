@@ -30,7 +30,11 @@ import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.SystemUtils
 import io.xmake.utils.exception.XMakeRunConfigurationNotSetException
 
-class QuickStartAction : XMakeBaseAction() {
+class QuickStartAction : AnAction() {
+
+    override fun update(e: AnActionEvent) {
+        e.presentation.isEnabledAndVisible = e.project != null
+    }
 
     override fun actionPerformed(e: AnActionEvent) {
 
