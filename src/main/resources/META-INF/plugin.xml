@@ -127,7 +127,7 @@
                     class="io.xmake.actions.UpdateCompileCommandsAction"
                     text="Update Compile Commands"
                     icon="AllIcons.FileTypes.Json"
-                    description="Create or update  compile_commands.js.">
+                    description="Create or update the compile_commands.json.">
             </action>
         </group>
 
