@@ -122,7 +122,7 @@ class XMakeRunConfigurationEditor(
         val selectedMode = modesComboBox.item
         modesModel.removeAllElements()
         val modes = if (xmakeInfo.buildModes.isNotEmpty()) {
-            xmakeInfo.buildModes.map { it.substringAfter('.') }.toList()
+            xmakeInfo.buildModes.map { it.removePrefix("mode.") }.toList()
         } else {
             listOf("release", "debug")
         }

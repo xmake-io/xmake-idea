@@ -208,7 +208,7 @@ class XMakeRunConfiguration(
 
     val modes: Array<String>
         get() = if (project.xmakeInfo.buildModes.isNotEmpty()) {
-            project.xmakeInfo.buildModes.map { it.substringAfter('.') }.toTypedArray()
+            project.xmakeInfo.buildModes.map { it.removePrefix("mode.") }.toTypedArray()
         } else {
             arrayOf("release", "debug")
         }
