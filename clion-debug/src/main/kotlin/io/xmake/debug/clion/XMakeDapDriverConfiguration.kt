@@ -20,7 +20,6 @@
  */
 package io.xmake.debug.clion
 
-import io.xmake.debug.clion.utils.Logger
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.openapi.project.Project
 import com.intellij.util.EnvironmentUtil
@@ -46,10 +45,6 @@ class XMakeDapDriverConfiguration(
     private val env: Map<String, String> = emptyMap()
 ) : DapDriverConfiguration(project, driverName, false, false) {
     
-    companion object {
-        private const val TAG = "XMakeDapDriverConfig"
-    }
-
     override fun createDriverCommandLine(@NotNull driver: DebuggerDriver, @NotNull arch: ArchitectureType): GeneralCommandLine {
         val commandLine = GeneralCommandLine(driverPath)
             .withWorkDirectory(project.basePath)
