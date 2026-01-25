@@ -54,7 +54,7 @@ class XMakeDapDriverConfiguration(
         val commandLine = GeneralCommandLine(driverPath)
             .withWorkDirectory(project.basePath)
             .withEnvironment(EnvironmentUtil.getEnvironmentMap())
-        
+
         // Add -i dap flag for GDB driver
         if (driverName == "gdb-dap") {
             commandLine.addParameter("-i")
@@ -116,8 +116,9 @@ class XMakeDapDriverConfiguration(
             )
             
             // Merge with existing sourceMap from user config
-            val existingSourceMap = config["sourceMap"] as? Map<*, *>
-            val mergedSourceMap = mutableMapOf<Any?, Any?>()
+            @Suppress("UNCHECKED_CAST")
+            val existingSourceMap = config["sourceMap"] as? Map<String, Any>
+            val mergedSourceMap = mutableMapOf<String, Any>()
             
             if (existingSourceMap != null) {
                 mergedSourceMap.putAll(existingSourceMap)
@@ -134,8 +135,6 @@ class XMakeDapDriverConfiguration(
             config["sourceMap"] = mergedSourceMap
             config["sourceFileMap"] = mergedSourceMap
         }
-        
-        Logger.d(TAG, "Applied GDB DAP configuration: stopOnEntry=true")
     }
     
     /**
