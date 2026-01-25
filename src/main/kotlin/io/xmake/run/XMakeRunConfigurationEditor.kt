@@ -52,7 +52,6 @@ import io.xmake.utils.execute.transferFolderByToolkit
 import io.xmake.utils.info.XMakeInfo
 import io.xmake.debug.DapDriverDetector
 import io.xmake.utils.info.XMakeInfoManager
-import io.xmake.utils.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch

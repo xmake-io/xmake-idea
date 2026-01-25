@@ -106,9 +106,6 @@ class XMakeDapDriverConfiguration(
      * Apply GDB DAP specific configurations
      */
     private fun applyGdbDapConfigurations(config: MutableMap<String, Any>) {
-        // Force stopOnEntry for GDB to ensure breakpoints work reliably
-        config["stopOnEntry"] = true
-
         // GDB-specific source path mapping
         // This is necessary because GDB often returns relative paths or absolute paths that differ from IDE's view
         val basePath = project.basePath ?: ""
