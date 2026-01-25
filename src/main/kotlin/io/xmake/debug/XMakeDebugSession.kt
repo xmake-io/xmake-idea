@@ -184,7 +184,7 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
                 val dapDriverPath = configuration.getEffectiveDapDriverPath()
                 if (dapDriverPath.isBlank()) {
                     Logger.e(TAG, "No DAP driver found")
-                    throw Exception("No DAP driver found. Please install lldb-dap or gdb-dap, or specify a custom path in the debug configuration.")
+                    throw Exception("No DAP driver found. Please install lldb-dap or gdb (with DAP support), or specify a custom path in the debug configuration.")
                 }
                 
                 // Get driver name from DapDriverDetector

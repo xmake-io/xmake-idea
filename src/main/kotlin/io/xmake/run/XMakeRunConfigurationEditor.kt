@@ -235,7 +235,7 @@ class XMakeRunConfigurationEditor(
         textField.isEditable = true
         addBrowseFolderListener(
             "Select DAP Driver",
-            "Select the DAP driver executable (lldb-dap or gdb-dap)",
+            "Select the DAP driver executable (lldb-dap or gdb)",
             project,
             FileChooserDescriptorFactory.createSingleFileDescriptor()
         )

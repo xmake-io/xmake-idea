@@ -51,9 +51,17 @@ class XMakeDapDriverConfiguration(
     }
 
     override fun createDriverCommandLine(@NotNull driver: DebuggerDriver, @NotNull arch: ArchitectureType): GeneralCommandLine {
-        return GeneralCommandLine(driverPath)
+        val commandLine = GeneralCommandLine(driverPath)
             .withWorkDirectory(project.basePath)
             .withEnvironment(EnvironmentUtil.getEnvironmentMap())
+        
+        // Add -i dap flag for GDB driver
+        if (driverName == "gdb-dap") {
+            commandLine.addParameter("-i")
+            commandLine.addParameter("dap")
+        }
+        
+        return commandLine
     }
 
     override fun getDapLaunchOptions(commandLine: GeneralCommandLine): Map<String, Any> {

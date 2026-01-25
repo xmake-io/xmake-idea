@@ -55,9 +55,8 @@ object DapDriverDetector {
         val fileName = file.name.lowercase()
         return when {
             fileName.contains("lldb-dap") -> DapDriverType.LLDB_DAP
-            fileName.contains("gdb-dap") -> DapDriverType.GDB_DAP
+            fileName.contains("gdb") && !fileName.contains("lldb") -> DapDriverType.GDB_DAP
             fileName.contains("lldb") -> DapDriverType.LLDB_DAP
-            fileName.contains("gdb") -> DapDriverType.GDB_DAP
             else -> {
                 // Try to detect by checking file content or help output
                 try {
@@ -90,19 +89,19 @@ object DapDriverDetector {
                 "/opt/homebrew/opt/llvm/bin/lldb-dap",
                 "/usr/bin/lldb-dap",
                 "/usr/local/bin/lldb-dap",
-                "/usr/local/opt/llvm/bin/gdb-dap",
-                "/opt/homebrew/opt/llvm/bin/gdb-dap",
-                "/usr/bin/gdb-dap",
-                "/usr/local/bin/gdb-dap"
+                "/usr/local/opt/llvm/bin/gdb",
+                "/opt/homebrew/opt/llvm/bin/gdb",
+                "/usr/bin/gdb",
+                "/usr/local/bin/gdb"
             ))
         } else if (SystemInfo.isLinux) {
             // Linux paths
             paths.addAll(listOf(
                 "/usr/bin/lldb-dap",
                 "/usr/local/bin/lldb-dap",
-                "/usr/bin/gdb-dap",
-                "/usr/local/bin/gdb-dap",
-                "/snap/bin/lldb-dap",
+                "/usr/bin/gdb",
+                "/usr/local/bin/gdb",
+                "/snap/bin/gdb",
                 "/snap/bin/gdb-dap"
             ))
         } else if (SystemInfo.isWindows) {
@@ -111,8 +110,8 @@ object DapDriverDetector {
                 "C:\\Program Files\\LLVM\\bin\\lldb-dap.exe",
                 "C:\\Program Files (x86)\\LLVM\\bin\\lldb-dap.exe",
                 "C:\\msys64\\mingw64\\bin\\lldb-dap.exe",
-                "C:\\msys64\\mingw64\\bin\\gdb-dap.exe",
-                "C:\\Program Files\\GDB\\bin\\gdb-dap.exe"
+                "C:\\msys64\\mingw64\\bin\\gdb.exe",
+                "C:\\Program Files\\GDB\\bin\\gdb.exe"
             ))
         }
         
