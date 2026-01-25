@@ -75,18 +75,78 @@ class XMakeDapDriverConfiguration(
         val userConfigJson = userLaunchConfig
         val mergedConfig = DefaultDebugConfigurations.parseLaunchConfig(userConfigJson)
         
-        // Build final configuration
+        // Merge configurations
         val finalConfig = mutableMapOf<String, Any>()
         finalConfig.putAll(defaultConfig)
         finalConfig.putAll(mergedConfig)
         
-        // Override with runtime values
+        // Set target program information
         finalConfig["program"] = commandLine.exePath
         finalConfig["cwd"] = commandLine.workDirectory?.path ?: project.basePath ?: ""
         finalConfig["env"] = commandLine.environment
         finalConfig["args"] = commandLine.parametersList.list
         
+        // Apply driver-specific configurations
+        applyDriverSpecificConfigurations(finalConfig)
+        
         return finalConfig
+    }
+    
+    /**
+     * Apply driver-specific configurations to enhance debugging experience
+     */
+    private fun applyDriverSpecificConfigurations(config: MutableMap<String, Any>) {
+        when (driverName) {
+            "gdb-dap" -> applyGdbDapConfigurations(config)
+            "lldb-dap" -> applyLldbDapConfigurations(config)
+        }
+    }
+    
+    /**
+     * Apply GDB DAP specific configurations
+     */
+    private fun applyGdbDapConfigurations(config: MutableMap<String, Any>) {
+        // Force stopOnEntry for GDB to ensure breakpoints work reliably
+        config["stopOnEntry"] = true
+
+        // GDB-specific source path mapping
+        // This is necessary because GDB often returns relative paths or absolute paths that differ from IDE's view
+        val basePath = project.basePath ?: ""
+        if (basePath.isNotEmpty()) {
+            val autoSourceMap = mapOf(
+                basePath to ".",
+                "$basePath/src" to "src"
+            )
+            
+            // Merge with existing sourceMap from user config
+            val existingSourceMap = config["sourceMap"] as? Map<*, *>
+            val mergedSourceMap = mutableMapOf<Any?, Any?>()
+            
+            if (existingSourceMap != null) {
+                mergedSourceMap.putAll(existingSourceMap)
+            }
+            
+            // Apply auto mappings only if not already present
+            autoSourceMap.forEach { (k, v) ->
+                if (!mergedSourceMap.containsKey(k)) {
+                    mergedSourceMap[k] = v
+                }
+            }
+            
+            // Use both keys for compatibility: sourceMap (common), sourceFileMap (GDB specific)
+            config["sourceMap"] = mergedSourceMap
+            config["sourceFileMap"] = mergedSourceMap
+        }
+        
+        Logger.d(TAG, "Applied GDB DAP configuration: stopOnEntry=true")
+    }
+    
+    /**
+     * Apply LLDB DAP specific configurations (placeholder for future enhancements)
+     */
+    private fun applyLldbDapConfigurations(config: MutableMap<String, Any>) {
+        // LLDB-specific configurations can be added here if needed
+        // Currently using defaults from DefaultDebugConfigurations
     }
 
     override fun getDapAttachOptions(pid: Int): Map<String, Any> {

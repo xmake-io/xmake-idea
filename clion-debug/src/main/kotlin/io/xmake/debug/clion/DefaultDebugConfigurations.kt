@@ -148,7 +148,9 @@ object DefaultDebugConfigurations {
                 "stopOnEntry" to false,
                 "cwd" to "\${workspaceFolder}",
                 "args" to emptyList<String>(),
-                "environment" to emptyMap<String, String>()
+                "environment" to emptyMap<String, String>(),
+                "sourceMap" to emptyMap<String, Any>(),
+                "showDisassembly" to "auto"
             )
             else -> defaultDapConfig
         }

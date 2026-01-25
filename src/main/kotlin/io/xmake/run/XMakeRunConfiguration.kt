@@ -239,7 +239,33 @@ class XMakeRunConfiguration(
 
     companion object {
         
-        fun getDefaultLaunchConfigJson(): String {
+        fun getDefaultGdbLaunchConfigJson(): String {
+            return """{
+    "stopOnEntry": true,
+    "sourceMap": {
+        "enabled": "true"
+    },
+    "showDisassembly": "auto",
+    "setupCommands": [
+        {
+            "description": "Enable pretty-printing for gdb",
+            "text": "-enable-pretty-printing",
+            "ignoreFailures": true
+        }
+    ],
+    "variables": {
+        "showArguments": true,
+        "showLocals": true,
+        "showGlobals": true,
+        "showStatics": true,
+        "showRegisters": true
+    },
+    "ignoreFunctionBpoints": false,
+    "stopAtConnectTime": false
+}"""
+        }
+
+        fun getDefaultLldbLaunchConfigJson(): String {
             return """{
     "stopOnEntry": true,
     "sourceMap": {
@@ -247,14 +273,23 @@ class XMakeRunConfiguration(
     },
     "showDisassembly": "auto",
     "initCommands": [],
+    "preRunTask": {
+        "commands": []
+    },
     "variables": {
         "showArguments": true,
         "showLocals": true,
         "showGlobals": true,
         "showStatics": true,
         "showRegisters": true
-    }
+    },
+    "ignoreFunctionBpoints": false,
+    "stopAtConnectTime": false
 }"""
+        }
+
+        fun getDefaultLaunchConfigJson(): String {
+            return getDefaultLldbLaunchConfigJson()
         }
     }
 }

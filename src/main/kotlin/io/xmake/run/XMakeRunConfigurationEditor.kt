@@ -52,6 +52,7 @@ import io.xmake.utils.execute.transferFolderByToolkit
 import io.xmake.utils.info.XMakeInfo
 import io.xmake.debug.DapDriverDetector
 import io.xmake.utils.info.XMakeInfoManager
+import io.xmake.utils.Logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -295,18 +296,48 @@ class XMakeRunConfigurationEditor(
         dapDriverPathComboBox.isEnabled = !isAutoDetect
         dapDriverPathCustomField.isEnabled = !isAutoDetect
         
+        // Initial update of launch configuration based on effective driver
+        val effectivePath = configuration.getEffectiveDapDriverPath()
+        // If the configuration is blank, we must initialize it with the correct default
+        // based on the effective driver (which might be GDB or LLDB).
+        // If it's not blank, we leave it alone (it's user's saved state).
+        if (launchConfiguration.text.isBlank() && effectivePath.isNotBlank()) {
+            val availableDrivers = configuration.getAvailableDapDrivers()
+            val driver = availableDrivers.find { it.path == effectivePath }
+            if (driver != null) {
+                 if (driver.type.displayName.contains("gdb", ignoreCase = true)) {
+                    launchConfiguration.text = XMakeRunConfiguration.getDefaultGdbLaunchConfigJson()
+                } else {
+                    launchConfiguration.text = XMakeRunConfiguration.getDefaultLldbLaunchConfigJson()
+                }
+            }
+        }
+        
         // Add DAP driver checkbox listener
         dapDriverAutoDetectCheckBox.addItemListener {
             val isAutoDetect = dapDriverAutoDetectCheckBox.isSelected
             dapDriverPathComboBox.isEnabled = !isAutoDetect
             dapDriverPathCustomField.isEnabled = !isAutoDetect
+
+            if (isAutoDetect) {
+                // If auto-detect is enabled, find the best driver and update config
+                val bestDriver = io.xmake.debug.DapDriverDetector.findBestDriver()
+                if (bestDriver != null) {
+                    updateLaunchConfigurationForDriver(bestDriver.type.displayName)
+                }
+            }
         }
         
         // Add DAP driver combo box listener
         dapDriverPathComboBox.addItemListener {
-            val selectedDriver = runConfiguration.getAvailableDapDrivers().getOrNull(dapDriverPathComboBox.selectedIndex)
-            if (selectedDriver != null) {
-                dapDriverPathCustomField.text = selectedDriver.path
+            if (it.stateChange == java.awt.event.ItemEvent.SELECTED) {
+                val selectedDriver = runConfiguration.getAvailableDapDrivers().getOrNull(dapDriverPathComboBox.selectedIndex)
+                if (selectedDriver != null) {
+                    dapDriverPathCustomField.text = selectedDriver.path
+                    if (!dapDriverAutoDetectCheckBox.isSelected) {
+                        updateLaunchConfigurationForDriver(selectedDriver.type.displayName)
+                    }
+                }
             }
         }
     }
@@ -504,6 +535,14 @@ class XMakeRunConfigurationEditor(
             val toolkit = (it as? ToolkitListItem.ToolkitItem)?.toolkit
             toolkit?.isOnRemote ?: false
         })
+    }
+
+    private fun updateLaunchConfigurationForDriver(driverName: String) {
+        if (driverName.contains("gdb", ignoreCase = true)) {
+            launchConfiguration.text = XMakeRunConfiguration.getDefaultGdbLaunchConfigJson()
+        } else {
+            launchConfiguration.text = XMakeRunConfiguration.getDefaultLldbLaunchConfigJson()
+        }
     }
 
     private fun JPanel.makeWide() {
