@@ -20,7 +20,7 @@
  */
 package io.xmake.utils.info
 
-import com.intellij.openapi.diagnostic.logger
+import io.xmake.utils.Logger
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.JsonObject
@@ -60,7 +60,7 @@ class XMakeInfo {
             }
             architectures
         } catch (e: Exception) {
-            Log.error("Failed to parse architectures: $e")
+            Logger.e("Failed to parse architectures: $e")
             emptyMap()
         }
     }
@@ -76,7 +76,7 @@ class XMakeInfo {
             val modes = buildModeString.split("\n").map { it.trim() }.filter { it.isNotEmpty() }
             modes
         } catch (e: Exception) {
-            Log.error("Failed to parse buildmodes: $e")
+            Logger.e("Failed to parse buildmodes: $e")
             emptyList()
         }
     }
@@ -92,7 +92,7 @@ class XMakeInfo {
             val platforms = platformString.split("\n").map { it.trim() }.filter { it.isNotEmpty() }
             platforms
         } catch (e: Exception) {
-            Log.error("Failed to parse platforms: $e")
+            Logger.e("Failed to parse platforms: $e")
             emptyList()
         }
     }
@@ -108,7 +108,7 @@ class XMakeInfo {
             val targets = targetString.split("\n").map { it.trim() }.filter { it.isNotEmpty() }
             targets
         } catch (e: Exception) {
-            Log.error("Failed to parse targets: $e")
+            Logger.w("Failed to parse targets: $e")
             emptyList()
         }
     }
@@ -144,7 +144,7 @@ class XMakeInfo {
                  } else null
              }.associate { it }
         } catch (e: Exception) {
-            Log.error("Failed to parse toolchains: $e")
+            Logger.w("Failed to parse toolchains: $e")
             emptyMap()
         }
     }
@@ -168,14 +168,9 @@ class XMakeInfo {
                 return apis
             }
         } catch (e: Exception) {
-            Log.error("Failed to parse apis: $e")
+            Logger.w("Failed to parse apis: $e")
         }
         return emptySet()
-    }
-
-    companion object {
-        val Log = logger<XMakeInfo>()
-
     }
 }
 
