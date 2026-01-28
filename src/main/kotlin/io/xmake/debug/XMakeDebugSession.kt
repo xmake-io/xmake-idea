@@ -189,9 +189,28 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
                 
                 // Get driver name from DapDriverDetector
                 val driverInfo = io.xmake.debug.DapDriverDetector.validateDriverPath(dapDriverPath)
-                val driverName = when (driverInfo?.type) {
+                if (driverInfo == null) {
+                    throw Exception("Invalid DAP driver path: $dapDriverPath")
+                }
+
+                val driverName = when (driverInfo.type) {
                     io.xmake.debug.DapDriverDetector.DapDriverType.GDB_DAP -> "gdb-dap"
                     else -> "lldb-dap"
+                }
+
+                if (driverName == "gdb-dap" && !driverInfo.dapCapable) {
+                    val detail = driverInfo.diagnostics?.let { "<br/><br/>$it" } ?: ""
+                    NotificationGroupManager.getInstance()
+                        .getNotificationGroup("XMake.NotificationGroup")
+                        .createNotification(
+                            "GDB does not support DAP",
+                            "The selected GDB does not support Debug Adapter Protocol (DAP).<br/>" +
+                                "Please install GDB 14.1+ (or use lldb-dap) and retry.<br/><br/>" +
+                                "driver=$dapDriverPath$detail",
+                            NotificationType.ERROR
+                        )
+                        .notify(project)
+                    throw Exception("GDB does not support DAP: $dapDriverPath")
                 }
                 
                 Logger.v(TAG, "Using DAP driver: $dapDriverPath ($driverName)")

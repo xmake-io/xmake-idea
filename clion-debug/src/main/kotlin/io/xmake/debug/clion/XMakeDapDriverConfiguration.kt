@@ -112,6 +112,21 @@ class XMakeDapDriverConfiguration(
                 return
             }
 
+            val output = runCatching { process.inputStream.bufferedReader().readText() }.getOrDefault("")
+            val firstLine = output.lineSequence().firstOrNull()?.trim().orEmpty()
+            Logger.i(
+                "XMakeDapDriverConfiguration",
+                "diag: $driverName driver=${File(driverPath).name} exit=${process.exitValue()} version=${if (firstLine.isBlank()) "<empty>" else firstLine}"
+            )
+
+            if (process.exitValue() != 0) {
+                val trimmed = output.trim()
+                if (trimmed.isNotBlank()) {
+                    val truncated = if (trimmed.length <= 600) trimmed else trimmed.take(600) + "…"
+                    Logger.w("XMakeDapDriverConfiguration", "diag: output: $truncated")
+                }
+            }
+
             if (process.exitValue() == -1073741515 && !missingDllNotified) {
                 missingDllNotified = true
                 notifyDriverMissingDllHint()
