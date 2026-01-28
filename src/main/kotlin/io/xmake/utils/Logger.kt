@@ -42,12 +42,10 @@ object Logger {
     private const val DEFAULT_TAG = "XMake"
 
     // Use IntelliJ logger in production, println in debug
-    //private val useIntelliJLogger = java.lang.Boolean.getBoolean("xmake.production") && !java.lang.Boolean.getBoolean("xmake.debug")
-    private val useIntelliJLogger = true
+    private val useIntelliJLogger = java.lang.Boolean.getBoolean("xmake.production") && !java.lang.Boolean.getBoolean("xmake.debug")
 
     // Current log level (can be configured)
-    //private var currentLogLevel = if (useIntelliJLogger) LogLevel.INFO else LogLevel.DEBUG
-    private var currentLogLevel = LogLevel.DEBUG
+    private var currentLogLevel = if (useIntelliJLogger) LogLevel.INFO else LogLevel.DEBUG
 
     // IntelliJ logger instances
     private val loggers = mutableMapOf<String, com.intellij.openapi.diagnostic.Logger>()
