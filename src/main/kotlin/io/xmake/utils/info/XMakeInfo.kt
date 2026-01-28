@@ -60,7 +60,7 @@ class XMakeInfo {
             }
             architectures
         } catch (e: Exception) {
-            Logger.e("Failed to parse architectures: $e")
+            Logger.e("Failed to parse architectures: $e\n$archString")
             emptyMap()
         }
     }
@@ -76,7 +76,7 @@ class XMakeInfo {
             val modes = buildModeString.split("\n").map { it.trim() }.filter { it.isNotEmpty() }
             modes
         } catch (e: Exception) {
-            Logger.e("Failed to parse buildmodes: $e")
+            Logger.e("Failed to parse buildmodes: $e\n$buildModeString")
             emptyList()
         }
     }
@@ -92,7 +92,7 @@ class XMakeInfo {
             val platforms = platformString.split("\n").map { it.trim() }.filter { it.isNotEmpty() }
             platforms
         } catch (e: Exception) {
-            Logger.e("Failed to parse platforms: $e")
+            Logger.e("Failed to parse platforms: $e\n$platformString")
             emptyList()
         }
     }
@@ -108,7 +108,7 @@ class XMakeInfo {
             val targets = targetString.split("\n").map { it.trim() }.filter { it.isNotEmpty() }
             targets
         } catch (e: Exception) {
-            Logger.w("Failed to parse targets: $e")
+            Logger.w("Failed to parse targets: $e\n$targetString")
             emptyList()
         }
     }
@@ -144,7 +144,7 @@ class XMakeInfo {
                  } else null
              }.associate { it }
         } catch (e: Exception) {
-            Logger.w("Failed to parse toolchains: $e")
+            Logger.w("Failed to parse toolchains: $e\n$toolchainString")
             emptyMap()
         }
     }
@@ -168,7 +168,7 @@ class XMakeInfo {
                 return apis
             }
         } catch (e: Exception) {
-            Logger.w("Failed to parse apis: $e")
+            Logger.w("Failed to parse apis: $e\n$apiString")
         }
         return emptySet()
     }

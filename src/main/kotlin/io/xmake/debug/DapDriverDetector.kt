@@ -55,15 +55,14 @@ object DapDriverDetector {
         val fileName = file.name.lowercase()
         return when {
             fileName.contains("lldb-dap") -> DapDriverType.LLDB_DAP
+            fileName.contains("lldb-vscode") -> DapDriverType.LLDB_DAP
             fileName.contains("gdb") && !fileName.contains("lldb") -> DapDriverType.GDB_DAP
-            fileName.contains("lldb") -> DapDriverType.LLDB_DAP
             else -> {
-                // Try to detect by checking file content or help output
                 try {
                     val process = ProcessBuilder(path, "--version").start()
                     val output = process.inputStream.bufferedReader().readText().lowercase()
                     when {
-                        output.contains("lldb") -> DapDriverType.LLDB_DAP
+                        output.contains("lldb-dap") || output.contains("lldb-vscode") -> DapDriverType.LLDB_DAP
                         output.contains("gdb") -> DapDriverType.GDB_DAP
                         else -> DapDriverType.UNKNOWN
                     }
