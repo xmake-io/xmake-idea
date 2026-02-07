@@ -418,11 +418,19 @@ class XMakeRunConfigurationEditor(
                             val selected = selectedItem
                             if (selected is String) {
                                 val architectures = runConfiguration.getArchitecturesByPlatform(selected)
+                                val currentArch = architecturesComboBox.item as? String
                                 with(architecturesModel) {
                                     removeAllElements()
                                     addAll(architectures.toMutableList())
                                     if (architectures.isNotEmpty()) {
-                                        selectedItem = architectures.first()
+                                        // Preserve current architecture if it's valid for the new platform,
+                                        // otherwise fall back to configuration's saved architecture or first available
+                                        val selectedArch = when {
+                                            architectures.contains(currentArch) -> currentArch
+                                            architectures.contains(runConfiguration.runArchitecture) -> runConfiguration.runArchitecture
+                                            else -> architectures.first()
+                                        }
+                                        selectedItem = selectedArch
                                     }
                                 }
                             }
