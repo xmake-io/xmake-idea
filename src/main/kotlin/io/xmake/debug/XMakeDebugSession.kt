@@ -45,6 +45,7 @@ import io.xmake.shared.xmakeConfiguration
 import io.xmake.project.toolkit.activatedToolkit
 import io.xmake.utils.SystemUtils
 import io.xmake.debug.DebugModuleLoader
+import io.xmake.project.xmakeConsoleView
 import io.xmake.utils.execute.runProcess
 import io.xmake.utils.Logger
 import kotlinx.coroutines.runBlocking
@@ -71,7 +72,10 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
         
         // Check if build mode supports debugging symbols first
         checkDebugModeAndPrompt()
-        
+
+        // Build before debugging
+        buildProject()
+
         // Check if target executable exists
         checkTargetExecutableExists()
         
@@ -81,7 +85,31 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
         Logger.i(TAG, "Debug session started successfully")
         return result
     }
-    
+
+    /**
+     * Builds project
+     */
+    private fun buildProject() {
+        Logger.d(TAG, "Building project before debug...")
+        val xmakeConfiguration = project.xmakeConfiguration
+        project.xmakeConsoleView.clear()
+
+        if (xmakeConfiguration.changed) {
+            val configProcess = SystemUtils.runvInConsole(project, xmakeConfiguration.configurationCommandLine)
+            configProcess?.waitFor()
+            xmakeConfiguration.changed = false
+        }
+
+        val buildCommandLine = xmakeConfiguration.makeCommandLine(
+            mutableListOf("build", configuration.runTarget).filter { it != "default" && it.isNotBlank() },
+            EnvironmentVariablesData.DEFAULT
+        ).withWorkDirectory(project.basePath)
+
+        val buildProcess = SystemUtils.runvInConsole(project, buildCommandLine, false, true, false)
+        buildProcess?.waitFor()
+        Logger.d(TAG, "Build completed")
+    }
+
     /**
      * Check if build mode supports debugging symbols and show notification if needed
      */
