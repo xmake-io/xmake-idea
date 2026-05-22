@@ -31,6 +31,7 @@ import com.jetbrains.cidr.ArchitectureType
 import com.jetbrains.cidr.execution.debugger.backend.DebuggerDriver
 import com.jetbrains.cidr.execution.debugger.backend.dap.DapDriver
 import com.jetbrains.cidr.execution.debugger.backend.dap.DapDriverConfiguration
+import com.jetbrains.cidr.execution.debugger.backend.dap.DapRequestType
 import io.xmake.debug.clion.utils.Logger
 import org.jetbrains.annotations.NotNull
 import java.io.File
@@ -47,7 +48,7 @@ class XMakeDapDriverConfiguration(
     private val userLaunchConfig: String = "",
     private val args: List<String> = emptyList(),
     private val env: Map<String, String> = emptyMap()
-) : DapDriverConfiguration(project, driverName, false, false) {
+) : DapDriverConfiguration(project, driverName, false, false, DapRequestType.LAUNCH, true) {
 
     private var missingDllNotified = false
     private var driverDiagnosticChecked = false
@@ -228,6 +229,10 @@ class XMakeDapDriverConfiguration(
     }
 
     override fun getDapAttachOptions(pid: Int): Map<String, Any> {
+        return emptyMap()
+    }
+
+    override fun getDapAttachOptions(inferiorCmd: GeneralCommandLine): Map<String, Any> {
         return emptyMap()
     }
 

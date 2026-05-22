@@ -10,9 +10,9 @@ val localDescription: String = file("${projectDir}/description.html").readText(C
 plugins {
     id("java")
     id("org.jetbrains.intellij.platform") version "2.7.2"
-    id("org.jetbrains.kotlin.jvm") version "2.1.0"
+    id("org.jetbrains.kotlin.jvm") version "2.3.0"
     id("org.jetbrains.changelog") version "2.2.0"
-    kotlin("plugin.serialization") version "2.1.0"
+    kotlin("plugin.serialization") version "2.3.0"
 }
 
 group = "io.xmake"
@@ -68,7 +68,6 @@ tasks.matching { task -> task.name.contains("buildSearchableOptions") }.configur
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:2.1.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
     testImplementation("io.mockk:mockk:1.13.12")
     testImplementation("junit:junit:4.13.2")

@@ -1,5 +1,5 @@
 plugins {
-    kotlin("jvm")
+    kotlin("jvm") version "2.3.0"
     id("org.jetbrains.intellij.platform") version "2.7.2"
 }
 
@@ -16,7 +16,7 @@ repositories {
 intellijPlatform {
     dependencies {
         intellijPlatform {
-            clion("2025.3")
+            clion("2026.1.1")
             bundledPlugin("com.intellij.nativeDebug")
         }
     }
