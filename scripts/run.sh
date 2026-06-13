@@ -12,4 +12,4 @@ echo "This will build the plugin and start IntelliJ IDEA with the plugin loaded.
 
 echo "Plugin development session ended."
 echo ""
-echo "To build the plugin without running, use: ./build.sh"
+echo "To build the plugin without running, use: ./scripts/build.sh"

@@ -8,28 +8,22 @@ set -e
 echo "🔍 Verifying XMake Plugin..."
 echo ""
 
-# Set JAVA_HOME if not set
+# JAVA_HOME is set by CI (JetBrains JVM 21 via actions/setup-java)
+# If running locally, ensure JAVA_HOME points to a JDK 21+ installation
 if [ -z "$JAVA_HOME" ]; then
-    # Try to find JDK
-    if [ -d "$HOME/files/jdk-17.0.8.jdk/Contents/Home" ]; then
-        export JAVA_HOME="$HOME/files/jdk-17.0.8.jdk/Contents/Home"
-        echo "📦 Using JAVA_HOME: $JAVA_HOME"
-    else
-        echo "⚠️  JAVA_HOME not set, using system default"
-    fi
+    echo "⚠️  JAVA_HOME not set, using system default (requires JDK 21+)"
 fi
 
 # Run the verification task
 echo "🚀 Running plugin verification..."
-./gradlew :verifyPlugin
 
 # Check the result
-if [ $? -eq 0 ]; then
+if ./gradlew :verifyPlugin; then
     echo ""
     echo "✅ Plugin verification completed successfully!"
     echo ""
     echo "📋 Verification results are available in:"
-    echo "   - build/reports/plugin-verifier/"
+    echo "   - build/reports/pluginVerifier/"
     echo ""
     echo "🔍 Check the reports for any compatibility issues or warnings."
 else
