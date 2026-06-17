@@ -15,19 +15,13 @@
     <depends>com.intellij.modules.xml</depends>
     <depends>com.intellij.modules.xdebugger</depends>
 
-    <depends optional="true">com.intellij.modules.nativeDebug</depends>
+    <depends optional="true" config-file="io.xmake-native-debug.xml">
+        com.intellij.modules.nativeDebug
+    </depends>
 
     <depends optional="true" config-file="io.xmake-ssh.xml">
         com.intellij.modules.ssh
     </depends>
-    <!--clion and c/cpp language-->
-    <!--
-    <depends>com.intellij.clion</depends>
-    <depends>com.intellij.modules.cidr.ide</depends>
-    <depends>com.intellij.modules.cidr.lang</depends>
-    <depends>com.intellij.modules.cidr.modulemap.language</depends>
-    <depends>com.intellij.modules.cmake</depends>
-    -->
 
     <extensions defaultExtensionNs="com.intellij">
 
@@ -104,7 +98,7 @@
                     icon="AllIcons.Actions.ClearCash"
                     description="Clean target and object files."/>
             <separator/>
-            <reference id="editRunConfigurations"/>
+            <reference ref="editRunConfigurations"/>
             <action id="XMake.CleanConfiguration"
                     class="io.xmake.actions.CleanConfigurationAction"
                     text="Clean Configuration"
@@ -132,16 +126,16 @@
         </group>
 
         <group id="XMake.ToolBar" text="Xmake Toolbar" description="XMake toolbar">
-            <reference id="XMake.Run"/>
-            <reference id="XMake.Debug"/>
-            <reference id="XMake.Build"/>
-            <reference id="XMake.Rebuild"/>
-            <reference id="XMake.Clean"/>
+            <reference ref="XMake.Run"/>
+            <reference ref="XMake.Debug"/>
+            <reference ref="XMake.Build"/>
+            <reference ref="XMake.Rebuild"/>
+            <reference ref="XMake.Clean"/>
             <separator/>
-            <reference id="editRunConfigurations"/>
-            <reference id="XMake.CleanConfiguration"/>
+            <reference ref="editRunConfigurations"/>
+            <reference ref="XMake.CleanConfiguration"/>
             <separator/>
-            <reference id="XMake.UpdateCompileCommands"/>
+            <reference ref="XMake.UpdateCompileCommands"/>
         </group>
     </actions>
 
