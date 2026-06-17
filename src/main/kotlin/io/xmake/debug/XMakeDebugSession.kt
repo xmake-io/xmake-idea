@@ -20,19 +20,13 @@
  */
 package io.xmake.debug
 
-import com.intellij.execution.configurations.CommandLineState
 import com.intellij.execution.configuration.EnvironmentVariablesData
-import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.configurations.RunProfileState
-import com.intellij.execution.filters.TextConsoleBuilderFactory
-import com.intellij.execution.process.ProcessHandler
 import com.intellij.execution.runners.ExecutionEnvironment
-import com.intellij.execution.ui.ConsoleView
 import com.intellij.notification.Notification
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.notification.Notifications
-import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.application.ApplicationInfo
 import com.intellij.openapi.project.Project
 import com.intellij.util.execution.ParametersListUtil
@@ -40,14 +34,13 @@ import com.intellij.xdebugger.XDebugProcess
 import com.intellij.xdebugger.XDebugProcessStarter
 import com.intellij.xdebugger.XDebugSession
 import com.intellij.xdebugger.XDebuggerManager
+import io.xmake.project.toolkit.activatedToolkit
+import io.xmake.project.xmakeConsoleView
 import io.xmake.run.XMakeRunConfiguration
 import io.xmake.shared.xmakeConfiguration
-import io.xmake.project.toolkit.activatedToolkit
-import io.xmake.utils.SystemUtils
-import io.xmake.debug.DebugModuleLoader
-import io.xmake.project.xmakeConsoleView
-import io.xmake.utils.execute.runProcess
 import io.xmake.utils.Logger
+import io.xmake.utils.SystemUtils
+import io.xmake.utils.execute.runProcess
 import kotlinx.coroutines.runBlocking
 import java.io.File
 
@@ -168,7 +161,7 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
     }
     
     /**
-     * Show notification to user that build is required
+     * Show notification to the user that a build is required
      */
     private fun showBuildRequiredNotification(targetName: String, reason: String) {
         val notification = Notification(
@@ -189,7 +182,7 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
      * Create and start the debug session
      */
     private fun createDebugSession(): com.intellij.execution.ui.RunContentDescriptor? {
-        return XDebuggerManager.getInstance(project).startSession(environment, object : XDebugProcessStarter() {
+        val starter = object : XDebugProcessStarter() {
             override fun start(session: XDebugSession): XDebugProcess {
                 val targetName = configuration.runTarget
                 Logger.d(TAG, "Starting debug process for target: $targetName")
@@ -217,9 +210,7 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
                 
                 // Get driver name from DapDriverDetector
                 val driverInfo = io.xmake.debug.DapDriverDetector.validateDriverPath(dapDriverPath)
-                if (driverInfo == null) {
-                    throw Exception("Invalid DAP driver path: $dapDriverPath")
-                }
+                    ?: throw Exception("Invalid DAP driver path: $dapDriverPath")
 
                 val driverName = when (driverInfo.type) {
                     io.xmake.debug.DapDriverDetector.DapDriverType.GDB_DAP -> "gdb-dap"
@@ -245,14 +236,18 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
                 
                 // Try to create debug process using the configuration
                 val debugProcess = createDebugProcess(targetPath, driverName, dapDriverPath, session)
-                if (debugProcess == null) {
-                    throw Exception("Failed to create debug process")
-                }
+                    ?: throw Exception("Failed to create debug process")
                 Logger.d(TAG, "Debug process created successfully")
                 
                 return debugProcess
             }
-        }).runContentDescriptor
+        }
+
+        return XDebuggerManager.getInstance(project)
+            .newSessionBuilder(starter)
+            .environment(environment)
+            .startSession()
+            .runContentDescriptor
     }
     
     /**
@@ -268,7 +263,7 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
                 } else {
                     emptyList()
                 }
-                val workingDir = configuration.runWorkingDir ?: project.basePath ?: ""
+                val workingDir = configuration.runWorkingDir
                 val debugProcess = DebugModuleLoader.createDebugProcess(
                     project, driverName, driverPath, launchConfig, targetPath, workingDir, session,
                     args, configuration.runEnvironment.envs

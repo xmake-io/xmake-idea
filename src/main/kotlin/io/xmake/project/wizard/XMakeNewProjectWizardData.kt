@@ -20,13 +20,20 @@
  */
 package io.xmake.project.wizard
 
-import com.intellij.ide.wizard.NewProjectWizardBaseData
 import com.intellij.ide.wizard.NewProjectWizardStep
 import com.intellij.openapi.observable.properties.GraphProperty
 import com.intellij.openapi.util.Key
 import io.xmake.project.toolkit.Toolkit
 
-interface XMakeNewProjectWizardData : NewProjectWizardBaseData {
+interface XMakeNewProjectWizardData {
+
+    val nameProperty: GraphProperty<String>
+
+    var name: String
+
+    val pathProperty: GraphProperty<String>
+
+    var path: String
 
     val remotePathProperty: GraphProperty<String>
 
@@ -47,7 +54,7 @@ interface XMakeNewProjectWizardData : NewProjectWizardBaseData {
 
     var kind: String
 
-    override val contentEntryPath: String
+    val contentEntryPath: String
         get() = "$path/$name"
 
     companion object {
