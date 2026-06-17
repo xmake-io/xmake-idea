@@ -57,25 +57,14 @@ dependencies {
         clion(properties("runIdeVersion"))
         bundledPlugin("com.intellij.nativeDebug")
         testFramework(TestFrameworkType.Platform)
+        pluginModule(implementation(project(":clion-debug")))
     }
     testImplementation("junit:junit:4.13.2")
-}
-
-val prepareClionDebugResources by tasks.registering {
-    group = "build"
-    description = "Builds the CLion debug module and copies it into plugin resources."
-    dependsOn(":clion-debug:build", ":clion-debug:copyToPluginResources")
 }
 
 tasks {
     matching { task -> task.name.contains("buildSearchableOptions") }.configureEach {
         enabled = false
-    }
-
-    matching { task ->
-        task.name in setOf("buildPlugin", "prepareSandbox", "runIde")
-    }.configureEach {
-        dependsOn(prepareClionDebugResources)
     }
 
     test {

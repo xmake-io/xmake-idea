@@ -27,7 +27,7 @@ import io.xmake.utils.Logger
 import io.xmake.utils.SystemUtils
 import java.io.File
 import java.net.URLClassLoader
-import java.lang.reflect.Method
+import java.util.jar.JarFile
 
 /**
  * Dynamic debug module loader for CLion-specific debugging functionality
@@ -35,7 +35,8 @@ import java.lang.reflect.Method
 object DebugModuleLoader {
     
     private const val TAG = "DebugModuleLoader"
-    private const val DEBUG_JAR_NAME = "xmake-clion-debug.jar"
+    private const val DEBUG_MODULE_CLASS_NAME = "io.xmake.debug.clion.ClionDebugModule"
+    private const val DEBUG_MODULE_CLASS_ENTRY = "io/xmake/debug/clion/ClionDebugModule.class"
     
     private var debugClassLoader: URLClassLoader? = null
     private var debugModuleClass: Class<*>? = null
@@ -63,27 +64,18 @@ object DebugModuleLoader {
     }
     
     /**
-     * Load the debug module JAR
+     * Load the debug module class from the packaged plugin module.
      */
     private fun loadDebugModule(): Boolean {
         return try {
-            // Find debug JAR in resources
-            val jarPath = findDebugJar()
-            if (jarPath == null) {
-                Logger.w(TAG, "Debug JAR not found: $DEBUG_JAR_NAME")
+            debugModuleClass = resolveDebugModuleClass()
+                ?: loadDebugModuleFromPackagedModule()
+
+            if (debugModuleClass == null) {
+                Logger.w(TAG, "Debug module class not found: $DEBUG_MODULE_CLASS_NAME")
                 return false
             }
-            
-            Logger.d(TAG, "Loading debug module from: $jarPath")
-            
-            // Create class loader for JAR
-            val jarFile = File(jarPath)
-            val jarUrl = jarFile.toURI().toURL()
-            debugClassLoader = URLClassLoader(arrayOf(jarUrl), this::class.java.classLoader)
-            
-            // Load main debug module class
-            debugModuleClass = debugClassLoader?.loadClass("io.xmake.debug.clion.ClionDebugModule")
-            
+
             isLoaded = true
             Logger.d(TAG, "Debug module loaded successfully")
             true
@@ -95,40 +87,74 @@ object DebugModuleLoader {
     }
     
     /**
-     * Find debug JAR in plugin resources
+     * Resolve the CLion debug module when it is already visible through the plugin classpath.
      */
-    private fun findDebugJar(): String? {
+    private fun resolveDebugModuleClass(classLoader: ClassLoader? = this::class.java.classLoader): Class<*>? {
+        if (classLoader == null) {
+            return null
+        }
         return try {
-            Logger.d(TAG, "Searching for debug JAR: $DEBUG_JAR_NAME")
-            
-            // Use getModulePath method to get the debug module JAR
-            val jarPath = SystemUtils.getModulePath(DEBUG_JAR_NAME)
-            
-            if (jarPath != null) {
-                Logger.i(TAG, "Found debug JAR at: $jarPath")
-                return jarPath
-            } else {
-                Logger.e(TAG, "Debug JAR not found: $DEBUG_JAR_NAME")
-                return null
-            }
-        } catch (e: Exception) {
-            Logger.e(TAG, "Failed to find debug JAR", e)
+            Class.forName(DEBUG_MODULE_CLASS_NAME, false, classLoader)
+        } catch (_: ClassNotFoundException) {
+            null
+        } catch (e: LinkageError) {
+            Logger.d(TAG, "Debug module class is not linkable from classpath: ${e.message}")
             null
         }
     }
-    
-    /**
-     * Find project root directory by looking for build.gradle.kts
-     */
-    private fun findProjectRoot(startDir: File): File? {
-        var current = startDir
-        while (current.parentFile != null) {
-            if (File(current, "build.gradle.kts").exists()) {
-                return current
-            }
-            current = current.parentFile
+
+    private fun loadDebugModuleFromPackagedModule(): Class<*>? {
+        val moduleJar = findPackagedDebugModuleJar() ?: return null
+        Logger.d(TAG, "Loading debug module from plugin module jar: ${moduleJar.absolutePath}")
+
+        val classLoader = URLClassLoader(arrayOf(moduleJar.toURI().toURL()), this::class.java.classLoader)
+        val moduleClass = resolveDebugModuleClass(classLoader)
+
+        if (moduleClass == null) {
+            classLoader.close()
+        } else {
+            debugClassLoader = classLoader
         }
-        return null
+
+        return moduleClass
+    }
+
+    private fun findPackagedDebugModuleJar(): File? {
+        val pluginPath = getPluginPath() ?: return null
+        val modulesDir = File(pluginPath, "lib/modules")
+        if (!modulesDir.isDirectory) {
+            return null
+        }
+
+        return modulesDir.listFiles { file -> file.isFile && file.extension == "jar" }
+            ?.firstOrNull(::containsDebugModuleClass)
+    }
+
+    private fun containsDebugModuleClass(jarFile: File): Boolean {
+        return try {
+            JarFile(jarFile).use { jar -> jar.getEntry(DEBUG_MODULE_CLASS_ENTRY) != null }
+        } catch (e: Exception) {
+            Logger.d(TAG, "Failed to inspect plugin module jar ${jarFile.absolutePath}: ${e.message}")
+            false
+        }
+    }
+
+    private fun getPluginPath(): File? {
+        return try {
+            val pluginManagerClass = Class.forName("com.intellij.ide.plugins.PluginManager")
+            val getPluginMethod = pluginManagerClass.getMethod("getPlugin", com.intellij.openapi.extensions.PluginId::class.java)
+            val pluginIdClass = Class.forName("com.intellij.openapi.extensions.PluginId")
+            val getIdMethod = pluginIdClass.getMethod("getId", String::class.java)
+            val pluginId = getIdMethod.invoke(null, "io.xmake")
+            val plugin = getPluginMethod.invoke(null, pluginId) ?: return null
+            val pluginPathMethod = plugin.javaClass.getMethod("getPluginPath")
+            val pluginPath = pluginPathMethod.invoke(plugin) as java.nio.file.Path
+
+            pluginPath.toFile()
+        } catch (e: Exception) {
+            Logger.d(TAG, "Failed to get plugin path: ${e.message}")
+            null
+        }
     }
     
     /**

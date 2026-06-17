@@ -116,10 +116,6 @@ object SystemUtils {
         }
     }
 
-    fun getModulePath(moduleName: String): String? {
-        return getResourceFilePath(moduleName, "lib")
-    }
-
     fun getResourceFilePath(resourceName: String, resourceDir: String = "lib"): String? {
         // 1. Try to get from plugin directory (layout in sandbox or installed plugin)
         

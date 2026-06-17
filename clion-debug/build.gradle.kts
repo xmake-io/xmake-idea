@@ -1,6 +1,6 @@
 plugins {
     id("org.jetbrains.kotlin.jvm") version "2.3.20"
-    id("org.jetbrains.intellij.platform") version "2.16.0"
+    id("org.jetbrains.intellij.platform.module")
 }
 
 group = "io.xmake.debug"
@@ -52,43 +52,4 @@ tasks.matching { task ->
     )
 }.configureEach {
     enabled = false
-}
-
-tasks {
-    compileKotlin {
-        compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-    }
-
-    compileJava {
-        options.release.set(17)
-    }
-
-    jar {
-        archiveBaseName.set("xmake-clion-debug")
-        archiveVersion.set("")
-        archiveClassifier.set("")
-
-        from({
-            configurations.runtimeClasspath.get().filter { it.name.endsWith("jar") }.map { zipTree(it) }
-        }) {
-            exclude("META-INF/*.SF")
-            exclude("META-INF/*.DSA")
-            exclude("META-INF/*.RSA")
-        }
-
-        manifest {
-            attributes(
-                "Main-Class" to "io.xmake.debug.clion.ClionDebugModule",
-                "Implementation-Title" to "XMake CLion Debug Module",
-                "Implementation-Version" to project.version,
-                "Implementation-Vendor" to "XMake"
-            )
-        }
-    }
-
-    register<Copy>("copyToPluginResources") {
-        dependsOn(jar)
-        from(jar.get())
-        into("../src/main/resources/lib")
-    }
 }
