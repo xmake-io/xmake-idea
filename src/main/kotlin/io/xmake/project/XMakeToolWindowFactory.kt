@@ -21,33 +21,27 @@
 package io.xmake.project
 
 import com.intellij.execution.ui.ConsoleView
+import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.ui.content.ContentFactory
 import io.xmake.shared.XMakeProblem
-import io.xmake.utils.SystemUtils
+import kotlin.jvm.JvmDefaultWithoutCompatibility
 
-class XMakeToolWindowFactory : ToolWindowFactory {
-
-    override fun isApplicable(project: Project): Boolean {
-        return SystemUtils.isXMakeProject(project)
-    }
+@JvmDefaultWithoutCompatibility
+class XMakeToolWindowFactory : ToolWindowFactory, DumbAware {
 
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
-
-        // add output tab/panel
-        val toolwindowOutputPanel = XMakeToolWindowOutputPanel(project)
-        val outputTab = ContentFactory.getInstance().createContent(toolwindowOutputPanel, "Output", false)
+        val outputPanel = XMakeToolWindowOutputPanel(project)
+        val outputTab = ContentFactory.getInstance().createContent(outputPanel, "Output", false)
         toolWindow.contentManager.addContent(outputTab)
 
-        // add problem tab/panel
-        val toolwindowProblemPanel = XMakeToolWindowProblemPanel(project)
-        val problemTab = ContentFactory.getInstance().createContent(toolwindowProblemPanel, "Problem", false)
+        val problemPanel = XMakeToolWindowProblemPanel(project)
+        val problemTab = ContentFactory.getInstance().createContent(problemPanel, "Problem", false)
         toolWindow.contentManager.addContent(problemTab)
 
-        // show the output panel by default
         toolWindow.contentManager.setSelectedContent(outputTab)
     }
 }

@@ -27,16 +27,11 @@ import com.intellij.execution.process.ProcessListener
 import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
-import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtil
-import com.intellij.openapi.wm.RegisterToolWindowTask
-import com.intellij.openapi.wm.ToolWindowAnchor
 import com.intellij.openapi.wm.ToolWindowManager
-import io.xmake.icons.XMakeIcons
-import io.xmake.project.XMakeToolWindowFactory
 import io.xmake.project.toolkit.activatedToolkit
 import io.xmake.project.xmakeConsoleView
 import io.xmake.shared.xmakeConfiguration
@@ -44,7 +39,7 @@ import io.xmake.utils.SystemUtils
 import io.xmake.utils.exception.XMakeRunConfigurationNotSetException
 import java.io.File
 
-class QuickStartAction : AnAction() {
+class QuickStartAction : XMakeBaseAction() {
 
     override fun update(e: AnActionEvent) {
         val project = e.project
@@ -52,9 +47,7 @@ class QuickStartAction : AnAction() {
             e.presentation.isEnabledAndVisible = false
             return
         }
-        e.presentation.isVisible = true
-        // Disable in xmake project (grayed out)
-        e.presentation.isEnabled = !SystemUtils.isXMakeProject(project)
+        e.presentation.isEnabledAndVisible = true
     }
 
     override fun actionPerformed(e: AnActionEvent) {
@@ -87,24 +80,9 @@ class QuickStartAction : AnAction() {
                                 }
 
                                 // Show Tool Window
-                                val toolWindowManager = ToolWindowManager.getInstance(project)
-                                var toolWindow = toolWindowManager.getToolWindow("XMake")
-                                if (toolWindow == null) {
-                                    val task = RegisterToolWindowTask(
-                                        id = "XMake",
-                                        anchor = ToolWindowAnchor.BOTTOM,
-                                        component = null,
-                                        canCloseContent = true,
-                                        canWorkInDumbMode = true,
-                                        shouldBeAvailable = true,
-                                        contentFactory = null,
-                                        icon = XMakeIcons.XMAKE,
-                                        stripeTitle = null
-                                    )
-                                    toolWindow = toolWindowManager.registerToolWindow(task)
-                                    XMakeToolWindowFactory().createToolWindowContent(project, toolWindow)
-                                }
-                                toolWindow.show(null)
+                                ToolWindowManager.getInstance(project)
+                                    .getToolWindow("XMake")
+                                    ?.show(null)
                             }
                         } else {
                             NotificationGroupManager.getInstance()
