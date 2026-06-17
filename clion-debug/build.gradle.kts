@@ -1,6 +1,6 @@
 plugins {
-    kotlin("jvm") version "2.3.0"
-    id("org.jetbrains.intellij.platform") version "2.7.2"
+    id("org.jetbrains.kotlin.jvm") version "2.3.20"
+    id("org.jetbrains.intellij.platform") version "2.16.0"
 }
 
 group = "io.xmake.debug"
@@ -16,7 +16,7 @@ repositories {
 intellijPlatform {
     dependencies {
         intellijPlatform {
-            clion("2026.1.1")
+            clion(providers.gradleProperty("runIdeVersion"))
             bundledPlugin("com.intellij.nativeDebug")
         }
     }
@@ -37,21 +37,37 @@ tasks.matching { task -> task.name.contains("runIde") }.configureEach {
     enabled = false
 }
 
+// This module does not contain tests; disabling test-related IntelliJ tasks avoids
+// pulling its sandbox preparation into the root `test` task graph.
+tasks.matching { task ->
+    task.name in setOf(
+        "compileTestKotlin",
+        "compileTestJava",
+        "processTestResources",
+        "testClasses",
+        "instrumentTestCode",
+        "prepareTestSandbox",
+        "prepareTest",
+        "test"
+    )
+}.configureEach {
+    enabled = false
+}
+
 tasks {
     compileKotlin {
         compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
-    
+
     compileJava {
         options.release.set(17)
     }
-    
+
     jar {
         archiveBaseName.set("xmake-clion-debug")
         archiveVersion.set("")
         archiveClassifier.set("")
-        
-        // Include all dependencies in the JAR so it's self-contained
+
         from({
             configurations.runtimeClasspath.get().filter { it.name.endsWith("jar") }.map { zipTree(it) }
         }) {
@@ -59,7 +75,7 @@ tasks {
             exclude("META-INF/*.DSA")
             exclude("META-INF/*.RSA")
         }
-        
+
         manifest {
             attributes(
                 "Main-Class" to "io.xmake.debug.clion.ClionDebugModule",
@@ -69,8 +85,7 @@ tasks {
             )
         }
     }
-    
-    // Create a task to copy the JAR to the main plugin resources/lib
+
     register<Copy>("copyToPluginResources") {
         dependsOn(jar)
         from(jar.get())
