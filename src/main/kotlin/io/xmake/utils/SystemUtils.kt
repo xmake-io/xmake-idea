@@ -22,19 +22,19 @@ package io.xmake.utils
 
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.process.ProcessNotCreatedException
+import com.intellij.ide.plugins.PluginManagerCore
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
+import com.intellij.openapi.application.ApplicationInfo
 import com.intellij.openapi.extensions.PluginId
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.application.ApplicationInfo
 import io.xmake.project.toolkit.activatedToolkit
 import io.xmake.shared.XMakeProblem
 import io.xmake.utils.exception.XMakeToolkitNotSetException
-import io.xmake.utils.execute.createProcess
 import io.xmake.utils.execute.createLocalProcess
+import io.xmake.utils.execute.createProcess
 import io.xmake.utils.execute.runProcessWithHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -119,22 +119,14 @@ object SystemUtils {
     fun getResourceFilePath(resourceName: String, resourceDir: String = "lib"): String? {
         // 1. Try to get from plugin directory (layout in sandbox or installed plugin)
         
-        // Try to get plugin path using reflection to avoid internal API
+        // Try to get plugin path from the installed plugin descriptor.
         try {
-            val pluginManagerClass = Class.forName("com.intellij.ide.plugins.PluginManager")
-            val getPluginMethod = pluginManagerClass.getMethod("getPlugin", com.intellij.openapi.extensions.PluginId::class.java)
-            val pluginIdClass = Class.forName("com.intellij.openapi.extensions.PluginId")
-            val getIdMethod = pluginIdClass.getMethod("getId", String::class.java)
-            val pluginId = getIdMethod.invoke(null, "io.xmake")
-            val plugin = getPluginMethod.invoke(null, pluginId)
+            val plugin = PluginManagerCore.getPlugin(PluginId.getId("io.xmake"))
             
             if (plugin != null) {
-                val pluginPathMethod = plugin.javaClass.getMethod("getPluginPath")
-                val pluginPath = pluginPathMethod.invoke(plugin) as java.nio.file.Path
-                
                 val possiblePaths = listOf(
-                    File(pluginPath.toFile(), "classes/$resourceDir/$resourceName"),
-                    File(pluginPath.toFile(), "$resourceDir/$resourceName")
+                    File(plugin.pluginPath.toFile(), "classes/$resourceDir/$resourceName"),
+                    File(plugin.pluginPath.toFile(), "$resourceDir/$resourceName")
                 )
                 
                 for (path in possiblePaths) {
@@ -144,7 +136,7 @@ object SystemUtils {
                 }
             }
         } catch (e: Exception) {
-            Logger.d(TAG, "Failed to get plugin path using reflection: ${e.message}")
+            Logger.d(TAG, "Failed to get plugin path: ${e.message}")
         }
 
         // 2. Try to get from resources (classpath)
@@ -220,26 +212,16 @@ object SystemUtils {
                 return true
             }
             
-            // Try to check CLion plugin using reflection to avoid internal API
+            // Check whether the CLion plugin is enabled in a non-CLion IDE.
             try {
-                val pluginManagerClass = Class.forName("com.intellij.ide.plugins.PluginManager")
-                val findPluginMethod = pluginManagerClass.getMethod("findPlugin", com.intellij.openapi.extensions.PluginId::class.java)
-                val pluginIdClass = Class.forName("com.intellij.openapi.extensions.PluginId")
-                val getIdMethod = pluginIdClass.getMethod("getId", String::class.java)
-                val clionPluginId = getIdMethod.invoke(null, CLION_PLUGIN_ID)
-                val clionPlugin = findPluginMethod.invoke(null, clionPluginId)
+                val clionPluginId = PluginId.getId(CLION_PLUGIN_ID)
                 
-                if (clionPlugin != null) {
-                    val isEnabledMethod = clionPlugin.javaClass.getMethod("isEnabled")
-                    val isEnabled = isEnabledMethod.invoke(clionPlugin) as Boolean
-                    
-                    if (isEnabled) {
-                        Logger.d(TAG, "CLion plugin is available and enabled")
-                        return true
-                    }
+                if (PluginManagerCore.isPluginInstalled(clionPluginId) && !PluginManagerCore.isDisabled(clionPluginId)) {
+                    Logger.d(TAG, "CLion plugin is available and enabled")
+                    return true
                 }
             } catch (e: Exception) {
-                Logger.d(TAG, "Failed to check CLion plugin using reflection: ${e.message}")
+                Logger.d(TAG, "Failed to check CLion plugin: ${e.message}")
             }
             
             Logger.i(TAG, "Running in non-CLion IDE, CLion debug module will not be loaded")

@@ -20,6 +20,8 @@
  */
 package io.xmake.debug
 
+import com.intellij.ide.plugins.PluginManagerCore
+import com.intellij.openapi.extensions.PluginId
 import com.intellij.openapi.project.Project
 import com.intellij.xdebugger.XDebugSession
 import com.intellij.xdebugger.XDebugProcess
@@ -141,16 +143,9 @@ object DebugModuleLoader {
 
     private fun getPluginPath(): File? {
         return try {
-            val pluginManagerClass = Class.forName("com.intellij.ide.plugins.PluginManager")
-            val getPluginMethod = pluginManagerClass.getMethod("getPlugin", com.intellij.openapi.extensions.PluginId::class.java)
-            val pluginIdClass = Class.forName("com.intellij.openapi.extensions.PluginId")
-            val getIdMethod = pluginIdClass.getMethod("getId", String::class.java)
-            val pluginId = getIdMethod.invoke(null, "io.xmake")
-            val plugin = getPluginMethod.invoke(null, pluginId) ?: return null
-            val pluginPathMethod = plugin.javaClass.getMethod("getPluginPath")
-            val pluginPath = pluginPathMethod.invoke(plugin) as java.nio.file.Path
-
-            pluginPath.toFile()
+            val pluginId = PluginId.getId("io.xmake")
+            val plugin = PluginManagerCore.getPlugin(pluginId) ?: return null
+            plugin.pluginPath.toFile()
         } catch (e: Exception) {
             Logger.d(TAG, "Failed to get plugin path: ${e.message}")
             null
