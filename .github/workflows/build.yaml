@@ -24,20 +24,20 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v5
         with:
-          distribution: temurin
+          distribution: jetbrains
           java-version: 21
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
 
       - name: Build
-        run: ./build.sh
+        run: ./scripts/build.sh
 
       - name: Verify Plugin
-        run: ./verify.sh
+        run: ./scripts/verify.sh
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: xmake-idea.zip
           path: ./build/distributions/xmake-idea.zip
