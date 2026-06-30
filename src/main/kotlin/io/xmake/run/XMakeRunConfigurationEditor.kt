@@ -22,8 +22,8 @@ package io.xmake.run
 
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
-import com.intellij.openapi.ui.TextComponentAccessor
-import com.intellij.execution.configuration.EnvironmentVariablesTextFieldWithBrowseButton
+import com.intellij.openapi.ui.TextBrowseFolderListener
+import com.intellij.execution.configuration.EnvironmentVariablesComponent
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.project.Project
@@ -61,6 +61,19 @@ import javax.swing.JComponent
 import javax.swing.JPanel
 import javax.swing.SwingUtilities
 import javax.swing.event.PopupMenuEvent
+
+private fun createEnvironmentVariablesComponent(project: Project): EnvironmentVariablesComponent {
+    // 2026.2 adds the Project constructor and deprecates the 2026.1 no-arg constructor.
+    return try {
+        EnvironmentVariablesComponent::class.java
+            .getConstructor(Project::class.java)
+            .newInstance(project)
+    } catch (_: Exception) {
+        EnvironmentVariablesComponent::class.java
+            .getConstructor()
+            .newInstance()
+    }
+}
 
 class XMakeRunConfigurationEditor(
     private val project: Project,
@@ -108,7 +121,7 @@ class XMakeRunConfigurationEditor(
 
         val selectedArch = architecturesComboBox.item
         architecturesModel.removeAllElements()
-        val currentPlatform = platformsComboBox.item as? String ?: "default"
+        val currentPlatform = platformsComboBox.item ?: "default"
         val architectures = (xmakeInfo.architectures[currentPlatform] ?: emptyList()).plus("default")
         architecturesModel.addAll(architectures)
         architecturesComboBox.item = if (architectures.contains(selectedArch)) selectedArch else runConfiguration.runArchitecture
@@ -186,7 +199,7 @@ class XMakeRunConfigurationEditor(
 
     private val runArguments = RawCommandLineEditor()
 
-    private val environmentVariables = EnvironmentVariablesTextFieldWithBrowseButton()
+    private val environmentVariables = createEnvironmentVariablesComponent(project)
 
     private val workingDirectoryBrowser = DirectoryBrowser(project).apply { text = runConfiguration.runWorkingDir }
 
@@ -233,12 +246,11 @@ class XMakeRunConfigurationEditor(
     private val dapDriverPathComboBox = ComboBox<String>()
     private val dapDriverPathCustomField = TextFieldWithBrowseButton().apply {
         textField.isEditable = true
-        addBrowseFolderListener(
-            "Select DAP Driver",
-            "Select the DAP driver executable (lldb-dap or gdb)",
-            project,
-            FileChooserDescriptorFactory.createSingleFileDescriptor()
-        )
+        val descriptor = FileChooserDescriptorFactory.createSingleFileDescriptor().apply {
+            title = "Select DAP Driver"
+            description = "Select the DAP driver executable (lldb-dap or gdb)"
+        }
+        addBrowseFolderListener(TextBrowseFolderListener(descriptor, project))
     }
 
     // reset editor from configuration
@@ -266,7 +278,7 @@ class XMakeRunConfigurationEditor(
         runArguments.text = configuration.runArguments
 
         // reset environment variables
-        environmentVariables.data = configuration.runEnvironment
+        environmentVariables.envData = configuration.runEnvironment
 
         workingDirectoryBrowser.text = configuration.runWorkingDir
 
@@ -358,7 +370,7 @@ class XMakeRunConfigurationEditor(
 
         configuration.runArguments = runArguments.text
 
-        configuration.runEnvironment = environmentVariables.data
+        configuration.runEnvironment = environmentVariables.envData
 
         configuration.runWorkingDir = workingDirectoryBrowser.text
 
@@ -418,7 +430,7 @@ class XMakeRunConfigurationEditor(
                             val selected = selectedItem
                             if (selected is String) {
                                 val architectures = runConfiguration.getArchitecturesByPlatform(selected)
-                                val currentArch = architecturesComboBox.item as? String
+                                val currentArch = architecturesComboBox.item.orEmpty()
                                 with(architecturesModel) {
                                     removeAllElements()
                                     addAll(architectures.toMutableList())
@@ -495,7 +507,7 @@ class XMakeRunConfigurationEditor(
 
         collapsibleGroup("Additional Configuration") {
             row("Environment variables") {
-                cell(environmentVariables).align(AlignX.FILL)
+                cell(environmentVariables.component).align(AlignX.FILL)
             }
 
             row("Working directory") {
