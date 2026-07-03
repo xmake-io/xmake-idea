@@ -17,6 +17,10 @@
 
     <depends optional="true">com.intellij.modules.nativeDebug</depends>
 
+    <!-- Optional so the plugin still loads on IDEA Community; grants the reflective CLion module
+         classloader visibility of the Compilation Database classes for IntelliSense integration. -->
+    <depends optional="true">com.intellij.clion-compdb</depends>
+
     <depends optional="true" config-file="io.xmake-ssh.xml">
         com.intellij.modules.ssh
     </depends>
@@ -55,6 +59,7 @@
         <notificationGroup id="XMake.NotificationGroup" displayType="BALLOON"/>
 
         <postStartupActivity implementation="io.xmake.utils.info.XMakeInfoActivity"/>
+        <postStartupActivity implementation="io.xmake.debug.CompDBAutoAttachActivity"/>
 
         <fileType name="xmake.lua" language="xmake.lua" fieldName="INSTANCE"
                   fileNames="xmake.lua" fileNamesCaseInsensitive="xmake.lua"
