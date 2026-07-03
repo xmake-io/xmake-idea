@@ -131,6 +131,15 @@
             </action>
         </group>
 
+        <action id="XMake.SelectMode"
+                class="io.xmake.actions.selector.XMakeBuildModeAction"
+                text="Build Mode"
+                description="Select the xmake build mode (release, debug, ...)."/>
+        <action id="XMake.SelectTarget"
+                class="io.xmake.actions.selector.XMakeTargetAction"
+                text="Target"
+                description="Select the xmake target to build and run."/>
+
         <group id="XMake.ToolBar" text="Xmake Toolbar" description="XMake toolbar">
             <reference id="XMake.Run"/>
             <reference id="XMake.Debug"/>
@@ -142,6 +151,22 @@
             <reference id="XMake.CleanConfiguration"/>
             <separator/>
             <reference id="XMake.UpdateCompileCommands"/>
+        </group>
+
+        <!-- Rider-style quick selectors placed in the new-UI run-widget area, just left of the
+             run-configuration chip (same anchor JetBrains uses for the execution-target selector). -->
+        <group id="XMake.RunWidgetSelectors">
+            <reference id="XMake.SelectMode"/>
+            <reference id="XMake.SelectTarget"/>
+            <add-to-group group-id="MainToolbarRight" anchor="before" relative-to-action="NewUiRunWidget"/>
+        </group>
+
+        <!-- Classic-UI fallback: place the same selectors before the run-configuration combo. -->
+        <group id="XMake.ClassicToolBarSelectors">
+            <reference id="XMake.SelectMode"/>
+            <reference id="XMake.SelectTarget"/>
+            <separator/>
+            <add-to-group group-id="MainToolBar" anchor="before" relative-to-action="RunConfiguration"/>
         </group>
     </actions>
 

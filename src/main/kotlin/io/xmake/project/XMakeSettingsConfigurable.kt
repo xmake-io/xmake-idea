@@ -78,6 +78,11 @@ class XMakeSettingsConfigurable(private val project: Project) : Configurable {
                     checkBox("Auto-update compile_commands.json after build")
                         .bindSelected(settings.state::autoUpdateCompileCommands)
                 }
+                row {
+                    checkBox("Auto-reload xmake configuration when target/mode changes")
+                        .bindSelected(settings.state::autoReloadConfigOnSwitch)
+                        .comment("Runs 'xmake f ...' immediately after switching the build mode or target from the toolbar.")
+                }
             }
             group("Toolkit") {
                 row {

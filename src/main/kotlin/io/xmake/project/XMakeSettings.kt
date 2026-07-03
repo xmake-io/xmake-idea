@@ -8,7 +8,8 @@ import com.intellij.openapi.project.Project
 class XMakeSettings : PersistentStateComponent<XMakeSettings.State> {
     data class State(
         var compileCommandsPath: String = "",
-        var autoUpdateCompileCommands: Boolean = false
+        var autoUpdateCompileCommands: Boolean = false,
+        var autoReloadConfigOnSwitch: Boolean = true
     )
 
     private var myState = State()
