@@ -38,6 +38,7 @@ import io.xmake.utils.SystemUtils
 import io.xmake.utils.exception.XMakeRunConfigurationNotSetException
 import io.xmake.utils.execute.fetchGeneratedFile
 import io.xmake.utils.execute.syncBeforeFetch
+import io.xmake.debug.CompDBSupport
 
 class UpdateCompileCommandsAction : XMakeBaseAction() {
     override fun actionPerformed(e: AnActionEvent) {
@@ -77,6 +78,7 @@ class UpdateCompileCommandsAction : XMakeBaseAction() {
                                                 }
                                             }
                                             // Todo: Reload from disks after download from remote.
+                                            if (e.exitCode == 0) CompDBSupport.refreshIntelliSense(project)
                                         }
                                     }
                                 )
@@ -98,6 +100,7 @@ class UpdateCompileCommandsAction : XMakeBaseAction() {
                                         }
                                     }
                                 }
+                                if (e.exitCode == 0) CompDBSupport.refreshIntelliSense(project)
                             }
                         }
                     )

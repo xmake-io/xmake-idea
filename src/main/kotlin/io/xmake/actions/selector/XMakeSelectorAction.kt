@@ -31,6 +31,7 @@ import com.intellij.openapi.actionSystem.DataContext
 import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.actionSystem.ex.ComboBoxAction
 import com.intellij.openapi.project.Project
+import io.xmake.debug.CompDBSupport
 import io.xmake.project.xmakeSettings
 import io.xmake.run.XMakeRunConfiguration
 import io.xmake.shared.xmakeConfigurationOrNull
@@ -114,7 +115,11 @@ abstract class XMakeSelectorAction : ComboBoxAction() {
                         if (e.exitCode == 0 && project.xmakeSettings.state.autoUpdateCompileCommands) {
                             SystemUtils.runvInConsole(
                                 project, xmakeConfiguration.updateCompileCommandsLine, false, true, true
-                            )
+                            )?.addProcessListener(object : ProcessListener {
+                                override fun processTerminated(e: ProcessEvent) {
+                                    if (e.exitCode == 0) CompDBSupport.refreshIntelliSense(project)
+                                }
+                            })
                         }
                     }
                 })

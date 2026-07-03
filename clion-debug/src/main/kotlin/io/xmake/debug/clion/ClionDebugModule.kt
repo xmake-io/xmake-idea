@@ -96,4 +96,17 @@ object ClionDebugModule {
         Logger.d(TAG, "Debug process created successfully")
         return debugProcess
     }
+
+    /**
+     * Feed CLion IntelliSense from an xmake-generated compile_commands.json.
+     * Returns true if a compilation-database refresh was triggered.
+     */
+    @JvmStatic
+    fun attachCompileCommands(project: Project, compileCommandsPath: String): Boolean {
+        if (!CompDBIntegration.isAvailable()) {
+            Logger.d(TAG, "Compilation Database subsystem not available")
+            return false
+        }
+        return CompDBIntegration.attachCompileCommands(project, compileCommandsPath)
+    }
 }

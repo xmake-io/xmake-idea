@@ -18,6 +18,9 @@ intellijPlatform {
         intellijPlatform {
             clion("2026.1.1")
             bundledPlugin("com.intellij.nativeDebug")
+            // Compilation Database ExternalSystem — used to feed IntelliSense from
+            // xmake's generated compile_commands.json (io.xmake.debug.clion.CompDBIntegration).
+            bundledPlugin("com.intellij.clion-compdb")
         }
     }
     

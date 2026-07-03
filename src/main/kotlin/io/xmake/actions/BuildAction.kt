@@ -34,6 +34,7 @@ import io.xmake.utils.SystemUtils
 import io.xmake.utils.exception.XMakeRunConfigurationNotSetException
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import io.xmake.project.xmakeSettings
+import io.xmake.debug.CompDBSupport
 
 class BuildAction : XMakeBaseAction() {
 
@@ -91,6 +92,11 @@ class BuildAction : XMakeBaseAction() {
                 override fun processTerminated(e: ProcessEvent) {
                     if (e.exitCode == 0 && project.xmakeSettings.state.autoUpdateCompileCommands) {
                         SystemUtils.runvInConsole(project, xmakeConfiguration.updateCompileCommandsLine, false, true, true)
+                            ?.addProcessListener(object : ProcessListener {
+                                override fun processTerminated(e: ProcessEvent) {
+                                    if (e.exitCode == 0) CompDBSupport.refreshIntelliSense(project)
+                                }
+                            })
                     }
                 }
             })
