@@ -42,7 +42,6 @@ import com.intellij.ui.dsl.builder.RowLayout
 import com.intellij.ui.dsl.builder.panel
 import com.intellij.ui.layout.ComboBoxPredicate
 import io.xmake.project.directory.ui.DirectoryBrowser
-import io.xmake.project.target.TargetManager
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ui.ToolkitComboBox
 import io.xmake.project.toolkit.ui.ToolkitListItem
@@ -118,28 +117,6 @@ class XMakeRunConfigurationEditor(
         val toolchains = xmakeInfo.toolchains.keys.plus("default").toList()
         toolchainsModel.addAll(toolchains)
         toolchainsComboBox.item = if (toolchains.contains(selectedToolchain)) selectedToolchain else runConfiguration.runToolchain
-
-        val selectedMode = modesComboBox.item
-        modesModel.removeAllElements()
-        val modes = if (xmakeInfo.buildModes.isNotEmpty()) {
-            xmakeInfo.buildModes.map { it.removePrefix("mode.") }.toList()
-        } else {
-            listOf("release", "debug")
-        }
-        modesModel.addAll(modes)
-        modesComboBox.item = if (modes.contains(selectedMode)) selectedMode else runConfiguration.runMode
-
-        val selectedTarget = targetsModel.selectedItem
-        targetsModel.removeAllElements()
-        val targets = if (xmakeInfo.targets.isNotEmpty()) {
-            xmakeInfo.targets.plus("default")
-        } else {
-            (runConfiguration.runToolkit?.let {
-                TargetManager.getInstance(project).detectXMakeTarget(it, runConfiguration.runWorkingDir)
-            } ?: emptyList()).plus("default")
-        }.distinct().toList()
-        targetsModel.addAll(targets)
-        targetsModel.selectedItem = if (targets.contains(selectedTarget)) selectedTarget else runConfiguration.runTarget
     }
 
     private fun updateDapDriverComboBox() {
@@ -167,9 +144,8 @@ class XMakeRunConfigurationEditor(
     private var toolkit: Toolkit? = runConfiguration.runToolkit
     private val toolkitComboBox = ToolkitComboBox(::toolkit)
 
-    // the targets ui
-    private val targetsModel = DefaultComboBoxModel<String>()
-    private val targetsComboBox = ComboBox(targetsModel).apply { item = runConfiguration.runTarget }
+    // Note: build mode and target are edited from the toolbar selectors
+    // (io.xmake.actions.selector), not from this editor.
 
     private val platformsModel = DefaultComboBoxModel(runConfiguration.platforms)
     private val platformsComboBox = ComboBox(platformsModel).apply { item = runConfiguration.runPlatform }
@@ -180,9 +156,6 @@ class XMakeRunConfigurationEditor(
 
     private val toolchainsModel = DefaultComboBoxModel(runConfiguration.toolchains)
     private val toolchainsComboBox = ComboBox(toolchainsModel).apply { item = runConfiguration.runToolchain }
-
-    private val modesModel = DefaultComboBoxModel(runConfiguration.modes)
-    private val modesComboBox = ComboBox(modesModel).apply { item = runConfiguration.runMode }
 
     private val runArguments = RawCommandLineEditor()
 
@@ -251,16 +224,11 @@ class XMakeRunConfigurationEditor(
         // Update combo boxes data from XMakeInfo first
         updateComboBoxes()
 
-        // reset targets
-        targetsModel.selectedItem = configuration.runTarget
-
         platformsComboBox.item = configuration.runPlatform
 
         architecturesComboBox.item = configuration.runArchitecture
 
         toolchainsComboBox.item = configuration.runToolchain
-
-        modesComboBox.item = configuration.runMode
 
         // reset run arguments
         runArguments.text = configuration.runArguments
@@ -346,15 +314,13 @@ class XMakeRunConfigurationEditor(
 
         configuration.runToolkit = toolkit
 
-        configuration.runTarget = (targetsModel.selectedItem ?: "default").toString()
+        // Build mode and target are managed by the toolbar selectors, not this editor.
 
         configuration.runPlatform = platformsComboBox.item ?: "default"
 
         configuration.runArchitecture = architecturesComboBox.item ?: "default"
 
         configuration.runToolchain = toolchainsComboBox.item ?: "default"
-
-        configuration.runMode = modesComboBox.item ?: "default"
 
         configuration.runArguments = runArguments.text
 
@@ -457,12 +423,6 @@ class XMakeRunConfigurationEditor(
         }.layout(RowLayout.PARENT_GRID)
 
         separator()
-
-        row("Target:") {
-            cell(targetsComboBox).align(AlignX.FILL).resizableColumn()
-            label("Mode:").align(AlignX.FILL)
-            cell(modesComboBox).align(AlignX.FILL)
-        }
 
         row("Program Arguments:") {
             cell(runArguments).align(AlignX.FILL)
