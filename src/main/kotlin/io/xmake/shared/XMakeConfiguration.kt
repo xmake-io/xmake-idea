@@ -44,10 +44,23 @@ class XMakeConfiguration(val project: Project) {
     val buildCommandLine: GeneralCommandLine
         get() {
 
-            // make parameters
-            val parameters = mutableListOf("-y")
+            // make parameters — build the currently selected target (mirrors runCommandLine):
+            // "all" builds every target, "default"/empty builds the default group, otherwise
+            // build just the named target. Options must precede the positional target, so the
+            // command reads `xmake build -y [-v] <target>`.
+            val target = configuration.runTarget
+            val hasNamedTarget = target.isNotEmpty() && target != "default" && target != "all"
+            val parameters = mutableListOf<String>()
+            if (target == "all" || hasNamedTarget) {
+                parameters.add("build")
+            }
+            parameters.add("-y")
             if (configuration.enableVerbose) {
                 parameters.add("-v")
+            }
+            when {
+                target == "all" -> parameters.add("-a")
+                hasNamedTarget -> parameters.add(target)
             }
 
             // make command line
