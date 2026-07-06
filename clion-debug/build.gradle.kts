@@ -37,6 +37,11 @@ tasks.matching { task -> task.name.contains("runIde") }.configureEach {
     enabled = false
 }
 
+// The root plugin artifact is the verifier boundary; this module is packaged into it.
+tasks.matching { task -> task.name == "verifyPlugin" }.configureEach {
+    enabled = false
+}
+
 tasks {
     compileKotlin {
         compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
