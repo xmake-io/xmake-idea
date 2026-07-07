@@ -18,11 +18,7 @@ plugins {
 group = "io.xmake"
 
 repositories {
-    maven("https://maven.aliyun.com/repository/public/")
-    maven("https://oss.sonatype.org/content/repositories/snapshots/")
-    mavenLocal()
     mavenCentral()
-    gradlePluginPortal()
     intellijPlatform {
         defaultRepositories()
     }
