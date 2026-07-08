@@ -66,7 +66,14 @@ object CustomBuildTargetsSupport {
                 targets.forEach { target ->
                     addJsonObject {
                         put("name", target)
-                        // executablePath / isExecutable are populated in Slice C.
+                        // Resolve the built executable so CLion can create a ready-to-run config;
+                        // targetpath.lua only prints a path for binary targets, so a null result
+                        // marks a non-executable target (library/etc.). Runs off the EDT here.
+                        val exe = TargetPathResolver.resolve(project, target)
+                        if (exe != null) {
+                            put("executablePath", exe)
+                            put("isExecutable", true)
+                        }
                         putJsonArray("buildArgs") {
                             add("build"); add("-y"); add(target)
                         }
