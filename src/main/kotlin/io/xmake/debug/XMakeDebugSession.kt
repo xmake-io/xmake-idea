@@ -42,12 +42,9 @@ import com.intellij.xdebugger.XDebuggerManager
 import io.xmake.run.XMakeRunConfiguration
 import io.xmake.shared.xmakeConfiguration
 import io.xmake.project.console.XMakeConsole
-import io.xmake.project.toolkit.activatedToolkit
 import io.xmake.utils.SystemUtils
 import io.xmake.debug.DebugModuleLoader
-import io.xmake.utils.execute.runProcess
 import io.xmake.utils.Logger
-import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.lang.reflect.InvocationTargetException
 
@@ -339,44 +336,6 @@ class XMakeDebugSession(
     /**
      * Get the target executable path for debugging
      */
-    private fun getTargetExecutable(project: Project, targetName: String): String? {
-        Logger.v(TAG, "Getting executable path for target: $targetName")
-        val configuration = project.xmakeConfiguration
-        val toolkit = project.activatedToolkit ?: return null
-        val targetPathScript = SystemUtils.getScriptPath("targetpath.lua")
-        if (targetPathScript == null) {
-            Logger.e(TAG, "targetpath.lua script not found")
-            return null
-        }
-
-        val parameters = mutableListOf("l", targetPathScript)
-        if (targetName != "default" && targetName.isNotEmpty()) {
-            parameters.add(targetName)
-        }
-
-        val commandLine = configuration.makeCommandLine(
-            parameters,
-            EnvironmentVariablesData.DEFAULT
-        ).apply {
-            withEnvironment("XMAKE_SKIP_HISTORY", "1")
-            withEnvironment("XMAKE_ROOT", "y")
-            withEnvironment("XMAKE_COLOR_TERM", "nocolor")
-        }
-
-        return runBlocking {
-            val process = commandLine.createProcess()
-            val (result, _) = runProcess(process)
-            val output = result.getOrNull()?.trim() ?: return@runBlocking null
-            
-            // parse output with tag __begin__ ... __end__
-            val regex = "__begin__([\\s\\S]*?)__end__".toRegex()
-            val matchResult = regex.find(output)
-            val path = matchResult?.groupValues?.get(1)?.trim()
-            
-            if (path != null && !File(path).isAbsolute) {
-                return@runBlocking File(project.basePath, path).absolutePath
-            }
-            path
-        }
-    }
+    private fun getTargetExecutable(project: Project, targetName: String): String? =
+        TargetPathResolver.resolve(project, targetName)
 }
