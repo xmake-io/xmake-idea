@@ -109,4 +109,30 @@ object ClionDebugModule {
         }
         return CompDBIntegration.attachCompileCommands(project, compileCommandsPath)
     }
+
+    /**
+     * Register xmake targets as CLion Custom Build Targets (native "Build Target" + gutter markers).
+     * [specJson] describes the targets; see [CustomBuildTargetsIntegration]. Returns true on success.
+     */
+    @JvmStatic
+    fun syncBuildTargets(project: Project, specJson: String): Boolean {
+        if (!CustomBuildTargetsIntegration.isAvailable()) {
+            Logger.d(TAG, "Custom Build Targets subsystem not available")
+            return false
+        }
+        return CustomBuildTargetsIntegration.syncBuildTargets(project, specJson)
+    }
+
+    /**
+     * Register the native "Xmake Executable" run configuration type (owned by [pluginId]).
+     * Idempotent; no-ops when CLion's external run config subsystem is absent.
+     */
+    @JvmStatic
+    fun registerXMakeExecutableType(pluginId: String): Boolean {
+        if (!XMakeRunConfigRegistrar.isAvailable()) {
+            Logger.d(TAG, "External run configuration subsystem not available")
+            return false
+        }
+        return XMakeRunConfigRegistrar.register(pluginId)
+    }
 }

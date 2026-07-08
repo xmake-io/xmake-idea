@@ -44,16 +44,22 @@ object DebugModuleLoader {
     /**
      * Check if CLion is available and load debug module if needed
      */
-    fun loadDebugModuleIfNeeded(project: Project): Boolean {
+    fun loadDebugModuleIfNeeded(project: Project): Boolean = loadDebugModuleIfNeeded()
+
+    /**
+     * Project-independent variant: the CLion probe and jar lookup are application-level, so no project
+     * is required (used from application-level registration such as the run config type).
+     */
+    fun loadDebugModuleIfNeeded(): Boolean {
         if (isLoaded) {
             return true
         }
-        
+
         if (!SystemUtils.isClionAvailable()) {
             Logger.d(TAG, "CLion not available, skipping debug module loading")
             return false
         }
-        
+
         return try {
             loadDebugModule()
         } catch (e: Exception) {
@@ -190,6 +196,50 @@ object DebugModuleLoader {
             result as? Boolean ?: false
         } catch (e: Exception) {
             Logger.e(TAG, "Failed to attach compile_commands", e)
+            false
+        }
+    }
+
+    /**
+     * Register xmake targets as CLion Custom Build Targets, loading the CLion module on demand.
+     * No-ops (returns false) on IDEA Community / when CLion or the Custom Build Targets subsystem is
+     * unavailable. [specJson] describes the targets (see [CustomBuildTargetsSupport]).
+     */
+    fun syncBuildTargets(project: Project, specJson: String): Boolean {
+        if (!loadDebugModuleIfNeeded(project) || debugModuleClass == null) {
+            return false
+        }
+        return try {
+            val method = debugModuleClass?.getMethod(
+                "syncBuildTargets",
+                Project::class.java,
+                String::class.java
+            )
+            val result = method?.invoke(null, project, specJson)
+            result as? Boolean ?: false
+        } catch (e: Exception) {
+            Logger.e(TAG, "Failed to sync build targets", e)
+            false
+        }
+    }
+
+    /**
+     * Register the native "Xmake Executable" run configuration type, loading the CLion module on
+     * demand. No-ops (returns false) on IDEA Community / when CLion is unavailable. Idempotent.
+     */
+    fun registerXMakeExecutableType(pluginId: String): Boolean {
+        if (!loadDebugModuleIfNeeded() || debugModuleClass == null) {
+            return false
+        }
+        return try {
+            val method = debugModuleClass?.getMethod(
+                "registerXMakeExecutableType",
+                String::class.java
+            )
+            val result = method?.invoke(null, pluginId)
+            result as? Boolean ?: false
+        } catch (e: Exception) {
+            Logger.e(TAG, "Failed to register Xmake Executable run configuration type", e)
             false
         }
     }

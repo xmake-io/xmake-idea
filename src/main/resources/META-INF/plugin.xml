@@ -21,6 +21,11 @@
          classloader visibility of the Compilation Database classes for IntelliSense integration. -->
     <depends optional="true">com.intellij.clion-compdb</depends>
 
+    <!-- Optional so the plugin still loads on IDEA Community; grants the reflective CLion module
+         classloader visibility of the Custom Build Targets classes
+         (com.jetbrains.cidr.cpp.execution.external.build.*) for native "Build Target" + gutter markers. -->
+    <depends optional="true">com.intellij.clion</depends>
+
     <depends optional="true" config-file="io.xmake-ssh.xml">
         com.intellij.modules.ssh
     </depends>
@@ -55,14 +60,17 @@
         <configurationType implementation="io.xmake.run.XMakeRunConfigurationType"/>
         <runConfigurationProducer implementation="io.xmake.run.XMakeRunConfigurationProducer"/>
 
-        <!-- route the IDE's native Build action to xmake for xmake projects -->
-        <projectTaskRunner implementation="io.xmake.run.XMakeProjectTaskRunner"/>
+        <!-- NOTE: disabled for the native-integration pivot. This runner claimed every BuildTask for
+             xmake projects and preempted CLion's own build for the selected native run config, building
+             the wrong target. The native "Xmake Executable" run config lets CLion build via xmake. -->
+        <!-- <projectTaskRunner implementation="io.xmake.run.XMakeProjectTaskRunner"/> -->
 
         <!-- notifications -->
         <notificationGroup id="XMake.NotificationGroup" displayType="BALLOON"/>
 
         <postStartupActivity implementation="io.xmake.utils.info.XMakeInfoActivity"/>
         <postStartupActivity implementation="io.xmake.debug.CompDBAutoAttachActivity"/>
+        <postStartupActivity implementation="io.xmake.debug.CustomBuildTargetsActivity"/>
 
         <fileType name="xmake.lua" language="xmake.lua" fieldName="INSTANCE"
                   fileNames="xmake.lua" fileNamesCaseInsensitive="xmake.lua"
