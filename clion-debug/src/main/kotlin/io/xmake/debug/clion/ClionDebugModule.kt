@@ -84,6 +84,19 @@ object ClionDebugModule {
     }
 
     /**
+     * Feed CLion IntelliSense from an xmake-generated compile_commands.json.
+     * Returns true if a compilation-database refresh was triggered.
+     */
+    @JvmStatic
+    fun attachCompileCommands(project: Project, compileCommandsPath: String): Boolean {
+        if (!CompDBIntegration.isAvailable()) {
+            Logger.d(TAG, "Compilation Database subsystem not available")
+            return false
+        }
+        return CompDBIntegration.attachCompileCommands(project, compileCommandsPath)
+    }
+
+    /**
      * Register xmake targets as CLion Custom Build Targets (native "Build Target" + gutter markers).
      * [specJson] describes the targets; see [CustomBuildTargetsIntegration]. Returns true on success.
      */

@@ -18,6 +18,10 @@
     <depends optional="true">com.intellij.modules.nativeDebug</depends>
 
     <!-- Optional so the plugin still loads on IDEA Community; grants the reflective CLion module
+         classloader visibility of the Compilation Database classes for IntelliSense integration. -->
+    <depends optional="true">com.intellij.clion-compdb</depends>
+
+    <!-- Optional so the plugin still loads on IDEA Community; grants the reflective CLion module
          classloader visibility of the Custom Build Targets classes
          (com.jetbrains.cidr.cpp.execution.external.build.*) for native "Build Target" + gutter markers. -->
     <depends optional="true">com.intellij.clion</depends>
@@ -130,6 +134,11 @@
                     description="Create or update the compile_commands.json.">
             </action>
         </group>
+
+        <action id="XMake.SelectMode"
+                class="io.xmake.actions.selector.XMakeModeAction"
+                text="Build Mode"
+                description="Select the xmake build mode (release, debug, ...)."/>
 
         <group id="XMake.ToolBar" text="Xmake Toolbar" description="XMake toolbar">
             <reference ref="XMake.Run"/>

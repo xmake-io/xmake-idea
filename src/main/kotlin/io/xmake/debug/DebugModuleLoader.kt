@@ -152,6 +152,29 @@ object DebugModuleLoader {
     }
 
     /**
+     * Feed CLion IntelliSense from an xmake-generated compile_commands.json, loading the CLion
+     * module on demand. No-ops (returns false) on IDEA Community / when CLion or the compilation
+     * database subsystem is unavailable.
+     */
+    fun attachCompileCommands(project: Project, compileCommandsPath: String): Boolean {
+        if (!loadDebugModuleIfNeeded(project) || debugModuleClass == null) {
+            return false
+        }
+        return try {
+            val method = debugModuleClass?.getMethod(
+                "attachCompileCommands",
+                Project::class.java,
+                String::class.java
+            )
+            val result = method?.invoke(null, project, compileCommandsPath)
+            result as? Boolean ?: false
+        } catch (e: Exception) {
+            Logger.e(TAG, "Failed to attach compile_commands", e)
+            false
+        }
+    }
+
+    /**
      * Register xmake targets as CLion Custom Build Targets, loading the CLion module on demand.
      * No-ops (returns false) on IDEA Community / when CLion or the Custom Build Targets subsystem is
      * unavailable. [specJson] describes the targets (see [CustomBuildTargetsSupport]).
