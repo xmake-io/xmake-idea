@@ -148,7 +148,7 @@
         </group>
 
         <action id="XMake.SelectMode"
-                class="io.xmake.actions.selector.XMakeBuildModeAction"
+                class="io.xmake.actions.selector.XMakeModeAction"
                 text="Build Mode"
                 description="Select the xmake build mode (release, debug, ...)."/>
         <action id="XMake.SelectTarget"

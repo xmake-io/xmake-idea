@@ -110,7 +110,16 @@ final class CLionBuildTargetRegistrar {
         }
     }
 
-    /** Create a persistent "Xmake Executable" run config for [buildTarget] if one of that name doesn't exist. */
+    /**
+     * Create — or refresh — the persistent "Xmake Executable" run config for [buildTarget].
+     *
+     * If a config of this name already exists we re-bind its target/configuration and rewrite its
+     * executable path rather than skipping it: xmake encodes the build mode in the output path
+     * ({@code build/<plat>/<arch>/<mode>/...}), so after a mode switch (reconfigure) the previously
+     * baked path points at a stale binary from the old mode — e.g. a {@code release} binary with no
+     * debug symbols, which is why the native debugger reports "No symbol table is loaded". Both the
+     * binding and the exe path are plugin-managed (mode-derived); user edits to args/env/cwd survive.
+     */
     private static void ensureRunConfiguration(Project project,
                                                String name,
                                                CLionExternalBuildTarget buildTarget,
@@ -126,18 +135,26 @@ final class CLionBuildTargetRegistrar {
             if (existing.getType() != null
                     && XMakeExecutableRunConfigurationType.ID.equals(existing.getType().getId())
                     && name.equals(existing.getName())) {
-                return; // already present — don't clobber user edits or duplicate
+                bind(existing.getConfiguration(), buildTarget, buildConfig, exePath);
+                return; // refreshed in place — don't duplicate
             }
         }
         ConfigurationFactory factory = type.getConfigurationFactories()[0];
         RunnerAndConfigurationSettings settings = runManager.createConfiguration(name, factory);
-        RunConfiguration configuration = settings.getConfiguration();
+        bind(settings.getConfiguration(), buildTarget, buildConfig, exePath);
+        runManager.addConfiguration(settings);
+    }
+
+    /** Point a run config at the given build target + freshly-resolved (mode-specific) executable. */
+    private static void bind(RunConfiguration configuration,
+                             CLionExternalBuildTarget buildTarget,
+                             CLionExternalBuildConfiguration buildConfig,
+                             String exePath) {
         if (configuration instanceof CLionExternalRunConfiguration) {
             CLionExternalRunConfiguration runConfig = (CLionExternalRunConfiguration) configuration;
             runConfig.setTargetAndConfigurationData(new BuildTargetAndConfigurationData(buildTarget, buildConfig));
             runConfig.setExecutableData(new ExecutableData(exePath));
         }
-        runManager.addConfiguration(settings);
     }
 
     private static Tool newTool(String name, String group, String program, String workingDir, List<String> args) {

@@ -9,7 +9,21 @@ class XMakeSettings : PersistentStateComponent<XMakeSettings.State> {
     data class State(
         var compileCommandsPath: String = "",
         var autoUpdateCompileCommands: Boolean = false,
-        var autoReloadConfigOnSwitch: Boolean = true
+        var autoReloadConfigOnSwitch: Boolean = true,
+
+        // Project-level xmake configuration (the `xmake f` inputs), decoupled from any run
+        // configuration so it works with CLion-native run configs selected. Edited via the XMake
+        // Config tool window and the toolbar mode dropdown; consumed by XMakeConfiguration.
+        var buildMode: String = "release",
+        var platform: String = "default",
+        var architecture: String = "default",
+        var toolchain: String = "default",
+        var buildDirectory: String = "",
+        var additionalConfiguration: String = "",
+        var verbose: Boolean = false,
+        var androidNDKDirectory: String = "",
+        // Identity (Toolkit.id) of the active toolkit; resolved via ToolkitManager.
+        var activeToolkitId: String = ""
     )
 
     private var myState = State()
