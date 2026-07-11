@@ -51,6 +51,11 @@
         <toolWindow id="XMake" anchor="bottom" factoryClass="io.xmake.project.console.XMakeToolWindowFactory"
                     icon="/icons/xmake-dark.svg"/>
 
+        <!-- Project-level xmake configuration editor (mode/platform/arch/toolchain), decoupled from
+             the selected run config so it works with the native "Xmake Executable" run config. -->
+        <toolWindow id="Xmake Config" anchor="right" factoryClass="io.xmake.project.XMakeConfigToolWindowFactory"
+                    icon="/icons/xmake-dark.svg"/>
+
         <!-- run configurations -->
         <programRunner implementation="io.xmake.run.XMakeRunner"/>
         <configurationType implementation="io.xmake.run.XMakeRunConfigurationType"/>
