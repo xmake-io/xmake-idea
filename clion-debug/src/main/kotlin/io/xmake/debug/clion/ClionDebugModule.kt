@@ -20,23 +20,16 @@
  */
 package io.xmake.debug.clion
 
-import io.xmake.debug.clion.utils.Logger
 import com.intellij.execution.configurations.GeneralCommandLine
-import com.intellij.openapi.project.Project
-import com.intellij.xdebugger.XDebugSession
-import com.intellij.xdebugger.XDebugProcess
-import com.intellij.xdebugger.XDebuggerManager
-import com.intellij.xdebugger.XDebugProcessStarter
-import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.execution.filters.TextConsoleBuilderFactory
-import com.jetbrains.cidr.execution.debugger.backend.dap.DapDriverConfiguration
-import com.jetbrains.cidr.execution.debugger.backend.DebuggerDriver
+import com.intellij.openapi.project.Project
+import com.intellij.xdebugger.XDebugProcess
+import com.intellij.xdebugger.XDebugSession
+import com.jetbrains.cidr.ArchitectureType
 import com.jetbrains.cidr.execution.TrivialRunParameters
 import com.jetbrains.cidr.execution.debugger.CidrLocalDebugProcess
-import com.jetbrains.cidr.ArchitectureType
-import org.jetbrains.annotations.NotNull
+import io.xmake.debug.clion.utils.Logger
 import java.io.File
-import java.util.*
 
 /**
  * CLion-specific debug module that handles DAP driver configuration and debug session management
@@ -61,14 +54,22 @@ object ClionDebugModule {
         args: List<String> = emptyList(),
         env: Map<String, String> = emptyMap()
     ): XDebugProcess {
-        Logger.i(TAG, "Creating debug process: project=${project.name}, driver=$driverName, path=$driverPath, target=$targetPath, workDir=$workingDir, args=$args, env=$env")
-        
-        val configuration = XMakeDapDriverConfiguration(project, driverPath, driverName, launchConfig, args, env)
-        
+        Logger.i(
+            TAG,
+            "Creating debug process: project=${project.name}, driver=$driverName, path=$driverPath, " +
+                "target=$targetPath, workDir=$workingDir, argumentCount=${args.size}, environmentVariableCount=${env.size}"
+        )
+
+        val resolvedWorkingDir = workingDir.takeIf { it.isNotBlank() }
+            ?: project.basePath
+            ?: File(targetPath).absoluteFile.parent
+        val configuration = XMakeDapDriverConfiguration(project, driverPath, driverName, launchConfig, env)
+
         // Create command line for target executable
         val commandLine = GeneralCommandLine(targetPath)
-            .withWorkDirectory(workingDir.ifBlank { project.basePath })
+            .withWorkDirectory(resolvedWorkingDir)
             .withEnvironment(env)
+            .withParameters(args)
         
         // Create TrivialRunParameters directly using CLion API
         val trivialParams = TrivialRunParameters(configuration, commandLine, ArchitectureType.UNKNOWN)
