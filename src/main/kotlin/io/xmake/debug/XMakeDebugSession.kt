@@ -33,7 +33,6 @@ import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.notification.Notifications
 import com.intellij.openapi.actionSystem.AnAction
-import com.intellij.openapi.application.ApplicationInfo
 import com.intellij.openapi.project.Project
 import com.intellij.util.execution.ParametersListUtil
 import com.intellij.xdebugger.XDebugProcess
@@ -50,6 +49,7 @@ import io.xmake.utils.execute.runProcess
 import io.xmake.utils.Logger
 import kotlinx.coroutines.runBlocking
 import java.io.File
+import java.lang.reflect.InvocationTargetException
 
 /**
  * Manages XMake debugging session creation and lifecycle
@@ -189,7 +189,7 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
      * Create and start the debug session
      */
     private fun createDebugSession(): com.intellij.execution.ui.RunContentDescriptor? {
-        return XDebuggerManager.getInstance(project).startSession(environment, object : XDebugProcessStarter() {
+        val starter = object : XDebugProcessStarter() {
             override fun start(session: XDebugSession): XDebugProcess {
                 val targetName = configuration.runTarget
                 Logger.d(TAG, "Starting debug process for target: $targetName")
@@ -252,7 +252,39 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
                 
                 return debugProcess
             }
-        }).runContentDescriptor
+        }
+        return startDebugSession(starter)
+    }
+
+    private fun startDebugSession(starter: XDebugProcessStarter): com.intellij.execution.ui.RunContentDescriptor? {
+        try {
+            val manager = XDebuggerManager.getInstance(project)
+            val builder = XDebuggerManager::class.java
+                .getMethod("newSessionBuilder", XDebugProcessStarter::class.java)
+                .invoke(manager, starter)
+            val builderApi = Class.forName(
+                "com.intellij.xdebugger.XDebugSessionBuilder",
+                false,
+                XDebuggerManager::class.java.classLoader
+            )
+            builderApi.getMethod("environment", ExecutionEnvironment::class.java)
+                .invoke(builder, environment)
+            val result = builderApi.getMethod("startSession").invoke(builder)
+            val resultApi = Class.forName(
+                "com.intellij.xdebugger.XSessionStartedResult",
+                false,
+                XDebuggerManager::class.java.classLoader
+            )
+            return resultApi.getMethod("getRunContentDescriptor")
+                .invoke(result) as? com.intellij.execution.ui.RunContentDescriptor
+        } catch (e: InvocationTargetException) {
+            throw e.targetException
+        } catch (e: ReflectiveOperationException) {
+            throw IllegalStateException(
+                "The current IDE does not provide the required debugger session API",
+                e
+            )
+        }
     }
     
     /**
@@ -296,20 +328,6 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
             )
             .notify(project)
 
-        // Check version compatibility
-        val appInfo = ApplicationInfo.getInstance()
-        val build = appInfo.build
-        // CLion 2025.3 corresponds to baseline version 253
-        if (build.productCode == "CL" && build.baselineVersion < 253) {
-            NotificationGroupManager.getInstance()
-                .getNotificationGroup("XMake.NotificationGroup")
-                .createNotification(
-                    "XMake Debug Support",
-                    "Debugging is only supported in CLion 2025.3 or later. You are using ${appInfo.fullVersion}.",
-                    NotificationType.WARNING
-                )
-                .notify(project)
-        }
     }
     
     /**
