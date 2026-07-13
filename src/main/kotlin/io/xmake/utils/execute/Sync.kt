@@ -24,12 +24,11 @@ import com.intellij.execution.RunManager
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.openapi.application.invokeLater
 import com.intellij.openapi.application.runWriteAction
+import com.intellij.openapi.diagnostic.fileLogger
 import com.intellij.openapi.extensions.ExtensionPointName
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.progress.ProgressIndicator
-import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
-import com.intellij.openapi.progress.util.ProgressIndicatorBase
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.guessProjectDir
 import com.intellij.openapi.util.io.toCanonicalPath
@@ -41,7 +40,6 @@ import io.xmake.run.XMakeRunConfiguration
 import io.xmake.utils.extension.ToolkitHostExtension
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import java.nio.file.FileVisitResult
 import java.nio.file.Files
 import java.nio.file.NoSuchFileException
@@ -51,6 +49,8 @@ import java.nio.file.StandardCopyOption.REPLACE_EXISTING
 import java.nio.file.SimpleFileVisitor
 import java.nio.file.attribute.BasicFileAttributes
 import kotlin.io.path.Path
+
+private val Log = fileLogger()
 
 private val EP_NAME: ExtensionPointName<ToolkitHostExtension> = ExtensionPointName("io.xmake.toolkitHostExtension")
 
@@ -77,35 +77,39 @@ fun syncProjectByWslSync(
     direction: SyncDirection,
     directoryPath: String,
     relativePath: String? = null,
+    onComplete: () -> Unit = {},
 ) {
     val wslDistribution = host.target as? WSLDistribution ?: throw IllegalArgumentException()
 
-    ProgressManager.getInstance().runProcessWithProgressAsynchronously(
-        object : Task.Backgroundable(project, "Sync directory", true) {
-            override fun run(indicator: ProgressIndicator) {
-                indicator.isIndeterminate = true
-                indicator.text = "Syncing WSL files"
+    object : Task.Backgroundable(project, "Sync directory", true) {
+        override fun run(indicator: ProgressIndicator) {
+            indicator.isIndeterminate = true
+            indicator.text = "Syncing WSL files"
 
-                val localRoot = project.guessProjectDir()?.toNioPath()
-                    ?: project.basePath?.let { Path(it) }
-                    ?: throw IllegalStateException("Cannot resolve project directory")
-                val upstreamRoot = Path(wslDistribution.toWindowsPath(directoryPath))
-                val syncPaths = resolveSyncPaths(localRoot, upstreamRoot, relativePath)
+            val localRoot = project.guessProjectDir()?.toNioPath()
+                ?: project.basePath?.let { Path(it) }
+                ?: throw IllegalStateException("Cannot resolve project directory")
+            val upstreamRoot = Path(wslDistribution.toWindowsPath(directoryPath))
+            val syncPaths = resolveSyncPaths(localRoot, upstreamRoot, relativePath)
 
-                runSyncWithVfsRefresh(syncAction = {
-                    when (direction) {
-                        SyncDirection.LOCAL_TO_UPSTREAM -> copyPath(syncPaths.local, syncPaths.upstream, indicator)
-                        SyncDirection.UPSTREAM_TO_LOCAL -> copyPath(syncPaths.upstream, syncPaths.local, indicator)
-                    }
-                })
+            runSyncWithVfsRefresh(syncAction = {
+                when (direction) {
+                    SyncDirection.LOCAL_TO_UPSTREAM -> copyPath(syncPaths.local, syncPaths.upstream, indicator)
+                    SyncDirection.UPSTREAM_TO_LOCAL -> copyPath(syncPaths.upstream, syncPaths.local, indicator)
+                }
+            })
+        }
+
+        override fun onSuccess() {
+            if (!project.isDisposed) {
+                onComplete()
             }
+        }
 
-            override fun onCancel() {}
-
-            override fun onFinished() {}
-        },
-        ProgressIndicatorBase()
-    )
+        override fun onThrowable(error: Throwable) {
+            Log.warn("Failed to sync WSL files", error)
+        }
+    }.queue()
 }
 
 private fun WSLDistribution.toWindowsPath(path: String): String {
@@ -245,11 +249,16 @@ fun transferFolderByToolkit(
     direction: SyncDirection,
     directoryPath: String = (RunManager.getInstance(project).selectedConfiguration?.configuration as XMakeRunConfiguration).runWorkingDir,
     relativePath: String? = null,
+    onComplete: () -> Unit = {},
 ) {
+    if (project.isDisposed) return
 
     when (toolkit.host.type) {
         ToolkitHostType.LOCAL -> {
             refreshVirtualFileSystem()
+            if (!project.isDisposed) {
+                onComplete()
+            }
         }
         ToolkitHostType.WSL -> {
             syncProjectByWslSync(
@@ -257,20 +266,27 @@ fun transferFolderByToolkit(
                 toolkit.host,
                 direction,
                 directoryPath,
-                relativePath
+                relativePath,
+                onComplete,
             )
         }
         ToolkitHostType.SSH -> {
             val path = relativePath?.let { Path(directoryPath).resolve(relativePath).toCanonicalPath() }
                 ?: directoryPath
             EP_NAME.extensions.first { it.KEY == "SSH" }
-                .syncProject(scope, project, toolkit.host, direction, path)
+                .syncProject(scope, project, toolkit.host, direction, path, onComplete)
         }
     }
 }
 
-fun syncBeforeFetch(project: Project, toolkit: Toolkit) {
-    transferFolderByToolkit(project, toolkit, SyncDirection.LOCAL_TO_UPSTREAM, relativePath = null)
+fun syncBeforeFetch(project: Project, toolkit: Toolkit, onComplete: () -> Unit = {}) {
+    transferFolderByToolkit(
+        project,
+        toolkit,
+        SyncDirection.LOCAL_TO_UPSTREAM,
+        relativePath = null,
+        onComplete = onComplete,
+    )
 }
 
 fun fetchGeneratedFile(project: Project, toolkit: Toolkit, fileRelatedPath: String) {
