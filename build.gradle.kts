@@ -24,6 +24,10 @@ repositories {
     }
 }
 
+kotlin {
+    jvmToolchain(21)
+}
+
 intellijPlatform {
     pluginConfiguration {
         version = pluginVersion
@@ -35,8 +39,13 @@ intellijPlatform {
     }
 
     pluginVerification.ides {
-        create(IntelliJPlatformType.CLion, runIdeVersion.get())
-        create(IntelliJPlatformType.IntellijIdeaCommunity, "2024.3")
+        select {
+            types = listOf(
+                IntelliJPlatformType.CLion,
+                IntelliJPlatformType.IntellijIdea
+            )
+            sinceBuild = pluginSinceBuild
+        }
     }
 }
 

@@ -111,7 +111,7 @@ You can configure Xmake path, build settings, and Intellisense options in `Setti
 
 ### DAP Debugging (Recommended)
 
-> Only support CLion (>= 2025.3)
+> Only support CLion (>= 2026.1)
 
 XMake now supports native debugging via the Debug Adapter Protocol (DAP). This allows you to debug your XMake targets directly without generating CMakeLists.txt.
 

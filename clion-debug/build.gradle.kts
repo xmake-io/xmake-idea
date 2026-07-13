@@ -13,6 +13,10 @@ repositories {
     }
 }
 
+kotlin {
+    jvmToolchain(21)
+}
+
 intellijPlatform {
     // Disable plugin verification and runIDE for the debug module
     pluginVerification {
@@ -22,7 +26,7 @@ intellijPlatform {
 
 dependencies {
     intellijPlatform {
-        clion(providers.gradleProperty("clionDebugApiVersion"))
+        clion(providers.gradleProperty("runIdeVersion"))
         bundledPlugin("com.intellij.nativeDebug")
     }
 }
@@ -38,14 +42,6 @@ tasks.matching { task -> task.name == "verifyPlugin" }.configureEach {
 }
 
 tasks {
-    compileKotlin {
-        compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
-    }
-
-    compileJava {
-        options.release.set(17)
-    }
-
     jar {
         archiveBaseName.set("xmake-clion-debug")
         archiveVersion.set("")
