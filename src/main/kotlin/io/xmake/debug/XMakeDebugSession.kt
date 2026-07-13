@@ -293,14 +293,16 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
     private fun createDebugProcess(targetPath: String, driverName: String, driverPath: String, session: XDebugSession): XDebugProcess? {
         return try {
             // Try to use CLion debug module
-            if (DebugModuleLoader.loadDebugModuleIfNeeded(project) && DebugModuleLoader.isDebuggingAvailable(project)) {
+            if (DebugModuleLoader.loadDebugModuleIfNeeded()) {
                 val launchConfig = configuration.launchConfiguration
                 val args = if (configuration.runArguments.isNotBlank()) {
                     ParametersListUtil.parse(configuration.runArguments)
                 } else {
                     emptyList()
                 }
-                val workingDir = configuration.runWorkingDir ?: project.basePath ?: ""
+                val workingDir = configuration.runWorkingDir.takeIf { it.isNotBlank() }
+                    ?: project.basePath
+                    ?: File(targetPath).absoluteFile.parent
                 val debugProcess = DebugModuleLoader.createDebugProcess(
                     project, driverName, driverPath, launchConfig, targetPath, workingDir, session,
                     args, configuration.runEnvironment.envs

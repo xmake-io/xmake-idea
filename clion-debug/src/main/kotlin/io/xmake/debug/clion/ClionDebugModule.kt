@@ -47,21 +47,6 @@ object ClionDebugModule {
     private const val TAG = "ClionDebugModule"
     
     /**
-     * Check if debugging is available for the given project
-     */
-    @JvmStatic
-    fun isDebuggingAvailable(project: Project): Boolean {
-        return try {
-            // Check if CLion debugging classes are available
-            Class.forName("com.jetbrains.cidr.execution.debugger.backend.dap.DapDriverConfiguration")
-            true
-        } catch (e: ClassNotFoundException) {
-            Logger.d(TAG, "CLion debugging classes not available: ${e.message}")
-            false
-        }
-    }
-    
-    /**
      * Create a debug process using CLion's infrastructure
      */
     @JvmStatic

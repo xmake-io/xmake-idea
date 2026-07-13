@@ -51,8 +51,8 @@ intellijPlatform {
 dependencies {
     intellijPlatform {
         clion(runIdeVersion)
-        bundledPlugin("com.intellij.nativeDebug")
         testFramework(TestFrameworkType.Platform)
+        pluginModule(implementation(project(":clion-debug")))
     }
     testImplementation("junit:junit:4.13.2")
 }
@@ -62,25 +62,4 @@ tasks {
         useJUnit()
         include("io/xmake/**/**")
     }
-}
-
-// Keep the existing CLion debug jar packaging until it is migrated to a plugin module.
-tasks.named("compileKotlin") {
-    dependsOn(":clion-debug:build", ":clion-debug:copyToPluginResources")
-}
-
-tasks.named("build") {
-    dependsOn(":clion-debug:build", ":clion-debug:copyToPluginResources")
-}
-
-tasks.named("classes") {
-    dependsOn(":clion-debug:build", ":clion-debug:copyToPluginResources")
-}
-
-tasks.named("processResources") {
-    dependsOn(":clion-debug:copyToPluginResources")
-}
-
-tasks.named("jar") {
-    dependsOn(":clion-debug:build", ":clion-debug:copyToPluginResources")
 }

@@ -15,19 +15,13 @@
     <depends>com.intellij.modules.xml</depends>
     <depends>com.intellij.modules.xdebugger</depends>
 
-    <depends optional="true">com.intellij.modules.nativeDebug</depends>
-
     <depends optional="true" config-file="io.xmake-ssh.xml">
         com.intellij.modules.ssh
     </depends>
-    <!--clion and c/cpp language-->
-    <!--
-    <depends>com.intellij.clion</depends>
-    <depends>com.intellij.modules.cidr.ide</depends>
-    <depends>com.intellij.modules.cidr.lang</depends>
-    <depends>com.intellij.modules.cidr.modulemap.language</depends>
-    <depends>com.intellij.modules.cmake</depends>
-    -->
+
+    <content>
+        <module name="xmake-idea.clion-debug" loading="optional"/>
+    </content>
 
     <extensions defaultExtensionNs="com.intellij">
 

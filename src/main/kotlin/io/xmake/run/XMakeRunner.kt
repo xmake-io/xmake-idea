@@ -46,7 +46,7 @@ open class XMakeRunner : XMakeDefaultRunner() {
         
         // Only allow debug executor if native debug is available
         if (executorId == DefaultDebugExecutor.EXECUTOR_ID) {
-            return SystemUtils.isNativeDebugAvailable(profile.project)
+            return SystemUtils.isNativeDebugAvailable()
         }
         
         return false
@@ -62,7 +62,7 @@ open class XMakeRunner : XMakeDefaultRunner() {
 
         if (environment.executor.id == DefaultDebugExecutor.EXECUTOR_ID) {
             // Check if debug is available before starting debug session
-            if (!SystemUtils.isNativeDebugAvailable(configuration.project)) {
+            if (!SystemUtils.isNativeDebugAvailable()) {
                 Logger.w(TAG, "Debug functionality is not available in this IDE. Please use CLion for C/C++ debugging.")
                 return null
             }
