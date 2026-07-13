@@ -125,6 +125,7 @@ class XMakeConfiguration(val project: Project) {
                 mutableListOf(
                     "f",
                     "-y",
+                    "-c",
                     "-m",
                     settings.buildMode
                 )
