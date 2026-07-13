@@ -22,8 +22,8 @@ package io.xmake.actions
 
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.process.OSProcessHandler
-import com.intellij.execution.process.ProcessAdapter
 import com.intellij.execution.process.ProcessEvent
+import com.intellij.execution.process.ProcessListener
 import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
@@ -32,11 +32,7 @@ import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtil
-import com.intellij.openapi.wm.RegisterToolWindowTask
-import com.intellij.openapi.wm.ToolWindowAnchor
 import com.intellij.openapi.wm.ToolWindowManager
-import io.xmake.icons.XMakeIcons
-import io.xmake.project.XMakeToolWindowFactory
 import io.xmake.project.toolkit.activatedToolkit
 import io.xmake.project.xmakeConsoleView
 import io.xmake.shared.xmakeConfiguration
@@ -53,7 +49,6 @@ class QuickStartAction : AnAction() {
             return
         }
         e.presentation.isVisible = true
-        // Disable in xmake project (grayed out)
         e.presentation.isEnabled = !SystemUtils.isXMakeProject(project)
     }
 
@@ -69,8 +64,10 @@ class QuickStartAction : AnAction() {
 
             try {
                 val processHandler = OSProcessHandler(commandLine)
-                processHandler.addProcessListener(object : ProcessAdapter() {
+                processHandler.addProcessListener(object : ProcessListener {
                     override fun processTerminated(event: ProcessEvent) {
+                        if (project.isDisposed) return
+
                         if (event.exitCode == 0) {
                             NotificationGroupManager.getInstance()
                                 .getNotificationGroup("XMake.NotificationGroup")
@@ -78,6 +75,8 @@ class QuickStartAction : AnAction() {
                                 .notify(project)
 
                             ApplicationManager.getApplication().invokeLater {
+                                if (project.isDisposed) return@invokeLater
+
                                 // Refresh VFS
                                 project.basePath?.let { path ->
                                     val file = LocalFileSystem.getInstance().findFileByPath(path)
@@ -87,24 +86,9 @@ class QuickStartAction : AnAction() {
                                 }
 
                                 // Show Tool Window
-                                val toolWindowManager = ToolWindowManager.getInstance(project)
-                                var toolWindow = toolWindowManager.getToolWindow("XMake")
-                                if (toolWindow == null) {
-                                    val task = RegisterToolWindowTask(
-                                        id = "XMake",
-                                        anchor = ToolWindowAnchor.BOTTOM,
-                                        component = null,
-                                        canCloseContent = true,
-                                        canWorkInDumbMode = true,
-                                        shouldBeAvailable = true,
-                                        contentFactory = null,
-                                        icon = XMakeIcons.XMAKE,
-                                        stripeTitle = null
-                                    )
-                                    toolWindow = toolWindowManager.registerToolWindow(task)
-                                    XMakeToolWindowFactory().createToolWindowContent(project, toolWindow)
-                                }
-                                toolWindow.show(null)
+                                ToolWindowManager.getInstance(project)
+                                    .getToolWindow("XMake")
+                                    ?.show(null)
                             }
                         } else {
                             NotificationGroupManager.getInstance()
