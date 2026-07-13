@@ -246,7 +246,7 @@ class XMakeRunConfigurationEditor(
     private val dapDriverPathComboBox = ComboBox<String>()
     private val dapDriverPathCustomField = TextFieldWithBrowseButton().apply {
         textField.isEditable = true
-        val descriptor = FileChooserDescriptorFactory.createSingleFileDescriptor().apply {
+        val descriptor = FileChooserDescriptorFactory.singleFile().apply {
             title = "Select DAP Driver"
             description = "Select the DAP driver executable (lldb-dap or gdb)"
         }
