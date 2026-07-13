@@ -10,9 +10,8 @@ val localDescription = providers.fileContents(layout.projectDirectory.file("desc
 plugins {
     id("java")
     id("org.jetbrains.intellij.platform") version "2.18.1"
-    id("org.jetbrains.kotlin.jvm") version "2.3.0"
+    id("org.jetbrains.kotlin.jvm") version "2.3.20"
     id("org.jetbrains.changelog") version "2.5.0"
-    kotlin("plugin.serialization") version "2.3.0"
 }
 
 group = "io.xmake"
@@ -50,7 +49,6 @@ intellijPlatform {
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
     intellijPlatform {
         clion(runIdeVersion)
         bundledPlugin("com.intellij.nativeDebug")
