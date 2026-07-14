@@ -26,7 +26,6 @@ import com.intellij.execution.process.ProcessListener
 import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
-import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.runWriteAction
@@ -50,49 +49,29 @@ class UpdateCompileCommandsAction : XMakeBaseAction() {
         try {
             // configure and build it
             val xmakeConfiguration = project.xmakeConfiguration
-            if (xmakeConfiguration.changed) {
-                SystemUtils.runvInConsole(project, xmakeConfiguration.configurationCommandLine)
-                    ?.addProcessListener(object : ProcessListener {
-                        override fun processTerminated(e: ProcessEvent) {
-                            project.activatedToolkit?.let { syncBeforeFetch(project, it) }
+            val updateCompileCommands = update@{
+                if (project.isDisposed) return@update
+                val toolkit = project.activatedToolkit
 
-                            SystemUtils.runvInConsole(
-                                project,
-                                xmakeConfiguration.updateCompileCommandsLine,
-                                false,
-                                true,
-                                true
-                            )
-                                ?.addProcessListener(
-                                    object : ProcessListener {
-                                        override fun processTerminated(e: ProcessEvent) {
-                                            val toolkit = project.activatedToolkit
-                                            if (toolkit != null) {
-                                                fetchGeneratedFile(project, toolkit, "compile_commands.json")
-                                            } else {
-                                                ApplicationManager.getApplication().invokeLater {
-                                                    runWriteAction {
-                                                        VirtualFileManager.getInstance().syncRefresh()
-                                                    }
-                                                }
-                                            }
-                                            // Todo: Reload from disks after download from remote.
-                                        }
-                                    }
-                                )
-                        }
-                    })
-                xmakeConfiguration.changed = false
-            } else {
-                SystemUtils.runvInConsole(project, xmakeConfiguration.updateCompileCommandsLine, false, true, true)
-                    ?.addProcessListener(
+                val launchUpdate = launch@{
+                    if (project.isDisposed) return@launch
+
+                    SystemUtils.runvInConsole(
+                        project,
+                        xmakeConfiguration.updateCompileCommandsLine,
+                        false,
+                        true,
+                        true
+                    )?.addProcessListener(
                         object : ProcessListener {
-                            override fun processTerminated(e: ProcessEvent) {
-                                val toolkit = project.activatedToolkit
+                            override fun processTerminated(event: ProcessEvent) {
+                                if (project.isDisposed || event.exitCode != 0) return
+
                                 if (toolkit != null) {
                                     fetchGeneratedFile(project, toolkit, "compile_commands.json")
                                 } else {
                                     ApplicationManager.getApplication().invokeLater {
+                                        if (project.isDisposed) return@invokeLater
                                         runWriteAction {
                                             VirtualFileManager.getInstance().syncRefresh()
                                         }
@@ -101,6 +80,26 @@ class UpdateCompileCommandsAction : XMakeBaseAction() {
                             }
                         }
                     )
+                }
+
+                if (toolkit != null) {
+                    syncBeforeFetch(project, toolkit) { launchUpdate() }
+                } else {
+                    launchUpdate()
+                }
+            }
+
+            if (xmakeConfiguration.changed) {
+                SystemUtils.runvInConsole(project, xmakeConfiguration.configurationCommandLine)
+                    ?.addProcessListener(object : ProcessListener {
+                        override fun processTerminated(event: ProcessEvent) {
+                            if (project.isDisposed || event.exitCode != 0) return
+                            xmakeConfiguration.changed = false
+                            updateCompileCommands()
+                        }
+                    })
+            } else {
+                updateCompileCommands()
             }
         } catch (e: XMakeRunConfigurationNotSetException) {
             project.xmakeConsoleView.print(

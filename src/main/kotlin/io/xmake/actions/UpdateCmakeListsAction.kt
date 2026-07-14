@@ -25,7 +25,6 @@ import com.intellij.execution.process.ProcessListener
 import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
-import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import io.xmake.project.toolkit.activatedToolkit
 import io.xmake.project.xmakeConsoleView
@@ -46,38 +45,41 @@ class UpdateCmakeListsAction : XMakeBaseAction() {
         try {
             // configure and build it
             val xmakeConfiguration = project.xmakeConfiguration
-            if (xmakeConfiguration.changed) {
-                SystemUtils.runvInConsole(project, xmakeConfiguration.configurationCommandLine)
-                    ?.addProcessListener(object : ProcessListener {
-                        override fun processTerminated(e: ProcessEvent) {
-                            syncBeforeFetch(project, project.activatedToolkit!!)
+            val updateCmakeLists = update@{
+                if (project.isDisposed) return@update
+                val toolkit = project.activatedToolkit ?: return@update
 
-                            SystemUtils.runvInConsole(
-                                project,
-                                xmakeConfiguration.updateCmakeListsCommandLine,
-                                false,
-                                true,
-                                true
-                            )?.addProcessListener(
-                                object : ProcessListener {
-                                    override fun processTerminated(e: ProcessEvent) {
-                                        fetchGeneratedFile(project, project.activatedToolkit!!, "CMakeLists.txt")
-                                        // Todo: Reload from disks after download from remote.
-                                    }
-                                }
-                            )
-                        }
-                    })
-                xmakeConfiguration.changed = false
-            } else {
-                SystemUtils.runvInConsole(project, xmakeConfiguration.updateCmakeListsCommandLine, false, true, true)
-                    ?.addProcessListener(
-                        object : ProcessListener{
-                            override fun processTerminated(e: ProcessEvent) {
-                                fetchGeneratedFile(project, project.activatedToolkit!!, "CMakeLists.txt")
+                syncBeforeFetch(project, toolkit) sync@{
+                    if (project.isDisposed) return@sync
+
+                    SystemUtils.runvInConsole(
+                        project,
+                        xmakeConfiguration.updateCmakeListsCommandLine,
+                        false,
+                        true,
+                        true
+                    )?.addProcessListener(
+                        object : ProcessListener {
+                            override fun processTerminated(event: ProcessEvent) {
+                                if (project.isDisposed || event.exitCode != 0) return
+                                fetchGeneratedFile(project, toolkit, "CMakeLists.txt")
                             }
                         }
                     )
+                }
+            }
+
+            if (xmakeConfiguration.changed) {
+                SystemUtils.runvInConsole(project, xmakeConfiguration.configurationCommandLine)
+                    ?.addProcessListener(object : ProcessListener {
+                        override fun processTerminated(event: ProcessEvent) {
+                            if (project.isDisposed || event.exitCode != 0) return
+                            xmakeConfiguration.changed = false
+                            updateCmakeLists()
+                        }
+                    })
+            } else {
+                updateCmakeLists()
             }
         } catch (e: XMakeRunConfigurationNotSetException) {
             project.xmakeConsoleView.print(

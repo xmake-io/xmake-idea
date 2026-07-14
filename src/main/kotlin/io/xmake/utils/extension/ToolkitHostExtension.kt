@@ -46,6 +46,7 @@ interface ToolkitHostExtension {
         host: ToolkitHost,
         direction: SyncDirection,
         remoteDirectory: String,
+        onComplete: () -> Unit = {},
     )
 
     fun getTargetId(target: Any? = null): String

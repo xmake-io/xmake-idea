@@ -21,26 +21,18 @@
 package io.xmake.utils.execute
 
 import com.intellij.execution.RunManager
-import com.intellij.execution.target.TargetEnvironment
-import com.intellij.execution.target.TargetProgressIndicatorAdapter
 import com.intellij.execution.wsl.WSLDistribution
-import com.intellij.execution.wsl.target.WslTargetEnvironment
-import com.intellij.execution.wsl.target.WslTargetEnvironmentConfiguration
-import com.intellij.execution.wsl.target.WslTargetEnvironmentRequest
-import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.invokeLater
 import com.intellij.openapi.application.runWriteAction
 import com.intellij.openapi.diagnostic.fileLogger
 import com.intellij.openapi.extensions.ExtensionPointName
+import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.progress.ProgressIndicator
-import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
-import com.intellij.openapi.progress.util.ProgressIndicatorBase
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.guessProjectDir
 import com.intellij.openapi.util.io.toCanonicalPath
 import com.intellij.openapi.vfs.VirtualFileManager
-import org.jetbrains.annotations.ApiStatus
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHost
 import io.xmake.project.toolkit.ToolkitHostType
@@ -48,10 +40,15 @@ import io.xmake.run.XMakeRunConfiguration
 import io.xmake.utils.extension.ToolkitHostExtension
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import java.nio.file.FileVisitResult
+import java.nio.file.Files
+import java.nio.file.NoSuchFileException
+import java.nio.file.Path as NioPath
+import java.nio.file.StandardCopyOption.COPY_ATTRIBUTES
+import java.nio.file.StandardCopyOption.REPLACE_EXISTING
+import java.nio.file.SimpleFileVisitor
+import java.nio.file.attribute.BasicFileAttributes
 import kotlin.io.path.Path
-import kotlin.io.path.isDirectory
 
 private val Log = fileLogger()
 
@@ -74,87 +71,174 @@ fun SyncDirection.toBoolean(): Boolean = when (this) {
     SyncDirection.UPSTREAM_TO_LOCAL -> true
 }
 
-@ApiStatus.Experimental
 fun syncProjectByWslSync(
-    scope: CoroutineScope,
     project: Project,
     host: ToolkitHost,
     direction: SyncDirection,
     directoryPath: String,
     relativePath: String? = null,
+    onComplete: () -> Unit = {},
 ) {
     val wslDistribution = host.target as? WSLDistribution ?: throw IllegalArgumentException()
 
-    ProgressManager.getInstance().runProcessWithProgressAsynchronously(
-        object : Task.Backgroundable(project, "Sync directory", true) {
-            override fun run(indicator: ProgressIndicator) {
-                scope.launch {
-                    indicator.isIndeterminate = true
+    object : Task.Backgroundable(project, "Sync directory", true) {
+        override fun run(indicator: ProgressIndicator) {
+            indicator.isIndeterminate = true
+            indicator.text = "Syncing WSL files"
 
-                    /*                    for (i in 1..100) {
-                                            if (indicator.isCanceled) {
-                                                break
-                                            }
-                                            withContext(Dispatchers.EDT) {
-                                                indicator.fraction = i / 100.0
-                                                indicator.text = "Processing $i%"
-                                            }
-                                        }*/
+            val localRoot = project.guessProjectDir()?.toNioPath()
+                ?: project.basePath?.let { Path(it) }
+                ?: throw IllegalStateException("Cannot resolve project directory")
+            val upstreamRoot = Path(wslDistribution.toWindowsPath(directoryPath))
+            val syncPaths = resolveSyncPaths(localRoot, upstreamRoot, relativePath)
 
-                    val wslTargetEnvironmentRequest = WslTargetEnvironmentRequest(
-                        WslTargetEnvironmentConfiguration(wslDistribution)
-                    ).apply {
-                        downloadVolumes.add(
-                            TargetEnvironment.DownloadRoot(
-                                project.guessProjectDir()!!.toNioPath(),
-                                TargetEnvironment.TargetPath.Persistent(directoryPath)
-                            )
-                        )
-                        uploadVolumes.add(
-                            TargetEnvironment.UploadRoot(
-                                project.guessProjectDir()!!.toNioPath(),
-                                TargetEnvironment.TargetPath.Persistent(directoryPath),
-                            ).apply {
-                                this.volumeData
-                            }
-                        )
-                        shouldCopyVolumes = true
-                    }
-
-                    val wslTargetEnvironment = WslTargetEnvironment(
-                        wslTargetEnvironmentRequest,
-                        wslDistribution
-                    )
-
-                    when (direction) {
-                        SyncDirection.LOCAL_TO_UPSTREAM -> {
-                            wslTargetEnvironment.uploadVolumes.forEach { root, volume ->
-                                volume.upload(relativePath ?: "", TargetProgressIndicatorAdapter(indicator))
-                            }
-                        }
-
-                        SyncDirection.UPSTREAM_TO_LOCAL -> {
-                            wslTargetEnvironment.downloadVolumes.forEach { root, volume ->
-                                volume.download(relativePath ?: "", indicator)
-                            }
-                        }
-                    }
-
-                    withContext(Dispatchers.EDT) {
-                        runWriteAction {
-                            VirtualFileManager.getInstance().syncRefresh()
-                        }
-                    }
-
+            runSyncWithVfsRefresh(syncAction = {
+                when (direction) {
+                    SyncDirection.LOCAL_TO_UPSTREAM -> copyPath(syncPaths.local, syncPaths.upstream, indicator)
+                    SyncDirection.UPSTREAM_TO_LOCAL -> copyPath(syncPaths.upstream, syncPaths.local, indicator)
                 }
+            })
+        }
+
+        override fun onSuccess() {
+            if (!project.isDisposed) {
+                onComplete()
             }
+        }
 
-            override fun onCancel() {}
+        override fun onThrowable(error: Throwable) {
+            Log.warn("Failed to sync WSL files", error)
+        }
+    }.queue()
+}
 
-            override fun onFinished() {}
-        },
-        ProgressIndicatorBase()
-    )
+private fun WSLDistribution.toWindowsPath(path: String): String {
+    return if (path.startsWith("/")) getWindowsPath(path) else path
+}
+
+internal data class SyncPaths(val local: NioPath, val upstream: NioPath)
+
+internal fun resolveSyncPaths(
+    localRoot: NioPath,
+    upstreamRoot: NioPath,
+    relativePath: String?
+): SyncPaths {
+    val normalizedLocalRoot = localRoot.normalize()
+    val normalizedUpstreamRoot = upstreamRoot.normalize()
+    val relativeValue = relativePath?.takeIf { it.isNotBlank() }
+    require(relativeValue?.firstOrNull() !in setOf('/', '\\')) {
+        "Sync path must be relative: $relativePath"
+    }
+    val relative = relativeValue
+        ?.let(::Path)
+        ?.normalize()
+
+    require(relative?.isAbsolute != true) { "Sync path must be relative: $relativePath" }
+
+    val local = relative?.let(normalizedLocalRoot::resolve)?.normalize() ?: normalizedLocalRoot
+    val upstream = relative?.let(normalizedUpstreamRoot::resolve)?.normalize() ?: normalizedUpstreamRoot
+    require(local.startsWith(normalizedLocalRoot) && upstream.startsWith(normalizedUpstreamRoot)) {
+        "Sync path escapes its root: $relativePath"
+    }
+    return SyncPaths(local, upstream)
+}
+
+internal fun runSyncWithVfsRefresh(
+    syncAction: () -> Unit,
+    refreshAction: () -> Unit = ::refreshVirtualFileSystem,
+) {
+    try {
+        syncAction()
+    } finally {
+        refreshAction()
+    }
+}
+
+private fun refreshVirtualFileSystem() {
+    invokeLater {
+        runWriteAction {
+            VirtualFileManager.getInstance().syncRefresh()
+        }
+    }
+}
+
+internal fun copyPath(source: NioPath, target: NioPath, indicator: ProgressIndicator) {
+    throwIfCanceled(indicator)
+
+    val sourcePath = source.toAbsolutePath().normalize()
+    if (!Files.exists(sourcePath)) {
+        throw NoSuchFileException(sourcePath.toString())
+    }
+    val targetPath = target.toResolvedPath()
+    val resolvedSource = sourcePath.toRealPath()
+
+    if (resolvedSource == targetPath || Files.exists(targetPath) && Files.isSameFile(resolvedSource, targetPath)) {
+        return
+    }
+
+    if (Files.isDirectory(resolvedSource) && targetPath.startsWith(resolvedSource)) {
+        throw IllegalArgumentException("Sync target cannot be inside the source directory: $targetPath")
+    }
+
+    if (Files.isDirectory(resolvedSource)) {
+        copyDirectoryContents(resolvedSource, targetPath, indicator)
+    } else {
+        copyFile(resolvedSource, targetPath, indicator)
+    }
+}
+
+private fun NioPath.toResolvedPath(): NioPath {
+    val absolutePath = toAbsolutePath().normalize()
+    val missingSegments = ArrayDeque<NioPath>()
+    var existingAncestor = absolutePath
+
+    while (!Files.exists(existingAncestor)) {
+        existingAncestor.fileName?.let(missingSegments::addFirst)
+        existingAncestor = existingAncestor.parent ?: return absolutePath
+    }
+
+    var resolvedPath = existingAncestor.toRealPath()
+    missingSegments.forEach { resolvedPath = resolvedPath.resolve(it.toString()) }
+    return resolvedPath.normalize()
+}
+
+private fun copyDirectoryContents(sourceRoot: NioPath, targetRoot: NioPath, indicator: ProgressIndicator) {
+    Files.createDirectories(targetRoot)
+    Files.walkFileTree(sourceRoot, object : SimpleFileVisitor<NioPath>() {
+        override fun preVisitDirectory(
+            dir: NioPath,
+            attrs: BasicFileAttributes,
+        ): FileVisitResult {
+            throwIfCanceled(indicator)
+            val target = targetRoot.resolve(sourceRoot.relativize(dir).toString())
+            Files.createDirectories(target)
+            return FileVisitResult.CONTINUE
+        }
+
+        override fun visitFile(file: NioPath, attrs: BasicFileAttributes): FileVisitResult {
+            throwIfCanceled(indicator)
+            val target = targetRoot.resolve(sourceRoot.relativize(file).toString())
+            copyFile(file, target, indicator)
+            return FileVisitResult.CONTINUE
+        }
+    })
+}
+
+private fun throwIfCanceled(indicator: ProgressIndicator) {
+    if (indicator.isCanceled) {
+        throw ProcessCanceledException()
+    }
+}
+
+private fun copyFile(source: NioPath, target: NioPath, indicator: ProgressIndicator) {
+    indicator.text2 = source.fileName?.toString() ?: source.toString()
+    target.parent?.let { Files.createDirectories(it) }
+
+    try {
+        Files.copy(source, target, REPLACE_EXISTING, COPY_ATTRIBUTES)
+    } catch (_: UnsupportedOperationException) {
+        Files.copy(source, target, REPLACE_EXISTING)
+    }
 }
 
 private val scope = CoroutineScope(Dispatchers.IO)
@@ -165,37 +249,44 @@ fun transferFolderByToolkit(
     direction: SyncDirection,
     directoryPath: String = (RunManager.getInstance(project).selectedConfiguration?.configuration as XMakeRunConfiguration).runWorkingDir,
     relativePath: String? = null,
+    onComplete: () -> Unit = {},
 ) {
+    if (project.isDisposed) return
 
     when (toolkit.host.type) {
         ToolkitHostType.LOCAL -> {
-            invokeLater {
-                runWriteAction {
-                    VirtualFileManager.getInstance().syncRefresh()
-                }
+            refreshVirtualFileSystem()
+            if (!project.isDisposed) {
+                onComplete()
             }
         }
         ToolkitHostType.WSL -> {
             syncProjectByWslSync(
-                scope,
                 project,
                 toolkit.host,
                 direction,
                 directoryPath,
-                relativePath?.let { if (Path(it).isDirectory()) relativePath else null }
+                relativePath,
+                onComplete,
             )
         }
         ToolkitHostType.SSH -> {
             val path = relativePath?.let { Path(directoryPath).resolve(relativePath).toCanonicalPath() }
                 ?: directoryPath
             EP_NAME.extensions.first { it.KEY == "SSH" }
-                .syncProject(scope, project, toolkit.host, direction, path)
+                .syncProject(scope, project, toolkit.host, direction, path, onComplete)
         }
     }
 }
 
-fun syncBeforeFetch(project: Project, toolkit: Toolkit) {
-    transferFolderByToolkit(project, toolkit, SyncDirection.LOCAL_TO_UPSTREAM, relativePath = null)
+fun syncBeforeFetch(project: Project, toolkit: Toolkit, onComplete: () -> Unit = {}) {
+    transferFolderByToolkit(
+        project,
+        toolkit,
+        SyncDirection.LOCAL_TO_UPSTREAM,
+        relativePath = null,
+        onComplete = onComplete,
+    )
 }
 
 fun fetchGeneratedFile(project: Project, toolkit: Toolkit, fileRelatedPath: String) {

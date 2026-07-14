@@ -25,8 +25,10 @@ import com.intellij.execution.processTools.getBareExecutionResult
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.execution.wsl.WSLUtil
 import com.intellij.execution.wsl.WslDistributionManager
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.*
 import com.intellij.openapi.extensions.ExtensionPointName
+import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.util.system.OS
@@ -69,25 +71,44 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
     init {
         scope.launch {
             // Cache the list of installed distributions
-            WslDistributionManager.getInstance().installedDistributions
+            getInstalledWslDistributions()
         }
     }
 
     private fun toolkitHostFlow(project: Project? = null): Flow<ToolkitHost> = flow {
-        val wslDistributions = scope.async { WslDistributionManager.getInstance().installedDistributions }
+        val wslDistributions = scope.async { getInstalledWslDistributions() }
 
         emit(ToolkitHost(LOCAL).also { host -> Logger.i(TAG, "emit host: $host") })
 
-        if (WSLUtil.isSystemCompatible()) {
-            wslDistributions.await().forEach {
-                emit(ToolkitHost(WSL, it).also { host -> Logger.i(TAG, "emit host: $host") })
-            }
+        wslDistributions.await().forEach {
+            emit(ToolkitHost(WSL, it).also { host -> Logger.i(TAG, "emit host: $host") })
         }
 
         EP_NAME.extensions.filter { it.KEY == "SSH" }.forEach {
             it.getToolkitHosts(project).forEach {
                 emit(it).also { host -> Logger.i(TAG, "emit host: $host") }
             }
+        }
+    }
+
+    private fun getInstalledWslDistributions(): List<WSLDistribution> {
+        if (ApplicationManager.getApplication() == null) {
+            return emptyList()
+        }
+
+        if (!WSLUtil.isSystemCompatible()) {
+            return emptyList()
+        }
+
+        return try {
+            WslDistributionManager.getInstance().installedDistributions
+        } catch (e: ProcessCanceledException) {
+            throw e
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Logger.w(TAG, e.message ?: "Failed to read WSL distributions")
+            emptyList()
         }
     }
 
