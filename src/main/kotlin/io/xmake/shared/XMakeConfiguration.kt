@@ -99,26 +99,29 @@ class XMakeConfiguration(val project: Project) {
     val cleanConfigurationCommandLine: GeneralCommandLine
         get() {
             val settings = project.xmakeSettings.state
+            val profile = project.xmakeSettings.activeProfile
 
             // make parameters
             val parameters = mutableListOf("f", "-c", "-y")
             if (settings.verbose) {
                 parameters.add("-v")
             }
-            if (settings.buildDirectory != "") {
+            if (profile.buildDirectory != "") {
                 parameters.add("-o")
-                parameters.add(settings.buildDirectory)
+                parameters.add(profile.buildDirectory)
             }
 
             // make command line
             return makeCommandLine(parameters)
         }
 
-    // the configuration command line — reads the project-level xmake configuration (XMakeSettings),
-    // NOT the selected run configuration, so `xmake f` works with a CLion-native run config selected.
+    // the configuration command line — reads the project-level xmake configuration (the active
+    // XMakeProfile plus the global mode/verbose flags in XMakeSettings), NOT the selected run
+    // configuration, so `xmake f` works with a CLion-native run config selected.
     val configurationCommandLine: GeneralCommandLine
         get() {
             val settings = project.xmakeSettings.state
+            val profile = project.xmakeSettings.activeProfile
 
             // make parameters
             val parameters =
@@ -129,27 +132,27 @@ class XMakeConfiguration(val project: Project) {
                     "-m",
                     settings.buildMode
                 )
-            if (settings.platform != "default" && settings.platform.isNotEmpty()) {
-                parameters.addAll(listOf("-p", settings.platform))
+            if (profile.platform != "default" && profile.platform.isNotEmpty()) {
+                parameters.addAll(listOf("-p", profile.platform))
             }
-            if (settings.architecture != "default" && settings.architecture.isNotEmpty()) {
-                parameters.addAll(listOf("-a", settings.architecture))
+            if (profile.architecture != "default" && profile.architecture.isNotEmpty()) {
+                parameters.addAll(listOf("-a", profile.architecture))
             }
-            if (settings.toolchain != "default" && settings.toolchain.isNotEmpty()) {
-                parameters.add("--toolchain=${settings.toolchain}")
+            if (profile.toolchain != "default" && profile.toolchain.isNotEmpty()) {
+                parameters.add("--toolchain=${profile.toolchain}")
             }
-            if (settings.platform == "android" && settings.androidNDKDirectory != "") {
-                parameters.add("--ndk=\"${settings.androidNDKDirectory}\"")
+            if (profile.platform == "android" && profile.androidNDKDirectory != "") {
+                parameters.add("--ndk=\"${profile.androidNDKDirectory}\"")
             }
             if (settings.verbose) {
                 parameters.add("-v")
             }
-            if (settings.buildDirectory != "") {
+            if (profile.buildDirectory != "") {
                 parameters.add("-o")
-                parameters.add(settings.buildDirectory)
+                parameters.add(profile.buildDirectory)
             }
-            if (settings.additionalConfiguration != "") {
-                parameters.addAll(ParametersListUtil.parse(settings.additionalConfiguration))
+            if (profile.additionalConfiguration != "") {
+                parameters.addAll(ParametersListUtil.parse(profile.additionalConfiguration))
             }
 
             // make command line

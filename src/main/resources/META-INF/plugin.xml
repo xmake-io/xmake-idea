@@ -55,11 +55,6 @@
         <toolWindow id="XMake" anchor="bottom" factoryClass="io.xmake.project.XMakeToolWindowFactory"
                     icon="/icons/xmake-dark.svg"/>
 
-        <!-- Project-level xmake configuration editor (mode/platform/arch/toolchain), decoupled from
-             the selected run config so it works with the native "Xmake Executable" run config. -->
-        <toolWindow id="Xmake Config" anchor="right" factoryClass="io.xmake.project.XMakeConfigToolWindowFactory"
-                    icon="/icons/xmake-dark.svg"/>
-
         <!-- run configurations -->
         <programRunner implementation="io.xmake.run.XMakeRunner"/>
         <configurationType implementation="io.xmake.run.XMakeRunConfigurationType"/>
@@ -126,6 +121,11 @@
                     description="Clean target and object files."/>
             <separator/>
             <reference id="editRunConfigurations"/>
+            <action id="XMake.Reconfigure"
+                    class="io.xmake.actions.ReconfigureAction"
+                    text="Reconfigure"
+                    icon="AllIcons.Actions.Refresh"
+                    description="Run 'xmake f' with the active profile and build mode."/>
             <action id="XMake.CleanConfiguration"
                     class="io.xmake.actions.CleanConfigurationAction"
                     text="Clean Configuration"
@@ -152,6 +152,10 @@
             </action>
         </group>
 
+        <action id="XMake.SelectProfile"
+                class="io.xmake.actions.selector.XMakeProfileAction"
+                text="Profile"
+                description="Select the active xmake profile (platform, architecture, toolchain, ...)."/>
         <action id="XMake.SelectMode"
                 class="io.xmake.actions.selector.XMakeModeAction"
                 text="Build Mode"
@@ -169,6 +173,7 @@
             <reference id="XMake.Clean"/>
             <separator/>
             <reference id="editRunConfigurations"/>
+            <reference id="XMake.Reconfigure"/>
             <reference id="XMake.CleanConfiguration"/>
             <separator/>
             <reference id="XMake.UpdateCompileCommands"/>
@@ -177,6 +182,7 @@
         <!-- Rider-style quick selectors placed in the new-UI run-widget area, just left of the
              run-configuration chip (same anchor JetBrains uses for the execution-target selector). -->
         <group id="XMake.RunWidgetSelectors">
+            <reference id="XMake.SelectProfile"/>
             <reference id="XMake.SelectMode"/>
             <reference id="XMake.SelectTarget"/>
             <add-to-group group-id="MainToolbarRight" anchor="before" relative-to-action="NewUiRunWidget"/>
@@ -184,6 +190,7 @@
 
         <!-- Classic-UI fallback: place the same selectors before the run-configuration combo. -->
         <group id="XMake.ClassicToolBarSelectors">
+            <reference id="XMake.SelectProfile"/>
             <reference id="XMake.SelectMode"/>
             <reference id="XMake.SelectTarget"/>
             <separator/>

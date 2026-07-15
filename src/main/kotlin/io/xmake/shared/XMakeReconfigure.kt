@@ -31,9 +31,9 @@ import io.xmake.utils.SystemUtils
 
 /**
  * Project-level reconfigure / compile-commands helpers driven by the project-level xmake
- * configuration ([io.xmake.project.XMakeSettings]) rather than a selected run configuration, so they
- * work with the native "Xmake Executable" run config selected. Shared by the toolbar mode dropdown
- * and the XMake Config tool window.
+ * configuration (the active [io.xmake.project.XMakeProfile] + mode in [io.xmake.project.XMakeSettings])
+ * rather than a selected run configuration, so they work with the native "Xmake Executable" run config
+ * selected. Shared by the toolbar profile/mode dropdowns, the Settings page and the Reconfigure action.
  */
 object XMakeReconfigure {
 
