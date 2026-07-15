@@ -1,6 +1,6 @@
 plugins {
     kotlin("jvm") version "2.3.0"
-    id("org.jetbrains.intellij.platform") version "2.7.2"
+    id("org.jetbrains.intellij.platform")
 }
 
 group = "io.xmake.debug"
