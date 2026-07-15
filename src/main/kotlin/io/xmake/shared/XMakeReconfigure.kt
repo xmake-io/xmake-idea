@@ -26,14 +26,15 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.project.Project
 import io.xmake.debug.CompDBSupport
 import io.xmake.debug.CustomBuildTargetsSupport
+import io.xmake.project.console.xmakeConsoleService
 import io.xmake.project.xmakeSettings
 import io.xmake.utils.SystemUtils
 
 /**
  * Project-level reconfigure / compile-commands helpers driven by the project-level xmake
- * configuration ([io.xmake.project.XMakeSettings]) rather than a selected run configuration, so they
- * work with the native "Xmake Executable" run config selected. Shared by the toolbar mode dropdown
- * and the XMake Config tool window.
+ * configuration (the active [io.xmake.project.XMakeProfile] + mode in [io.xmake.project.XMakeSettings])
+ * rather than a selected run configuration, so they work with the native "Xmake Executable" run config
+ * selected. Shared by the toolbar profile/mode dropdowns, the Settings page and the Reconfigure action.
  */
 object XMakeReconfigure {
 
@@ -45,39 +46,43 @@ object XMakeReconfigure {
     fun reconfigure(project: Project) {
         val configuration = project.xmakeConfigurationOrNull ?: return
         configuration.changed = true
-        val handler = SystemUtils.runvInConsole(project, configuration.configurationCommandLine)
-        if (handler == null) {
-            configuration.changed = false
-            return
-        }
-        handler.addProcessListener(object : ProcessListener {
-            override fun processTerminated(e: ProcessEvent) {
-                if (e.exitCode == 0) {
-                    configuration.changed = false
-                    // xmake encodes the build mode in each target's output path, so a reconfigure
-                    // moves the binaries (e.g. release/ -> debug/). Re-sync the CLion build targets so
-                    // the native "Xmake Executable" run configs point at the freshly-configured binary
-                    // (with symbols) instead of a stale one — otherwise the debugger loads no symbols.
-                    // Path resolution shells out per target, so keep it off the callback thread.
-                    ApplicationManager.getApplication().executeOnPooledThread {
-                        CustomBuildTargetsSupport.syncTargets(project)
-                    }
-                    if (project.xmakeSettings.state.autoUpdateCompileCommands) {
-                        generateCompileCommands(project)
+        project.xmakeConsoleService.whenReady { console ->
+            val handler = SystemUtils.runvInConsole(project, console, configuration.configurationCommandLine)
+            if (handler == null) {
+                configuration.changed = false
+                return@whenReady
+            }
+            handler.addProcessListener(object : ProcessListener {
+                override fun processTerminated(e: ProcessEvent) {
+                    if (e.exitCode == 0) {
+                        configuration.changed = false
+                        // xmake encodes the build mode in each target's output path, so a reconfigure
+                        // moves the binaries (e.g. release/ -> debug/). Re-sync the CLion build targets so
+                        // the native "Xmake Executable" run configs point at the freshly-configured binary
+                        // (with symbols) instead of a stale one — otherwise the debugger loads no symbols.
+                        // Path resolution shells out per target, so keep it off the callback thread.
+                        ApplicationManager.getApplication().executeOnPooledThread {
+                            CustomBuildTargetsSupport.syncTargets(project)
+                        }
+                        if (project.xmakeSettings.state.autoUpdateCompileCommands) {
+                            generateCompileCommands(project)
+                        }
                     }
                 }
-            }
-        })
+            })
+        }
     }
 
     /** Run `xmake project -k compile_commands …` and, on success, refresh CLion IntelliSense. */
     fun generateCompileCommands(project: Project) {
         val configuration = project.xmakeConfigurationOrNull ?: return
-        SystemUtils.runvInConsole(project, configuration.updateCompileCommandsLine, false, true, true)
-            ?.addProcessListener(object : ProcessListener {
-                override fun processTerminated(e: ProcessEvent) {
-                    if (e.exitCode == 0) CompDBSupport.refreshIntelliSense(project)
-                }
-            })
+        project.xmakeConsoleService.whenReady { console ->
+            SystemUtils.runvInConsole(project, console, configuration.updateCompileCommandsLine, false, true, true)
+                ?.addProcessListener(object : ProcessListener {
+                    override fun processTerminated(e: ProcessEvent) {
+                        if (e.exitCode == 0) CompDBSupport.refreshIntelliSense(project)
+                    }
+                })
+        }
     }
 }

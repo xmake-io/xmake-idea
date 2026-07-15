@@ -157,16 +157,14 @@ object DebugModuleLoader {
      * database subsystem is unavailable.
      */
     fun attachCompileCommands(project: Project, compileCommandsPath: String): Boolean {
-        if (!loadDebugModuleIfNeeded(project) || debugModuleClass == null) {
-            return false
-        }
+        val moduleClass = debugModuleClass ?: return false
         return try {
-            val method = debugModuleClass?.getMethod(
+            val method = moduleClass.getMethod(
                 "attachCompileCommands",
                 Project::class.java,
                 String::class.java
             )
-            val result = method?.invoke(null, project, compileCommandsPath)
+            val result = method.invoke(null, project, compileCommandsPath)
             result as? Boolean ?: false
         } catch (e: Exception) {
             Logger.e(TAG, "Failed to attach compile_commands", e)

@@ -16,6 +16,12 @@ plugins {
 
 group = "io.xmake"
 
+// Match CI (.github/workflows/build.yaml): JDK 21, the maximum the sinceBuild=243 platform
+// runtime accepts. Also keeps compileJava/compileKotlin targets consistent on newer local JDKs.
+kotlin {
+    jvmToolchain(21)
+}
+
 repositories {
     mavenCentral()
     intellijPlatform {
