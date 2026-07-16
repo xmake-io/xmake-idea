@@ -30,17 +30,12 @@ import io.xmake.project.console.XMakeConsole
 import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.SystemUtils
 import io.xmake.utils.exception.XMakeRunConfigurationNotSetException
-import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
 import io.xmake.project.xmakeSettings
 
 class BuildAction : XMakeConsoleAction() {
 
     override fun execute(project: Project, console: XMakeConsole) {
-
-        // save all files
-        FileDocumentManager.getInstance().saveAllDocuments()
-
         // clear console first
         console.clear()
 

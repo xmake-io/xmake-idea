@@ -28,6 +28,7 @@ import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtil
@@ -52,6 +53,8 @@ class QuickStartAction : XMakeProjectAction() {
     }
 
     override fun execute(project: Project) {
+
+        FileDocumentManager.getInstance().saveAllDocuments()
 
         if (!SystemUtils.isXMakeProject(project)) {
             val xmakePath = project.activatedToolkit?.path ?: "xmake"
