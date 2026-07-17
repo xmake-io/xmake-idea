@@ -16,10 +16,10 @@ class DebugAction : XMakeBaseAction() {
         super.update(e)
         if (!e.presentation.isEnabledAndVisible) return
 
-        val project = e.project ?: return
+        if (e.project == null) return
 
         // Disable if native debug is not available (grayed out)
-        if (!SystemUtils.isNativeDebugAvailable(project)) {
+        if (!SystemUtils.isNativeDebugAvailable()) {
             e.presentation.isEnabled = false
         }
     }

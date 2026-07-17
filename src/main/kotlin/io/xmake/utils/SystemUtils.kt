@@ -24,12 +24,11 @@ import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.process.ProcessNotCreatedException
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
-import com.intellij.openapi.extensions.PluginId
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.application.ApplicationInfo
+import io.xmake.debug.DebugModuleLoader
 import io.xmake.project.toolkit.activatedToolkit
 import io.xmake.shared.XMakeProblem
 import io.xmake.utils.exception.XMakeToolkitNotSetException
@@ -46,7 +45,6 @@ import java.util.regex.Pattern
 object SystemUtils {
     
     private const val TAG = "SystemUtils"
-    private const val CLION_PLUGIN_ID = "com.intellij.cidr.lang"
 
     // get platform
     fun platform(): String = when {
@@ -114,10 +112,6 @@ object SystemUtils {
                 .notify(project)
             throw ProcessNotCreatedException(e.message ?: "", commandLine)
         }
-    }
-
-    fun getModulePath(moduleName: String): String? {
-        return getResourceFilePath(moduleName, "lib")
     }
 
     fun getResourceFilePath(resourceName: String, resourceDir: String = "lib"): String? {
@@ -210,50 +204,6 @@ object SystemUtils {
         return getResourceFilePath(scriptName, "scripts")
     }
     
-    /**
-     * Check if CLion is available
-     */
-    fun isClionAvailable(): Boolean {
-        return try {
-            // Check if we're running in CLion by checking IDE name
-            val applicationInfo = ApplicationInfo.getInstance()
-            val isClionIDE = applicationInfo.build.toString().contains("CL-")
-            
-            if (isClionIDE) {
-                Logger.d(TAG, "Running in CLion IDE")
-                return true
-            }
-            
-            // Try to check CLion plugin using reflection to avoid internal API
-            try {
-                val pluginManagerClass = Class.forName("com.intellij.ide.plugins.PluginManager")
-                val findPluginMethod = pluginManagerClass.getMethod("findPlugin", com.intellij.openapi.extensions.PluginId::class.java)
-                val pluginIdClass = Class.forName("com.intellij.openapi.extensions.PluginId")
-                val getIdMethod = pluginIdClass.getMethod("getId", String::class.java)
-                val clionPluginId = getIdMethod.invoke(null, CLION_PLUGIN_ID)
-                val clionPlugin = findPluginMethod.invoke(null, clionPluginId)
-                
-                if (clionPlugin != null) {
-                    val isEnabledMethod = clionPlugin.javaClass.getMethod("isEnabled")
-                    val isEnabled = isEnabledMethod.invoke(clionPlugin) as Boolean
-                    
-                    if (isEnabled) {
-                        Logger.d(TAG, "CLion plugin is available and enabled")
-                        return true
-                    }
-                }
-            } catch (e: Exception) {
-                Logger.d(TAG, "Failed to check CLion plugin using reflection: ${e.message}")
-            }
-            
-            Logger.i(TAG, "Running in non-CLion IDE, CLion debug module will not be loaded")
-            false
-        } catch (e: Exception) {
-            Logger.d(TAG, "Failed to check CLion availability: ${e.message}")
-            false
-        }
-    }
-
     // check if xmake project
     fun isXMakeProject(project: Project): Boolean {
         return project.basePath?.let { File(it, "xmake.lua").exists() } == true
@@ -262,20 +212,8 @@ object SystemUtils {
     /**
      * Check if native debug functionality is available
      */
-    fun isNativeDebugAvailable(project: Project): Boolean {
-        return try {
-            // Check if CLion-specific classes are available
-            try {
-                Class.forName("com.jetbrains.cidr.execution.debugger.CidrLocalDebugProcess")
-                true
-            } catch (e: ClassNotFoundException) {
-                Logger.d(TAG, "CLion debugging classes are not available")
-                false
-            }
-        } catch (e: Exception) {
-            Logger.e(TAG, "Error checking debug availability", e)
-            false
-        }
+    fun isNativeDebugAvailable(): Boolean {
+        return DebugModuleLoader.loadDebugModuleIfNeeded()
     }
 }
 

@@ -46,7 +46,6 @@ class XMakeDapDriverConfiguration(
     private val driverPath: String,
     private val driverName: String,
     private val userLaunchConfig: String = "",
-    private val args: List<String> = emptyList(),
     private val env: Map<String, String> = emptyMap()
 ) : DapDriverConfiguration(project, driverName, false, false, DapRequestType.LAUNCH, true) {
 
@@ -147,7 +146,7 @@ class XMakeDapDriverConfiguration(
         )
     }
 
-    override fun getDapLaunchOptions(commandLine: GeneralCommandLine): Map<String, Any> {
+    override fun getDapLaunchOptions(inferiorCmd: GeneralCommandLine): Map<String, Any> {
         // Get default configuration based on driver name
         val defaultConfig = when (driverName) {
             "gdb-dap" -> DefaultDebugConfigurations.getDefaultConfigForDriver("gdb-dap")
@@ -164,10 +163,12 @@ class XMakeDapDriverConfiguration(
         finalConfig.putAll(mergedConfig)
 
         // Set target program information
-        finalConfig["program"] = commandLine.exePath
-        finalConfig["cwd"] = commandLine.workDirectory?.path ?: project.basePath ?: ""
-        finalConfig["env"] = commandLine.environment
-        finalConfig["args"] = commandLine.parametersList.list
+        finalConfig["program"] = inferiorCmd.exePath
+        finalConfig["cwd"] = inferiorCmd.workDirectory?.path
+            ?: project.basePath
+            ?: File(inferiorCmd.exePath).absoluteFile.parent
+        finalConfig["env"] = inferiorCmd.environment
+        finalConfig["args"] = inferiorCmd.parametersList.list
 
         // Apply driver-specific configurations
         applyDriverSpecificConfigurations(finalConfig)
