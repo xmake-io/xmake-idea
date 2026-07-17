@@ -18,16 +18,13 @@
  * @file        XMakeToolWindowFactory.kt
  *
  */
-package io.xmake.project
+package io.xmake.project.console
 
-import com.intellij.execution.ui.ConsoleView
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
-import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.ui.content.ContentFactory
-import io.xmake.shared.XMakeProblem
 import kotlin.jvm.JvmDefaultWithoutCompatibility
 
 @JvmDefaultWithoutCompatibility
@@ -36,6 +33,7 @@ class XMakeToolWindowFactory : ToolWindowFactory, DumbAware {
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
         val outputPanel = XMakeToolWindowOutputPanel(project)
         val outputTab = ContentFactory.getInstance().createContent(outputPanel, "Output", false)
+        outputTab.setDisposer(outputPanel)
         toolWindow.contentManager.addContent(outputTab)
 
         val problemPanel = XMakeToolWindowProblemPanel(project)
@@ -43,28 +41,8 @@ class XMakeToolWindowFactory : ToolWindowFactory, DumbAware {
         toolWindow.contentManager.addContent(problemTab)
 
         toolWindow.contentManager.setSelectedContent(outputTab)
+        project.xmakeConsoleService.register(toolWindow, outputPanel, problemPanel, outputTab)
     }
 }
 
-// the xmake tool windows
-val Project.xmakeToolWindow: ToolWindow?
-    get() = ToolWindowManager.getInstance(this).getToolWindow("XMake")
-
-// the xmake output panel
-val Project.xmakeOutputPanel: XMakeToolWindowOutputPanel
-    get() = this.xmakeToolWindow?.contentManager?.getContent(0)?.component as XMakeToolWindowOutputPanel
-
-// the xmake problem panel
-val Project.xmakeProblemPanel: XMakeToolWindowProblemPanel
-    get() = this.xmakeToolWindow?.contentManager?.getContent(1)?.component as XMakeToolWindowProblemPanel
-
-// the xmake console view
-val Project.xmakeConsoleView: ConsoleView
-    get() = this.xmakeOutputPanel.consoleView
-
-// the xmake problem list
-var Project.xmakeProblemList: List<XMakeProblem>
-    get() = this.xmakeProblemPanel.problems
-    set(value) {
-        this.xmakeProblemPanel.problems = value
-    }
+const val XMAKE_TOOL_WINDOW_ID = "XMake"

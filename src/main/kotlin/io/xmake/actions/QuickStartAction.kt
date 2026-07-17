@@ -27,20 +27,19 @@ import com.intellij.execution.process.ProcessListener
 import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
-import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
-import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.wm.ToolWindowManager
 import io.xmake.project.toolkit.activatedToolkit
-import io.xmake.project.xmakeConsoleView
+import io.xmake.project.console.xmakeConsoleService
 import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.SystemUtils
 import io.xmake.utils.exception.XMakeRunConfigurationNotSetException
 import java.io.File
 
-class QuickStartAction : AnAction() {
+class QuickStartAction : XMakeProjectAction() {
 
     override fun update(e: AnActionEvent) {
         val project = e.project
@@ -52,10 +51,7 @@ class QuickStartAction : AnAction() {
         e.presentation.isEnabled = !SystemUtils.isXMakeProject(project)
     }
 
-    override fun actionPerformed(e: AnActionEvent) {
-
-        // the project
-        val project = e.project ?: return
+    override fun execute(project: Project) {
 
         if (!SystemUtils.isXMakeProject(project)) {
             val xmakePath = project.activatedToolkit?.path ?: "xmake"
@@ -74,7 +70,7 @@ class QuickStartAction : AnAction() {
                                 .createNotification("XMake project created successfully!", NotificationType.INFORMATION)
                                 .notify(project)
 
-                            ApplicationManager.getApplication().invokeLater {
+                            ToolWindowManager.getInstance(project).invokeLater {
                                 if (project.isDisposed) return@invokeLater
 
                                 // Refresh VFS
@@ -86,9 +82,7 @@ class QuickStartAction : AnAction() {
                                 }
 
                                 // Show Tool Window
-                                ToolWindowManager.getInstance(project)
-                                    .getToolWindow("XMake")
-                                    ?.show(null)
+                                project.xmakeConsoleService.currentConsole.showOutput()
                             }
                         } else {
                             NotificationGroupManager.getInstance()
@@ -108,21 +102,23 @@ class QuickStartAction : AnAction() {
             return
         }
 
-        // clear console first
-        project.xmakeConsoleView.clear()
+        project.xmakeConsoleService.currentConsole.let { console ->
+            // clear console first
+            console.clear()
 
-        try {
-            // quick start
-            SystemUtils.runvInConsole(project, project.xmakeConfiguration.quickStartCommandLine, true, false, true)
-        } catch (e: XMakeRunConfigurationNotSetException) {
-            project.xmakeConsoleView.print(
-                "Please select a xmake run configuration first!\n",
-                ConsoleViewContentType.ERROR_OUTPUT
-            )
-            NotificationGroupManager.getInstance()
-                .getNotificationGroup("XMake.NotificationGroup")
-                .createNotification("Error with XMake Configuration", e.message ?: "", NotificationType.ERROR)
-                .notify(project)
+            try {
+                // quick start
+                SystemUtils.runvInConsole(project, console, project.xmakeConfiguration.quickStartCommandLine, true, false, true)
+            } catch (e: XMakeRunConfigurationNotSetException) {
+                console.print(
+                    "Please select a xmake run configuration first!\n",
+                    ConsoleViewContentType.ERROR_OUTPUT
+                )
+                NotificationGroupManager.getInstance()
+                    .getNotificationGroup("XMake.NotificationGroup")
+                    .createNotification("Error with XMake Configuration", e.message ?: "", NotificationType.ERROR)
+                    .notify(project)
+            }
         }
 
     }

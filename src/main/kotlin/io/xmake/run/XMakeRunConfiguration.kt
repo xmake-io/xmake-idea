@@ -38,7 +38,7 @@ import com.intellij.util.xmlb.annotations.Transient
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitManager
-import io.xmake.project.xmakeConsoleView
+import io.xmake.project.console.xmakeConsoleService
 import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.SystemUtils
 import io.xmake.utils.info.XMakeInfoManager
@@ -175,21 +175,23 @@ class XMakeRunConfiguration(
             }
         }
 
-        // clear console first
-        project.xmakeConsoleView.clear()
+        project.xmakeConsoleService.currentConsole.let { console ->
+            // clear console first
+            console.clear()
 
-        // configure and run it
-        val xmakeConfiguration = project.xmakeConfiguration
-        if (xmakeConfiguration.changed) {
-            SystemUtils.runvInConsole(project, xmakeConfiguration.configurationCommandLine)
-                ?.addProcessListener(object : ProcessListener {
-                    override fun processTerminated(e: ProcessEvent) {
-                        SystemUtils.runvInConsole(project, runCommandLine, false, true, true)
-                    }
-                })
-            xmakeConfiguration.changed = false
-        } else {
-            SystemUtils.runvInConsole(project, runCommandLine, true, true, true)
+            // configure and run it
+            val xmakeConfiguration = project.xmakeConfiguration
+            if (xmakeConfiguration.changed) {
+                SystemUtils.runvInConsole(project, console, xmakeConfiguration.configurationCommandLine)
+                    ?.addProcessListener(object : ProcessListener {
+                        override fun processTerminated(e: ProcessEvent) {
+                            SystemUtils.runvInConsole(project, console, runCommandLine, false, true, true)
+                        }
+                    })
+                xmakeConfiguration.changed = false
+            } else {
+                SystemUtils.runvInConsole(project, console, runCommandLine, true, true, true)
+            }
         }
 
         // does not use builtin run console panel

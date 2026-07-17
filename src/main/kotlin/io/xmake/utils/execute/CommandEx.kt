@@ -33,17 +33,12 @@ import com.intellij.openapi.extensions.ExtensionPointName
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
 import com.intellij.util.io.awaitExit
+import io.xmake.project.console.XMakeConsole
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHostType.*
-import io.xmake.project.xmakeConsoleView
-import io.xmake.project.xmakeOutputPanel
-import io.xmake.project.xmakeProblemList
-import io.xmake.project.xmakeToolWindow
 import io.xmake.shared.XMakeProblem
 import io.xmake.utils.SystemUtils.parseProblem
 import io.xmake.utils.extension.ToolkitHostExtension
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
 
 private val Log = logger<GeneralCommandLine>()
 
@@ -109,6 +104,7 @@ suspend fun runProcess(process: Process): Pair<Result<String>, Int>{
 
 fun runProcessWithHandler(
     project: Project,
+    console: XMakeConsole,
     command: GeneralCommandLine,
     showConsole: Boolean = true,
     showProblem: Boolean = false,
@@ -127,32 +123,26 @@ fun runProcessWithHandler(
     processHandler.addProcessListener(object : ProcessListener {
         override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {
             super.onTextAvailable(event, outputType)
-            project.xmakeConsoleView.print(event.text, ConsoleViewContentType.getConsoleViewType(outputType))
+            console.print(event.text, ConsoleViewContentType.getConsoleViewType(outputType))
             content += event.text
         }
     })
 
     if (showConsole) {
-        com.intellij.openapi.application.ApplicationManager.getApplication().invokeLater {
-            project.xmakeToolWindow?.show {
-                project.xmakeOutputPanel.showPanel()
-            }
-        }
+        console.showOutput()
     }
 
     if (showProblem) {
         processHandler.addProcessListener(object : ProcessListener {
             override fun processTerminated(e: ProcessEvent) {
-                runBlocking(Dispatchers.Default) {
-                    val problems = mutableListOf<XMakeProblem>()
-                    content.split(Regex("\\r\\n|\\n|\\r")).forEach {
-                        val problem = parseProblem(it.trim())
-                        if (problem !== null) {
-                            problems.add(problem)
-                        }
+                val problems = mutableListOf<XMakeProblem>()
+                content.split(Regex("\\r\\n|\\n|\\r")).forEach {
+                    val problem = parseProblem(it.trim())
+                    if (problem !== null) {
+                        problems.add(problem)
                     }
-                    project.xmakeProblemList = problems
                 }
+                console.updateProblems(problems)
             }
         })
     }

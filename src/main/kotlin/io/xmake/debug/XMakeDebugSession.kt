@@ -41,10 +41,10 @@ import com.intellij.xdebugger.XDebugSession
 import com.intellij.xdebugger.XDebuggerManager
 import io.xmake.run.XMakeRunConfiguration
 import io.xmake.shared.xmakeConfiguration
+import io.xmake.project.console.XMakeConsole
 import io.xmake.project.toolkit.activatedToolkit
 import io.xmake.utils.SystemUtils
 import io.xmake.debug.DebugModuleLoader
-import io.xmake.project.xmakeConsoleView
 import io.xmake.utils.execute.runProcess
 import io.xmake.utils.Logger
 import kotlinx.coroutines.runBlocking
@@ -54,7 +54,11 @@ import java.lang.reflect.InvocationTargetException
 /**
  * Manages XMake debugging session creation and lifecycle
  */
-class XMakeDebugSession(private val state: RunProfileState, private val environment: ExecutionEnvironment) {
+class XMakeDebugSession(
+    private val state: RunProfileState,
+    private val environment: ExecutionEnvironment,
+    private val console: XMakeConsole
+) {
     
     private val project: Project = environment.project
     private val configuration: XMakeRunConfiguration = environment.runProfile as XMakeRunConfiguration
@@ -92,10 +96,10 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
     private fun buildProject() {
         Logger.d(TAG, "Building project before debug...")
         val xmakeConfiguration = project.xmakeConfiguration
-        project.xmakeConsoleView.clear()
+        console.clear()
 
         if (xmakeConfiguration.changed) {
-            val configProcess = SystemUtils.runvInConsole(project, xmakeConfiguration.configurationCommandLine)
+            val configProcess = SystemUtils.runvInConsole(project, console, xmakeConfiguration.configurationCommandLine)
             configProcess?.waitFor()
             xmakeConfiguration.changed = false
         }
@@ -105,7 +109,7 @@ class XMakeDebugSession(private val state: RunProfileState, private val environm
             EnvironmentVariablesData.DEFAULT
         ).withWorkDirectory(project.basePath)
 
-        val buildProcess = SystemUtils.runvInConsole(project, buildCommandLine, false, true, false)
+        val buildProcess = SystemUtils.runvInConsole(project, console, buildCommandLine, false, true, false)
         buildProcess?.waitFor()
         Logger.d(TAG, "Build completed")
     }

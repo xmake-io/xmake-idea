@@ -18,7 +18,7 @@
  * @file        XMakeToolWindowProblemPanel.kt
  *
  */
-package io.xmake.project
+package io.xmake.project.console
 
 import com.intellij.execution.RunManager
 import com.intellij.openapi.actionSystem.ActionManager
