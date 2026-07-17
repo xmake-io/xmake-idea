@@ -107,7 +107,7 @@ class XMakeDebugSession(
         val buildCommandLine = xmakeConfiguration.makeCommandLine(
             mutableListOf("build", configuration.runTarget).filter { it != "default" && it.isNotBlank() },
             EnvironmentVariablesData.DEFAULT
-        ).withWorkDirectory(project.basePath)
+        )
 
         val buildProcess = SystemUtils.runvInConsole(project, console, buildCommandLine, false, true, false)
         buildProcess?.waitFor()
@@ -304,7 +304,7 @@ class XMakeDebugSession(
                 } else {
                     emptyList()
                 }
-                val workingDir = configuration.runWorkingDir.takeIf { it.isNotBlank() }
+                val workingDir = configuration.resolvedWorkingDirectory.takeIf { it.isNotBlank() }
                     ?: project.basePath
                     ?: File(targetPath).absoluteFile.parent
                 val debugProcess = DebugModuleLoader.createDebugProcess(
@@ -358,7 +358,6 @@ class XMakeDebugSession(
             parameters,
             EnvironmentVariablesData.DEFAULT
         ).apply {
-            withWorkDirectory(project.basePath)
             withEnvironment("XMAKE_SKIP_HISTORY", "1")
             withEnvironment("XMAKE_ROOT", "y")
             withEnvironment("XMAKE_COLOR_TERM", "nocolor")

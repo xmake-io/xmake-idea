@@ -180,10 +180,7 @@ class XMakeConfiguration(val project: Project) {
         return GeneralCommandLine(project.activatedToolkit?.path ?: "xmake")
             .withParameters(parameters)
             .withCharset(Charsets.UTF_8)
-            // Todo: Check if correct.
-            .withWorkDirectory(
-                configuration.runWorkingDir
-            )
+            .withWorkDirectory(configuration.resolvedWorkingDirectory)
             .withEnvironment(environmentVariables.envs)
             .withRedirectErrorStream(true)
     }
@@ -202,4 +199,3 @@ val Project.xmakeConfiguration: XMakeConfiguration
 
 val Project.xmakeConfigurationOrNull: XMakeConfiguration?
     get() = this.getService(XMakeConfiguration::class.java) ?: null
-
