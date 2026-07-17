@@ -25,12 +25,14 @@ import com.intellij.execution.configurations.RunProfileState
 import com.intellij.execution.executors.DefaultDebugExecutor
 import com.intellij.execution.executors.DefaultRunExecutor
 import com.intellij.execution.runners.ExecutionEnvironment
-import com.intellij.execution.runners.ProgramRunner
 import com.intellij.execution.ui.RunContentDescriptor
 import io.xmake.debug.XMakeDebugSession
+import io.xmake.project.console.XMakeConsole
+import io.xmake.project.console.xmakeConsoleService
 import io.xmake.utils.Logger
-import com.intellij.openapi.project.Project
 import io.xmake.utils.SystemUtils
+import org.jetbrains.concurrency.AsyncPromise
+import org.jetbrains.concurrency.Promise
 
 open class XMakeRunner : XMakeDefaultRunner() {
 
@@ -54,22 +56,41 @@ open class XMakeRunner : XMakeDefaultRunner() {
 
     override fun getRunnerId(): String = "XMakeRunner"
 
-    override fun doExecute(state: RunProfileState, environment: ExecutionEnvironment): RunContentDescriptor? {
+    override fun execute(
+        environment: ExecutionEnvironment,
+        state: RunProfileState
+    ): Promise<RunContentDescriptor?> {
+        if (environment.executor.id != DefaultDebugExecutor.EXECUTOR_ID) {
+            return super.execute(environment, state)
+        }
+
+        val promise = AsyncPromise<RunContentDescriptor?>()
+        environment.project.xmakeConsoleService.whenReady(onUnavailable = { promise.setError(it) }) { console ->
+            try {
+                promise.setResult(executeDebug(state, environment, console))
+            } catch (e: Exception) {
+                promise.setError(e)
+            }
+        }
+        return promise
+    }
+
+    private fun executeDebug(
+        state: RunProfileState,
+        environment: ExecutionEnvironment,
+        console: XMakeConsole
+    ): RunContentDescriptor? {
         val configuration = environment.runProfile
         if (configuration !is XMakeRunConfiguration) {
             return null
         }
 
-        if (environment.executor.id == DefaultDebugExecutor.EXECUTOR_ID) {
-            // Check if debug is available before starting debug session
-            if (!SystemUtils.isNativeDebugAvailable()) {
-                Logger.w(TAG, "Debug functionality is not available in this IDE. Please use CLion for C/C++ debugging.")
-                return null
-            }
-            return XMakeDebugSession(state, environment).startDebugSession()
+        // Check if debug is available before starting debug session
+        if (!SystemUtils.isNativeDebugAvailable()) {
+            Logger.w(TAG, "Debug functionality is not available in this IDE. Please use CLion for C/C++ debugging.")
+            return null
         }
-
-        return super.doExecute(state, environment)
+        return XMakeDebugSession(state, environment, console).startDebugSession()
     }
     
     companion object {

@@ -6,11 +6,12 @@ import com.intellij.execution.executors.DefaultDebugExecutor
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.project.Project
 import io.xmake.run.XMakeRunConfiguration
 import io.xmake.run.XMakeRunner
 import io.xmake.utils.SystemUtils
 
-class DebugAction : XMakeBaseAction() {
+class DebugAction : XMakeProjectAction() {
 
     override fun update(e: AnActionEvent) {
         super.update(e)
@@ -24,8 +25,7 @@ class DebugAction : XMakeBaseAction() {
         }
     }
 
-    override fun actionPerformed(e: AnActionEvent) {
-        val project = e.project ?: return
+    override fun execute(project: Project) {
         val runManager = RunManager.getInstance(project)
         val selectedSettings = runManager.selectedConfiguration
 

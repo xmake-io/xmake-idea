@@ -18,7 +18,7 @@
  * @file        XMakeToolWindowOutputPanel.kt
  *
  */
-package io.xmake.project
+package io.xmake.project.console
 
 import com.intellij.execution.filters.TextConsoleBuilderFactory
 import com.intellij.execution.ui.ConsoleView
@@ -30,9 +30,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.SimpleToolWindowPanel
 import com.intellij.openapi.util.Disposer
 
-class XMakeToolWindowOutputPanel(// the project
-    val project: Project
-) : SimpleToolWindowPanel(false), Disposable {
+class XMakeToolWindowOutputPanel(project: Project) : SimpleToolWindowPanel(false), Disposable {
 
     // the toolbar
     val toolbar: ActionToolbar = run {
@@ -66,11 +64,5 @@ class XMakeToolWindowOutputPanel(// the project
 
     // dispose
     override fun dispose() {
-    }
-
-    // show panel
-    fun showPanel() {
-        val contentManager = project.xmakeToolWindow?.contentManager
-        contentManager?.setSelectedContent(contentManager.getContent(0)!!)
     }
 }

@@ -26,39 +26,35 @@ import com.intellij.execution.process.ProcessListener
 import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
-import com.intellij.openapi.actionSystem.AnAction
-import com.intellij.openapi.actionSystem.AnActionEvent
-import io.xmake.project.xmakeConsoleView
+import com.intellij.openapi.project.Project
+import io.xmake.project.console.XMakeConsole
 import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.SystemUtils
 import io.xmake.utils.exception.XMakeRunConfigurationNotSetException
 
-class RebuildAction : XMakeBaseAction() {
+class RebuildAction : XMakeConsoleAction() {
 
-    override fun actionPerformed(e: AnActionEvent) {
-
-        // the project
-        val project = e.project ?: return
+    override fun execute(project: Project, console: XMakeConsole) {
 
         // clear console first
-        project.xmakeConsoleView.clear()
+        console.clear()
 
         try {
             // configure and rebuild it
             val xmakeConfiguration = project.xmakeConfiguration
             if (xmakeConfiguration.changed) {
-                SystemUtils.runvInConsole(project, xmakeConfiguration.configurationCommandLine)
+                SystemUtils.runvInConsole(project, console, xmakeConfiguration.configurationCommandLine)
                     ?.addProcessListener(object : ProcessListener {
                         override fun processTerminated(e: ProcessEvent) {
-                            SystemUtils.runvInConsole(project, xmakeConfiguration.rebuildCommandLine, false, true, true)
+                            SystemUtils.runvInConsole(project, console, xmakeConfiguration.rebuildCommandLine, false, true, true)
                         }
                     })
                 xmakeConfiguration.changed = false
             } else {
-                SystemUtils.runvInConsole(project, xmakeConfiguration.rebuildCommandLine, true, true, true)
+                SystemUtils.runvInConsole(project, console, xmakeConfiguration.rebuildCommandLine, true, true, true)
             }
         } catch (e: XMakeRunConfigurationNotSetException) {
-            project.xmakeConsoleView.print(
+            console.print(
                 "Please select a xmake run configuration first!\n",
                 ConsoleViewContentType.ERROR_OUTPUT
             )
@@ -67,7 +63,7 @@ class RebuildAction : XMakeBaseAction() {
                 .createNotification("Error with XMake Configuration", e.message ?: "", NotificationType.ERROR)
                 .notify(project)
         } catch (e: ExecutionException) {
-            project.xmakeConsoleView.print(
+            console.print(
                 "An error occurred during rebuild: ${e.message}\n",
                 ConsoleViewContentType.ERROR_OUTPUT
             )

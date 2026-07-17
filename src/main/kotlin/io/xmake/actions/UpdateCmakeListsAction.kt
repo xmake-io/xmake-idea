@@ -25,22 +25,20 @@ import com.intellij.execution.process.ProcessListener
 import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
-import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.project.Project
 import io.xmake.project.toolkit.activatedToolkit
-import io.xmake.project.xmakeConsoleView
+import io.xmake.project.console.XMakeConsole
 import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.SystemUtils
 import io.xmake.utils.exception.XMakeRunConfigurationNotSetException
 import io.xmake.utils.execute.fetchGeneratedFile
 import io.xmake.utils.execute.syncBeforeFetch
 
-class UpdateCmakeListsAction : XMakeBaseAction() {
-    override fun actionPerformed(e: AnActionEvent) {
-        // the project
-        val project = e.project ?: return
+class UpdateCmakeListsAction : XMakeConsoleAction() {
+    override fun execute(project: Project, console: XMakeConsole) {
 
         // clear console first
-        project.xmakeConsoleView.clear()
+        console.clear()
 
         try {
             // configure and build it
@@ -54,6 +52,7 @@ class UpdateCmakeListsAction : XMakeBaseAction() {
 
                     SystemUtils.runvInConsole(
                         project,
+                        console,
                         xmakeConfiguration.updateCmakeListsCommandLine,
                         false,
                         true,
@@ -70,7 +69,7 @@ class UpdateCmakeListsAction : XMakeBaseAction() {
             }
 
             if (xmakeConfiguration.changed) {
-                SystemUtils.runvInConsole(project, xmakeConfiguration.configurationCommandLine)
+                SystemUtils.runvInConsole(project, console, xmakeConfiguration.configurationCommandLine)
                     ?.addProcessListener(object : ProcessListener {
                         override fun processTerminated(event: ProcessEvent) {
                             if (project.isDisposed || event.exitCode != 0) return
@@ -82,7 +81,7 @@ class UpdateCmakeListsAction : XMakeBaseAction() {
                 updateCmakeLists()
             }
         } catch (e: XMakeRunConfigurationNotSetException) {
-            project.xmakeConsoleView.print(
+            console.print(
                 "Please select a xmake run configuration first!\n",
                 ConsoleViewContentType.ERROR_OUTPUT
             )

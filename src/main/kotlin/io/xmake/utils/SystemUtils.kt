@@ -29,6 +29,7 @@ import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.application.ApplicationManager
 import io.xmake.debug.DebugModuleLoader
+import io.xmake.project.console.XMakeConsole
 import io.xmake.project.toolkit.activatedToolkit
 import io.xmake.shared.XMakeProblem
 import io.xmake.utils.exception.XMakeToolkitNotSetException
@@ -91,11 +92,12 @@ object SystemUtils {
 
     fun runvInConsole(
         project: Project,
+        console: XMakeConsole,
         commandLine: GeneralCommandLine,
         showConsole: Boolean = true,
         showProblem: Boolean = false,
         showExitCode: Boolean = false
-    ) = runProcessWithHandler(project, commandLine, showConsole, showProblem, showExitCode) {
+    ) = runProcessWithHandler(project, console, commandLine, showConsole, showProblem, showExitCode) {
         try {
             val activatedToolkit = project.activatedToolkit
             if (activatedToolkit != null) {

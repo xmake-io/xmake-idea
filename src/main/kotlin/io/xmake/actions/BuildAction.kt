@@ -26,46 +26,42 @@ import com.intellij.execution.process.ProcessListener
 import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
-import com.intellij.openapi.actionSystem.AnAction
-import com.intellij.openapi.actionSystem.AnActionEvent
-import io.xmake.project.xmakeConsoleView
+import io.xmake.project.console.XMakeConsole
 import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.SystemUtils
 import io.xmake.utils.exception.XMakeRunConfigurationNotSetException
 import com.intellij.openapi.fileEditor.FileDocumentManager
+import com.intellij.openapi.project.Project
 import io.xmake.project.xmakeSettings
 
-class BuildAction : XMakeBaseAction() {
+class BuildAction : XMakeConsoleAction() {
 
-    override fun actionPerformed(e: AnActionEvent) {
-
-        // the project
-        val project = e.project ?: return
+    override fun execute(project: Project, console: XMakeConsole) {
 
         // save all files
         FileDocumentManager.getInstance().saveAllDocuments()
 
         // clear console first
-        project.xmakeConsoleView.clear()
+        console.clear()
 
         try {
             // configure and build it
             val xmakeConfiguration = project.xmakeConfiguration
             if (xmakeConfiguration.changed) {
-                SystemUtils.runvInConsole(project, xmakeConfiguration.configurationCommandLine)
+                SystemUtils.runvInConsole(project, console, xmakeConfiguration.configurationCommandLine)
                     ?.addProcessListener(object : ProcessListener {
                         override fun processTerminated(e: ProcessEvent) {
                             if (e.exitCode == 0) {
-                                runBuild(project, xmakeConfiguration)
+                                runBuild(project, console, xmakeConfiguration)
                             }
                         }
                     })
                 xmakeConfiguration.changed = false
             } else {
-                runBuild(project, xmakeConfiguration)
+                runBuild(project, console, xmakeConfiguration)
             }
         } catch (e: XMakeRunConfigurationNotSetException) {
-            project.xmakeConsoleView.print(
+            console.print(
                 "Please select a xmake run configuration first!\n",
                 ConsoleViewContentType.ERROR_OUTPUT
             )
@@ -74,7 +70,7 @@ class BuildAction : XMakeBaseAction() {
                 .createNotification("Error with XMake Configuration", e.message ?: "", NotificationType.ERROR)
                 .notify(project)
         } catch (e: ExecutionException) {
-            project.xmakeConsoleView.print(
+            console.print(
                 "An error occurred during build: ${e.message}\n",
                 ConsoleViewContentType.ERROR_OUTPUT
             )
@@ -85,12 +81,12 @@ class BuildAction : XMakeBaseAction() {
         }
     }
 
-    private fun runBuild(project: com.intellij.openapi.project.Project, xmakeConfiguration: io.xmake.shared.XMakeConfiguration) {
-        SystemUtils.runvInConsole(project, xmakeConfiguration.buildCommandLine, true, true, true)
+    private fun runBuild(project: Project, console: XMakeConsole, xmakeConfiguration: io.xmake.shared.XMakeConfiguration) {
+        SystemUtils.runvInConsole(project, console, xmakeConfiguration.buildCommandLine, true, true, true)
             ?.addProcessListener(object : ProcessListener {
                 override fun processTerminated(e: ProcessEvent) {
                     if (e.exitCode == 0 && project.xmakeSettings.state.autoUpdateCompileCommands) {
-                        SystemUtils.runvInConsole(project, xmakeConfiguration.updateCompileCommandsLine, false, true, true)
+                        SystemUtils.runvInConsole(project, console, xmakeConfiguration.updateCompileCommandsLine, false, true, true)
                     }
                 }
             })

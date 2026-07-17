@@ -37,7 +37,7 @@
         <projectConfigurable instance="io.xmake.project.XMakeSettingsConfigurable"
                              displayName="Xmake" groupId="build"/>
 
-        <toolWindow id="XMake" anchor="bottom" factoryClass="io.xmake.project.XMakeToolWindowFactory"
+        <toolWindow id="XMake" anchor="bottom" factoryClass="io.xmake.project.console.XMakeToolWindowFactory"
                     icon="/icons/xmake-dark.svg"/>
 
         <!-- run configurations -->
