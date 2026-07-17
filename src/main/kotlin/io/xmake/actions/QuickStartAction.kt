@@ -82,7 +82,9 @@ class QuickStartAction : XMakeProjectAction() {
                                 }
 
                                 // Show Tool Window
-                                project.xmakeConsoleService.currentConsole.showOutput()
+                                project.xmakeConsoleService.whenReady { console ->
+                                    console.showOutput()
+                                }
                             }
                         } else {
                             NotificationGroupManager.getInstance()
@@ -102,7 +104,7 @@ class QuickStartAction : XMakeProjectAction() {
             return
         }
 
-        project.xmakeConsoleService.currentConsole.let { console ->
+        project.xmakeConsoleService.whenReady { console ->
             // clear console first
             console.clear()
 

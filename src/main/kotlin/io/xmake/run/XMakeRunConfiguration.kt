@@ -175,7 +175,7 @@ class XMakeRunConfiguration(
             }
         }
 
-        project.xmakeConsoleService.currentConsole.let { console ->
+        project.xmakeConsoleService.whenReady { console ->
             // clear console first
             console.clear()
 

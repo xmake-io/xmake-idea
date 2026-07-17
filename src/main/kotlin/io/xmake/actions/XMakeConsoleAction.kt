@@ -7,7 +7,9 @@ import io.xmake.project.console.xmakeConsoleService
 abstract class XMakeConsoleAction : XMakeProjectAction() {
 
     final override fun execute(project: Project) {
-        execute(project, project.xmakeConsoleService.currentConsole)
+        project.xmakeConsoleService.whenReady { console ->
+            execute(project, console)
+        }
     }
 
     protected abstract fun execute(project: Project, console: XMakeConsole)

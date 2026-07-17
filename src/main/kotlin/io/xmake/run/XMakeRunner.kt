@@ -31,6 +31,7 @@ import io.xmake.project.console.XMakeConsole
 import io.xmake.project.console.xmakeConsoleService
 import io.xmake.utils.Logger
 import io.xmake.utils.SystemUtils
+import org.jetbrains.concurrency.AsyncPromise
 import org.jetbrains.concurrency.Promise
 
 open class XMakeRunner : XMakeDefaultRunner() {
@@ -63,9 +64,15 @@ open class XMakeRunner : XMakeDefaultRunner() {
             return super.execute(environment, state)
         }
 
-        return org.jetbrains.concurrency.resolvedPromise(
-            executeDebug(state, environment, environment.project.xmakeConsoleService.currentConsole)
-        )
+        val promise = AsyncPromise<RunContentDescriptor?>()
+        environment.project.xmakeConsoleService.whenReady(onUnavailable = { promise.setError(it) }) { console ->
+            try {
+                promise.setResult(executeDebug(state, environment, console))
+            } catch (e: Exception) {
+                promise.setError(e)
+            }
+        }
+        return promise
     }
 
     private fun executeDebug(
