@@ -36,7 +36,10 @@ import com.intellij.util.xmlb.XmlSerializer
 import com.intellij.util.xmlb.annotations.OptionTag
 import com.intellij.util.xmlb.annotations.Transient
 import com.intellij.openapi.fileEditor.FileDocumentManager
+import com.intellij.util.IncorrectOperationException
+import io.xmake.utils.path.WorkingDirectoryResolver
 import io.xmake.project.toolkit.Toolkit
+import io.xmake.project.toolkit.ToolkitHostType
 import io.xmake.project.toolkit.ToolkitManager
 import io.xmake.project.console.xmakeConsoleService
 import io.xmake.shared.xmakeConfiguration
@@ -45,7 +48,9 @@ import io.xmake.utils.info.XMakeInfoManager
 import io.xmake.utils.info.xmakeInfo
 import io.xmake.debug.DapDriverDetector
 import org.jdom.Element
-import kotlin.io.path.Path
+import java.nio.file.Files
+import java.nio.file.InvalidPathException
+import java.nio.file.Path
 
 class XMakeRunConfiguration(
     project: Project, name: String, factory: ConfigurationFactory
@@ -81,6 +86,9 @@ class XMakeRunConfiguration(
 
     @OptionTag(tag = "workingDirectory")
     var runWorkingDir: String = project.basePath ?: ""
+
+    val resolvedWorkingDirectory: String
+        get() = WorkingDirectoryResolver.resolve(project, runWorkingDir, runToolkit)
 
     @OptionTag(tag = "buildDirectory")
     var buildDirectory: String = ""
@@ -123,7 +131,6 @@ class XMakeRunConfiguration(
             // make command line
             return project.xmakeConfiguration
                 .makeCommandLine(parameters, runEnvironment)
-                .withWorkDirectory(Path(runWorkingDir).toFile())
                 .withCharset(Charsets.UTF_8)
         }
 
@@ -153,9 +160,24 @@ class XMakeRunConfiguration(
             throw RuntimeConfigurationError("Xmake toolkit is not set!")
         }
 
-        // Todo: Check whether working directory is valid.
-        if (runWorkingDir.isBlank()){
+        if (runWorkingDir.isBlank()) {
             throw RuntimeConfigurationError("Working directory is not set!")
+        }
+
+        if (runToolkit?.host?.type == ToolkitHostType.LOCAL) {
+            val resolvedWorkingDirectory = try {
+                WorkingDirectoryResolver.resolve(project, runWorkingDir, validation = true)
+            } catch (e: IncorrectOperationException) {
+                throw RuntimeConfigurationError(e.message ?: "Working directory contains invalid macros")
+            }
+            val workingDirectory = try {
+                Path.of(resolvedWorkingDirectory)
+            } catch (_: InvalidPathException) {
+                throw RuntimeConfigurationError("Working directory is invalid: $resolvedWorkingDirectory")
+            }
+            if (!Files.isDirectory(workingDirectory)) {
+                throw RuntimeConfigurationError("Working directory does not exist: $resolvedWorkingDirectory")
+            }
         }
     }
 

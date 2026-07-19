@@ -40,6 +40,7 @@ import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.panel
 import io.xmake.icons.XMakeIcons
 import io.xmake.run.XMakeRunConfiguration
+import io.xmake.utils.path.WorkingDirectoryResolver
 import io.xmake.shared.XMakeProblem
 import java.awt.Font
 import java.awt.event.MouseAdapter
@@ -141,10 +142,12 @@ class XMakeToolWindowProblemPanel(project: Project) : SimpleToolWindowPanel(fals
                         if (File(filename).exists()) {
                             filename = File(filename).absolutePath
                         } else {
+                            val configuration =
+                                RunManager.getInstance(project).selectedConfiguration?.configuration as XMakeRunConfiguration
                             filename = File(
-                                // Todo: Check if correct
-                                (RunManager.getInstance(project).selectedConfiguration?.configuration as XMakeRunConfiguration).runWorkingDir
-                                , filename).absolutePath
+                                WorkingDirectoryResolver.resolve(project, configuration.runWorkingDir),
+                                filename,
+                            ).absolutePath
                         }
 
                         // open this file

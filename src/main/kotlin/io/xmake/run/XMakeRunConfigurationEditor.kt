@@ -43,6 +43,7 @@ import com.intellij.ui.dsl.builder.panel
 import com.intellij.ui.layout.ComboBoxPredicate
 import io.xmake.project.directory.ui.DirectoryBrowser
 import io.xmake.project.target.TargetManager
+import io.xmake.utils.path.WorkingDirectoryResolver
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ui.ToolkitComboBox
 import io.xmake.project.toolkit.ui.ToolkitListItem
@@ -148,7 +149,7 @@ class XMakeRunConfigurationEditor(
             xmakeInfo.targets.plus("default")
         } else {
             (runConfiguration.runToolkit?.let {
-                TargetManager.getInstance(project).detectXMakeTarget(it, runConfiguration.runWorkingDir)
+                TargetManager.getInstance(project).detectXMakeTarget(it, runConfiguration.resolvedWorkingDirectory)
             } ?: emptyList()).plus("default")
         }.distinct().toList()
         targetsModel.addAll(targets)
@@ -535,7 +536,11 @@ class XMakeRunConfigurationEditor(
         row("Sync Directory:") {
             button("Upload") {
                 toolkitComboBox.activatedToolkit?.let { toolkit ->
-                    val workingDirectoryPath = workingDirectoryBrowser.text
+                    val workingDirectoryPath = WorkingDirectoryResolver.resolve(
+                        project,
+                        workingDirectoryBrowser.text,
+                        toolkit,
+                    )
 
                     scope.launch(Dispatchers.IO) {
                         if (toolkit.isOnRemote) {

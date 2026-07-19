@@ -247,7 +247,7 @@ fun transferFolderByToolkit(
     project: Project,
     toolkit: Toolkit,
     direction: SyncDirection,
-    directoryPath: String = (RunManager.getInstance(project).selectedConfiguration?.configuration as XMakeRunConfiguration).runWorkingDir,
+    directoryPath: String = (RunManager.getInstance(project).selectedConfiguration?.configuration as XMakeRunConfiguration).resolvedWorkingDirectory,
     relativePath: String? = null,
     onComplete: () -> Unit = {},
 ) {
