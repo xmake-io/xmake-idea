@@ -1,6 +1,6 @@
 <div align="center">
   <a href="https://xmake.io">
-    <img width="200" heigth="200" src="https://github.com/xmake-io/xmake-idea/raw/master/res/logo256.png">
+    <img width="200" height="200" src="https://github.com/xmake-io/xmake-idea/raw/master/res/logo256.png">
   </a>
 
   <h1>xmake-idea</h1>
@@ -34,20 +34,22 @@
     </a>
   </div>
 
-  <p>A XMake integration in IntelliJ IDEA</p>
+  <p>An XMake integration in IntelliJ IDEA</p>
 </div>
 
 ## Introduction
 
-A Xmake integration in IntelliJ IDEA/Clion.
+An XMake integration in IntelliJ IDEA/CLion.
 
-It is deeply integrated with [xmake](https://github.com/xmake-io/xmake) and Intellij-IDEA to provide a convenient and fast cross-platform c/c++ development and building.
+It is deeply integrated with [XMake](https://github.com/xmake-io/xmake) and IntelliJ IDEA to provide a convenient and fast cross-platform C/C++ development and build experience.
 
-And It also support other Intellij-based platform, like Clion, Android Studio and etc.
+It also supports other IntelliJ-based platforms, such as CLion and Android Studio.
 
-You need install [xmake](https://github.com/xmake-io/xmake) first and a project with `xmake.lua`.
+The plugin requires IntelliJ Platform 2025.1 or later. CLion and IntelliJ IDEA are currently tested.
 
-Please see [xmake-github](https://github.com/xmake-io/xmake) and [website](https://xmake.io) if you want to known more about xmake.
+Install [XMake](https://github.com/xmake-io/xmake) on the machine or environment where you build the project. Add `xmake` to `PATH` for automatic detection.
+
+Please see [XMake on GitHub](https://github.com/xmake-io/xmake) and the [website](https://xmake.io) to learn more about XMake.
 
 ## Features
 
@@ -59,50 +61,55 @@ Please see [xmake-github](https://github.com/xmake-io/xmake) and [website](https
 * Tool windows
 * Build and run
 * Parse errors and goto file
-* C/C++ intellisense
+* C/C++ project navigation
 * Debug
+* Basic WSL and SSH support
 
-## Quickstart
+## Installation
 
-<div align="center">
-<img src="https://raw.githubusercontent.com/xmake-io/xmake-idea/master/res/quickstart.gif" width="80%" />
-</div>
+1. Install [XMake](https://xmake.io/#/guide/installation) on the machine or environment where you build the project. Add `xmake` to `PATH` for automatic detection.
+2. Install [XMake from JetBrains Marketplace](https://plugins.jetbrains.com/plugin/17406-xmake) in CLion or IntelliJ IDEA.
+3. Open or create a project as described below, then create an XMake run configuration and select an XMake installation.
 
-## Parse errors and goto file
+## Getting Started
 
-<div align="center">
-<img src="https://raw.githubusercontent.com/xmake-io/xmake-idea/master/res/problem.gif" width="80%" />
-</div>
+### Open an Existing Project
 
-## Output panel
+Open the project directory in the IDE. The directory must contain an `xmake.lua` file.
 
-<img src="https://raw.githubusercontent.com/xmake-io/xmake-idea/master/res/output_panel.png" width="100%" />
+### Create a New Project
 
-## Create project
+Use `File > New > Project`, choose `XMake`, then configure the project location, XMake installation, module language, and module type.
 
-<img src="https://raw.githubusercontent.com/xmake-io/xmake-idea/master/res/create_project.png" width="100%" />
+<p align="center">
+  <img src="./res/create_project.png" alt="Create an XMake project with the project wizard" width="90%" />
+</p>
 
-## Project configuration
+<p align="center"><em>XMake project wizard in CLion 2026.1.</em></p>
 
-You can configure Xmake path, build settings, and Intellisense options in `Settings > Build, Execution, Deployment > Xmake`.
+## Project Settings
 
-<img src="https://raw.githubusercontent.com/xmake-io/xmake-idea/master/res/project_configuration.png" width="100%" />
+You can configure the XMake path and build settings in `Settings > Build, Execution, Deployment > Xmake`.
 
-## Run configuration
+## Run Configurations
 
-<img src="https://raw.githubusercontent.com/xmake-io/xmake-idea/master/res/run_configuration.png" width="100%" />
+Create an XMake run configuration, then select an XMake installation and target.
 
-## Menu tools
+<p align="center">
+  <img src="./res/run_target.png" alt="Configure and run an XMake target" width="90%" />
+</p>
 
-<div align="center">
-<img src="https://raw.githubusercontent.com/xmake-io/xmake-idea/master/res/menu.png" width="80%" />
-</div>
+<p align="center"><em>XMake run configuration in CLion.</em></p>
 
-## C/C++ intellisense
+## Build Output
 
-> Only support CLion (>= 2020.1)
+Select `Xmake > Build Project` to build the current project. Build output and reported problems appear in the XMake tool window. Select a problem to open the corresponding source location.
 
-1. The plugin generates `compile_commands.json` for project code completion and navigation.
+## C/C++ project navigation
+
+  > Only supports CLion (>= 2025.1)
+
+1. The plugin generates `compile_commands.json` for project navigation.
 2. You can configure the output path and auto-update behavior in `Settings > Build, Execution, Deployment > Xmake`.
 3. To manually generate it, click `Update compile commands` in the main menu or context menu.
 4. CLion should automatically detect `compile_commands.json`. If not, you can open it via `File > Open...`.
@@ -111,11 +118,13 @@ You can configure Xmake path, build settings, and Intellisense options in `Setti
 
 ### DAP Debugging (Recommended)
 
-> Only support CLion (>= 2026.1)
+> Only supports CLion (>= 2025.1)
 
-XMake now supports native debugging via the Debug Adapter Protocol (DAP). This allows you to debug your XMake targets directly without generating CMakeLists.txt.
+In CLion 2025.1 and later, you can debug XMake targets directly with the Debug Adapter Protocol (DAP), without generating a `CMakeLists.txt` file.
 
-1. Install `lldb-dap` (recommended) or `gdb-dap` on your system.
+1. Install a supported DAP driver:
+   - **LLDB DAP:** `lldb-dap` (recommended)
+   - **GDB DAP:** a `gdb` executable with DAP support
 2. Open the "Run Configuration" for your XMake target.
 3. In the "Debug Configuration" section, you can:
     - Enable "Auto-detect DAP driver" to let the plugin find the driver automatically.
@@ -124,11 +133,11 @@ XMake now supports native debugging via the Debug Adapter Protocol (DAP). This a
 
 ### Legacy Debugging (CMake)
 
-> Support CLion (>= 2020.1)
+> Supports CLion (>= 2026.1)
 
-1. Click "Update CmakeLists" to create or update "CmakeLists.txt" file.
-2. Click "File > open..." to choose this file.
-3. Choose "Run > Debug..." or "Run > Debug 'project name'" into debug mode.
+1. Select "Xmake > Update CmakeLists" to create or update the "CMakeLists.txt" file.
+2. Click "File > Open..." to choose this file.
+3. Choose "Run > Debug..." or "Run > Debug 'project name'" to start debugging.
 
 ## How to contribute?
 
@@ -136,17 +145,17 @@ Due to limited personal time, I cannot maintain this plug-in all the time. If yo
 
 ### Build this project
 
-Use IDEA Intellji open this project source code, and click `Build` button.
+This project requires JetBrains Runtime (JBR) 21. Use the included Gradle wrapper to build it.
+
+```powershell
+.\gradlew.bat build
+```
+
+On Linux or macOS, run `./gradlew build` instead.
 
 ### Run and debug this project
 
-Open and edit `Run configuration`, and add a gradle run configuration, then write run arguments: `runIde --stacktrace` and save it.
-
-<img src="https://raw.githubusercontent.com/xmake-io/xmake-idea/master/res/edit_configuration.png" width="100%" />
-
-Select this run configuration and click run button to load it.
-
-<img src="https://raw.githubusercontent.com/xmake-io/xmake-idea/master/res/run_plugin.png" width="20%" />
+Run `.\gradlew.bat runIde --stacktrace` on Windows or `./gradlew runIde --stacktrace` on Linux and macOS.
 
 For more details, please visit: [CONTRIBUTING](https://github.com/xmake-io/xmake-idea/blob/master/CONTRIBUTING.md)
 

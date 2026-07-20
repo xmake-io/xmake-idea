@@ -1,15 +1,13 @@
 # Contributing
 
 If you discover issues, have ideas for improvements or new features, or
-want to contribute a new module, please report them to the
-[issue tracker][1] of the repository or submit a pull request. Please,
-try to follow these guidelines when you do so.
+want to contribute a new module, use the [project issue tracker](https://github.com/xmake-io/xmake-idea/issues)
+or submit a pull request. Please try to follow these guidelines when you do so.
 
 ## Issue reporting
 
 * Check that the issue has not already been reported.
-* Check that the issue has not already been fixed in the latest code
-  (a.k.a. `master`).
+* Check that the issue has not already been fixed in the latest `dev` branch.
 * Be clear, concise and precise in your description of the problem.
 * Open an issue with a descriptive title and a summary in grammatically correct,
   complete sentences.
@@ -21,7 +19,7 @@ try to follow these guidelines when you do so.
 * Write good commit messages.
 * Use the same coding conventions as the rest of the project.
 * Ensure your edited codes with four spaces instead of TAB.
-* Please commit code to `dev` branch and we will merge into `master` branch in feature
+* Please commit code to the `dev` branch; approved changes will be merged into `master` for releases.
 
 ## Financial contributions
 
@@ -54,44 +52,14 @@ Thank you to all our sponsors! (please ask your company to also support this ope
 # 贡献代码
 
 如果你发现一些问题，或者想新增或者改进某些新特性，或者想贡献一个新的模块
-那么你可以在[issues][1]上提交反馈，或者发起一个提交代码的请求(pull request).
+那么你可以提交反馈，或者发起一个提交代码的请求（pull request）。
 
 ## 问题反馈
 
 * 确认这个问题没有被反馈过
-* 确认这个问题最近还没有被修复，请先检查下 `master` 的最新提交
+* 确认这个问题最近还没有被修复，请先检查 `dev` 分支的最新提交
 * 请清晰详细地描述你的问题
 * 如果发现某些代码存在问题，请在issue上引用相关代码
-
-## 安装环境
-
-#### 安装cnpm
-
-```console
-$ npm install -g cnpm --registry=https://registry.npm.taobao.org
-```
-
-#### 创建空工程
-
-```console
-$ cnpm install -g yo generator-code
-$ yo code
-```
-
-#### 创建发布者
-
-```console
-$ cnpm install -g vsce
-$ vsce create-publisher (publisher name)
-$ vsce login (publisher name)
-```
-
-#### 构建发布
-
-```console
-$ vsce package
-$ vsce publish [version]
-```
 
 ## 提交代码
 
@@ -99,10 +67,9 @@ $ vsce publish [version]
 * 编写友好可读的提交信息
 * 请使用余工程代码相同的代码规范
 * 确保提交的代码缩进是四个空格，而不是tab
-* 请提交代码到`dev`分支，如果通过，我们会在特定时间合并到`master`分支上
+* 请提交代码到 `dev` 分支；通过审核后，变更会在发布时合并到 `master` 分支
 * 为了规范化提交日志的格式，commit消息，不要用中文，请用英文描述
 
-[1]: https://github.com/xmake-io/xmake-vscode/issues
 
 ## 支持项目
 
