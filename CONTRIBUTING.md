@@ -1,54 +1,44 @@
 # Contributing
 
-If you discover issues, have ideas for improvements or new features, or
-want to contribute a new module, use the [project issue tracker](https://github.com/xmake-io/xmake-idea/issues)
-or submit a pull request. Please try to follow these guidelines when you do so.
+If you find an issue, have an improvement or feature idea, or want to contribute a module, use the [project issue tracker](https://github.com/xmake-io/xmake-idea/issues) or submit a pull request. Please follow these guidelines when doing so.
 
-## Issue reporting
+## Reporting Issues
 
-* Check that the issue has not already been reported.
-* Check that the issue has not already been fixed in the latest `dev` branch.
-* Be clear, concise and precise in your description of the problem.
-* Open an issue with a descriptive title and a summary in grammatically correct,
-  complete sentences.
-* Include any relevant code to the issue summary.
-
-## Pull requests
-
-* Use a topic branch to easily amend a pull request later, if necessary.
-* Write good commit messages.
-* Use the same coding conventions as the rest of the project.
-* Ensure your edited codes with four spaces instead of TAB.
-* Please commit code to the `dev` branch; approved changes will be merged into `master` for releases.
+- Check that the issue has not already been reported.
+- Check that it has not already been fixed in the latest `dev` branch.
+- Use a descriptive title and explain the problem clearly and precisely.
+- Include reproduction steps, relevant logs or code, and environment details.
 
 ## Development Setup
 
-This project requires JetBrains Runtime (JBR) 21. For build and run commands, see [Build From Source](./README.md#build-from-source).
+This project requires `JetBrains Runtime (JBR) 21`. For build and run commands, see [Build From Source](./README.md#build-from-source).
 
-## Financial contributions
+## Pull Requests
 
-We also welcome financial contributions in full transparency on our [open collective](https://opencollective.com/xmake).
-Anyone can file an expense. If the expense makes sense for the development of the community, it will be "merged" in the ledger of our open collective by the core contributors and the person who filed the expense will be reimbursed.
+- Use a topic branch so the pull request can be updated cleanly.
+- Open pull requests against the `dev` branch. Changes are merged into `master` for releases.
+- Follow the coding conventions used by the rest of the project.
+- Use four spaces instead of tabs in edited code.
+- Write clear commit messages in English.
+
+## Financial Contributions
+
+Financial contributions are managed transparently through [Open Collective](https://opencollective.com/xmake). Anyone can file an expense; approved project expenses are reimbursed through the collective ledger.
 
 ## Credits
 
 ### Backers
 
-Thank you to all our backers! [[Become a backer](https://opencollective.com/xmake#backer)]
+Thank you to all our backers. [Become a backer](https://opencollective.com/xmake#backer).
 
-<a href="https://opencollective.com/xmake#backers" target="_blank"><img src="https://opencollective.com/xmake/backers.svg?width=890"></a>
+<p align="center">
+  <a href="https://opencollective.com/xmake#backers"><img src="https://opencollective.com/xmake/backers.svg?width=890" alt="XMake backers" width="100%" /></a>
+</p>
 
 ### Sponsors
 
-Thank you to all our sponsors! (please ask your company to also support this open source project by [becoming a sponsor](https://opencollective.com/xmake#sponsor))
+Thank you to all our sponsors. [Become a sponsor](https://opencollective.com/xmake#sponsor) to support the project.
 
-<a href="https://opencollective.com/xmake/sponsor/0/website" target="_blank"><img src="https://opencollective.com/xmake/sponsor/0/avatar.svg"></a>
-<a href="https://opencollective.com/xmake/sponsor/1/website" target="_blank"><img src="https://opencollective.com/xmake/sponsor/1/avatar.svg"></a>
-<a href="https://opencollective.com/xmake/sponsor/2/website" target="_blank"><img src="https://opencollective.com/xmake/sponsor/2/avatar.svg"></a>
-<a href="https://opencollective.com/xmake/sponsor/3/website" target="_blank"><img src="https://opencollective.com/xmake/sponsor/3/avatar.svg"></a>
-<a href="https://opencollective.com/xmake/sponsor/4/website" target="_blank"><img src="https://opencollective.com/xmake/sponsor/4/avatar.svg"></a>
-<a href="https://opencollective.com/xmake/sponsor/5/website" target="_blank"><img src="https://opencollective.com/xmake/sponsor/5/avatar.svg"></a>
-<a href="https://opencollective.com/xmake/sponsor/6/website" target="_blank"><img src="https://opencollective.com/xmake/sponsor/6/avatar.svg"></a>
-<a href="https://opencollective.com/xmake/sponsor/7/website" target="_blank"><img src="https://opencollective.com/xmake/sponsor/7/avatar.svg"></a>
-<a href="https://opencollective.com/xmake/sponsor/8/website" target="_blank"><img src="https://opencollective.com/xmake/sponsor/8/avatar.svg"></a>
-<a href="https://opencollective.com/xmake/sponsor/9/website" target="_blank"><img src="https://opencollective.com/xmake/sponsor/9/avatar.svg"></a>
+<p align="center">
+  <a href="https://opencollective.com/xmake#sponsor"><img src="https://opencollective.com/xmake/sponsors.svg?width=890" alt="XMake sponsors" width="100%" /></a>
+</p>
