@@ -11,6 +11,6 @@ echo "This will build CLion debug module first, then the main plugin."
 ./gradlew build
 
 echo "Build completed successfully!"
-echo "The plugin JAR is available in build/distributions/"
+echo "The plugin ZIP is available at build/distributions/xmake-idea.zip"
 echo ""
 echo "To run the plugin in development mode, use: ./scripts/run.sh"

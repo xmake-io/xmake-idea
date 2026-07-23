@@ -9,9 +9,9 @@ echo "🔍 Verifying XMake Plugin..."
 echo ""
 
 # JAVA_HOME is set by CI (JetBrains JVM 21 via actions/setup-java)
-# If running locally, ensure JAVA_HOME points to a JDK 21+ installation
+# If running locally, ensure JAVA_HOME points to a JBR 21 installation
 if [ -z "$JAVA_HOME" ]; then
-    echo "⚠️  JAVA_HOME not set, using system default (requires JDK 21+)"
+    echo "⚠️  JAVA_HOME not set, using system default (requires JBR 21)"
 fi
 
 # Run the verification task

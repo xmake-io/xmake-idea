@@ -5,7 +5,7 @@
 set -e
 
 echo "Running xmake-idea plugin in development mode..."
-echo "This will build the plugin and start IntelliJ IDEA with the plugin loaded."
+echo "This will build the plugin and start CLion with the plugin loaded."
 
 # Run the plugin in development mode
 ./gradlew runIde
