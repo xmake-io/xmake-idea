@@ -100,7 +100,7 @@ You can configure Xmake path, build settings, and Intellisense options in `Setti
 
 ## C/C++ intellisense
 
-> Only support CLion (>= 2020.1)
+> Only support CLion (>= 2026.2)
 
 1. The plugin generates `compile_commands.json` for project code completion and navigation.
 2. You can configure the output path and auto-update behavior in `Settings > Build, Execution, Deployment > Xmake`.
@@ -111,7 +111,7 @@ You can configure Xmake path, build settings, and Intellisense options in `Setti
 
 ### DAP Debugging (Recommended)
 
-> Only support CLion (>= 2026.1)
+> Only support CLion (>= 2026.2)
 
 XMake now supports native debugging via the Debug Adapter Protocol (DAP). This allows you to debug your XMake targets directly without generating CMakeLists.txt.
 
@@ -124,7 +124,7 @@ XMake now supports native debugging via the Debug Adapter Protocol (DAP). This a
 
 ### Legacy Debugging (CMake)
 
-> Support CLion (>= 2020.1)
+> Support CLion (>= 2026.2)
 
 1. Click "Update CmakeLists" to create or update "CmakeLists.txt" file.
 2. Click "File > open..." to choose this file.
