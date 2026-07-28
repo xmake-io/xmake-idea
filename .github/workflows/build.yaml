@@ -40,3 +40,4 @@ jobs:
         with:
           name: xmake-idea.zip
           path: ./build/distributions/xmake-idea.zip
+          archive: false
