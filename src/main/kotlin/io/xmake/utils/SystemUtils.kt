@@ -117,37 +117,6 @@ object SystemUtils {
     }
 
     fun getResourceFilePath(resourceName: String, resourceDir: String = "lib"): String? {
-        // 1. Try to get from plugin directory (layout in sandbox or installed plugin)
-        
-        // Try to get plugin path using reflection to avoid internal API
-        try {
-            val pluginManagerClass = Class.forName("com.intellij.ide.plugins.PluginManager")
-            val getPluginMethod = pluginManagerClass.getMethod("getPlugin", com.intellij.openapi.extensions.PluginId::class.java)
-            val pluginIdClass = Class.forName("com.intellij.openapi.extensions.PluginId")
-            val getIdMethod = pluginIdClass.getMethod("getId", String::class.java)
-            val pluginId = getIdMethod.invoke(null, "io.xmake")
-            val plugin = getPluginMethod.invoke(null, pluginId)
-            
-            if (plugin != null) {
-                val pluginPathMethod = plugin.javaClass.getMethod("getPluginPath")
-                val pluginPath = pluginPathMethod.invoke(plugin) as java.nio.file.Path
-                
-                val possiblePaths = listOf(
-                    File(pluginPath.toFile(), "classes/$resourceDir/$resourceName"),
-                    File(pluginPath.toFile(), "$resourceDir/$resourceName")
-                )
-                
-                for (path in possiblePaths) {
-                    if (path.exists()) {
-                        return path.absolutePath
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            Logger.d(TAG, "Failed to get plugin path using reflection: ${e.message}")
-        }
-
-        // 2. Try to get from resources (classpath)
         val resourcePath = "/$resourceDir/$resourceName"
         val url = SystemUtils::class.java.getResource(resourcePath)
         
@@ -176,7 +145,7 @@ object SystemUtils {
             }
         }
 
-        // 3. Fallback: try to extract from stream if URL approach failed but stream exists
+        // The URL can be unavailable for some class loader layouts even when the stream exists.
         try {
             val stream = SystemUtils::class.java.getResourceAsStream(resourcePath)
             if (stream != null) {
@@ -193,7 +162,7 @@ object SystemUtils {
             Logger.e(TAG, "Failed to extract resource from stream", e)
         }
 
-        // 4. Final fallback for local development (direct file access relative to project root)
+        // Local development fallback for resources that have not been copied to the classpath yet.
         val devPath = File("src/main/resources/$resourceDir/$resourceName")
         if (devPath.exists()) {
             return devPath.absolutePath
