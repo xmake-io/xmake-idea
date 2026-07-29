@@ -26,8 +26,6 @@ import com.intellij.execution.processTools.getResultStdoutStr
 import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.execution.wsl.WSLCommandLineOptions
 import com.intellij.execution.wsl.WSLDistribution
-import com.intellij.execution.wsl.WslPath
-import com.intellij.execution.wsl.rootMappings
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.extensions.ExtensionPointName
 import com.intellij.openapi.project.Project
@@ -39,6 +37,7 @@ import io.xmake.project.toolkit.ToolkitHostType.*
 import io.xmake.shared.XMakeProblem
 import io.xmake.utils.SystemUtils.parseProblem
 import io.xmake.utils.extension.ToolkitHostExtension
+import java.io.File
 
 private val Log = logger<GeneralCommandLine>()
 
@@ -52,25 +51,24 @@ fun GeneralCommandLine.createLocalProcess(): Process{
 }
 
 fun GeneralCommandLine.createWslProcess(wslDistribution: WSLDistribution, project: Project? = null): Process {
-    val commandInWsl: GeneralCommandLine = wslDistribution.patchCommandLine(
-        object : GeneralCommandLine(this) {
-            init {
-                parametersList.clearAll()
-            }
-        }, project,
-        WSLCommandLineOptions().apply {
-            wslDistribution.rootMappings
-            isLaunchWithWslExe = true
-//            remoteWorkingDirectory = workingDirectory?.toCanonicalPath()
+    val remoteWorkingDirectory = workDirectory
+        ?.path
+        ?.replace(File.separatorChar, '/')
+        ?.also { directory ->
+            require(directory.startsWith('/')) { "WSL working directory must be an absolute Linux path: $directory" }
         }
-    ).apply {
-        workDirectory?.let {
-            withWorkDirectory(WslPath(wslDistribution.id, it.path).toWindowsUncPath())
-        }
-        parametersList.replaceOrAppend(this@createWslProcess.exePath, this@createWslProcess.commandLineString)
+    val commandInWsl = object : GeneralCommandLine(this) {}.apply {
+        // The Windows-side wsl.exe process must not inherit a Linux working directory.
+        setWorkDirectory(null as File?)
     }
-    return commandInWsl
-        .also { Log.info("commandInWsl: ${commandInWsl.commandLineString}") }
+    val options = WSLCommandLineOptions().apply {
+        isLaunchWithWslExe = true
+        this.remoteWorkingDirectory = remoteWorkingDirectory
+    }
+    val patchedCommandLine = wslDistribution.patchCommandLine(commandInWsl, project, options)
+
+    return patchedCommandLine
+        .also { Log.info("commandInWsl: ${patchedCommandLine.commandLineString}") }
         .toProcessBuilder().start()
 }
 

@@ -18,7 +18,6 @@ package io.xmake.utils.path
 
 import com.intellij.execution.util.ProgramParametersConfigurator
 import com.intellij.execution.wsl.WSLDistribution
-import com.intellij.execution.wsl.WslPath
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.io.OSAgnosticPathUtil
 import io.xmake.project.toolkit.Toolkit
@@ -56,7 +55,10 @@ object WorkingDirectoryResolver {
         workingDirectory: String,
         converter: (Path) -> String?,
     ): String {
-        if (!OSAgnosticPathUtil.isAbsoluteDosPath(workingDirectory) && !WslPath.isWslUncPath(workingDirectory)) {
+        if (
+            !OSAgnosticPathUtil.isAbsoluteDosPath(workingDirectory) &&
+            !OSAgnosticPathUtil.isUncPath(workingDirectory)
+        ) {
             return workingDirectory
         }
         val path = try {
