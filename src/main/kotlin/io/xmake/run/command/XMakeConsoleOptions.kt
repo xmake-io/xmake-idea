@@ -17,7 +17,7 @@
 package io.xmake.run.command
 
 /**
- * Controls how one XMake process is presented in the plugin console.
+ * Controls how one XMake process is presented to its output consumer.
  *
  * Command execution owns these flags instead of the action that started it.
  * This keeps Build, Clean, Run preparation, and debug preparation consistent
@@ -35,4 +35,6 @@ internal data class XMakeConsoleOptions(
     val showConsole: Boolean = true,
     val showProblems: Boolean = false,
     val showExitCode: Boolean = false,
+    /** Leaves ANSI escapes for a downstream console that performs its own decoding. */
+    val preserveAnsiEscapes: Boolean = false,
 )

@@ -42,7 +42,6 @@ import io.xmake.shared.XMakeProblem
 import java.awt.Font
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
-import java.nio.file.InvalidPathException
 import java.nio.file.Path
 import javax.swing.JList
 import javax.swing.ListSelectionModel
@@ -171,17 +170,4 @@ class XMakeToolWindowProblemPanel(project: Project) : SimpleToolWindowPanel(fals
     }
 }
 
-internal fun resolveProblemPath(problem: XMakeProblem): Path? {
-    val file = problem.file ?: return null
-    val path = try {
-        Path.of(file)
-    } catch (_: InvalidPathException) {
-        return null
-    }
-
-    return if (path.isAbsolute) {
-        path.normalize()
-    } else {
-        problem.workingDirectory?.resolve(path)?.normalize()
-    }
-}
+internal fun resolveProblemPath(problem: XMakeProblem): Path? = problem.resolvedFilePath

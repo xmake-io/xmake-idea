@@ -21,6 +21,8 @@ import com.intellij.openapi.project.Project
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.utils.execute.createProcess
 
+internal const val XMAKE_CONFIG_DIRECTORY_ENV = "XMAKE_CONFIGDIR"
+
 /**
  * A prepared XMake invocation together with the host context that produced it.
  *
