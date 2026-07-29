@@ -17,6 +17,7 @@
 package io.xmake.run.command
 
 import com.intellij.execution.ExecutionException
+import com.intellij.execution.process.ProcessOutputType
 import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.Project
@@ -53,6 +54,17 @@ internal class XMakeExecutionService(
         onProblems = console::updateProblems,
         beforeStart = { if (options.showConsole) console.showOutput() },
     )
+
+    suspend fun captureStandardOutput(command: XMakeCommand): String {
+        val output = StringBuilder()
+        start(
+            command,
+            onTextAvailable = { text, outputType ->
+                if (ProcessOutputType.isStdout(outputType)) output.append(text)
+            },
+        )
+        return output.toString()
+    }
 
     private suspend fun start(
         command: XMakeCommand,

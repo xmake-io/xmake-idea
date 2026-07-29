@@ -27,14 +27,12 @@ import com.intellij.notification.NotificationType
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.openapi.application.ApplicationManager
-import io.xmake.debug.XMakeDebugSupport
 import io.xmake.project.console.XMakeConsole
 import io.xmake.project.toolkit.activatedToolkit
 import io.xmake.shared.XMakeProblem
 import io.xmake.utils.exception.XMakeToolkitNotSetException
-import io.xmake.utils.execute.createProcess
 import io.xmake.utils.execute.createLocalProcess
+import io.xmake.utils.execute.createProcess
 import io.xmake.utils.execute.runProcessWithHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -145,7 +143,7 @@ object SystemUtils {
         commandLine: GeneralCommandLine,
         showConsole: Boolean = true,
         showProblem: Boolean = false,
-        showExitCode: Boolean = false
+        showExitCode: Boolean = false,
     ) = runProcessWithHandler(project, console, commandLine, showConsole, showProblem, showExitCode) {
         try {
             val activatedToolkit = project.activatedToolkit
@@ -226,13 +224,6 @@ object SystemUtils {
     // check if xmake project
     fun isXMakeProject(project: Project): Boolean {
         return project.basePath?.let { File(it, "xmake.lua").exists() } == true
-    }
-
-    /**
-     * Check if native debug functionality is available
-     */
-    fun isNativeDebugAvailable(): Boolean {
-        return XMakeDebugSupport.isAvailable()
     }
 }
 

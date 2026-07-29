@@ -16,10 +16,12 @@
  */
 package io.xmake.run.command
 
+import com.intellij.execution.ExecutionException
 import com.intellij.execution.configuration.EnvironmentVariablesData
 import com.intellij.util.execution.ParametersListUtil
 import io.xmake.project.xmakeSettings
 import io.xmake.run.XMakeRunConfiguration
+import io.xmake.utils.SystemUtils
 
 /** Builds commands from one run configuration captured at construction time. */
 internal class XMakeCommandFactory(configuration: XMakeRunConfiguration) {
@@ -28,6 +30,8 @@ internal class XMakeCommandFactory(configuration: XMakeRunConfiguration) {
     private val architecture = configuration.runArchitecture
     private val toolchain = configuration.runToolchain
     private val mode = configuration.runMode
+    private val arguments = configuration.runArguments
+    private val environment = configuration.runEnvironment
     private val buildDirectory = configuration.buildDirectory
     private val androidNdkDirectory = configuration.androidNDKDirectory
     private val verbose = configuration.enableVerbose
@@ -87,6 +91,27 @@ internal class XMakeCommandFactory(configuration: XMakeRunConfiguration) {
             ?.let { args(it) }
     }
 
+    fun createRun(): XMakeCommand = createCommand(
+        environmentVariables = environment,
+    ) {
+        args("run")
+        target(target)
+        if (arguments.isNotEmpty()) {
+            parsedArgs(arguments)
+        }
+    }
+
+    fun createTargetPathQuery(): XMakeCommand {
+        val scriptPath = SystemUtils.getScriptPath("targetpath.lua")
+            ?: throw ExecutionException("The target path script was not found")
+        return createCommand(environmentOverrides = TARGET_QUERY_ENVIRONMENT) {
+            args("l", scriptPath)
+            target
+                .takeUnless { it == DEFAULT_VALUE || it.isBlank() }
+                ?.let { args(it) }
+        }
+    }
+
     private fun createCommand(
         environmentVariables: EnvironmentVariablesData = EnvironmentVariablesData.DEFAULT,
         environmentOverrides: Map<String, String> = emptyMap(),
@@ -107,6 +132,12 @@ internal class XMakeCommandFactory(configuration: XMakeRunConfiguration) {
 
     private companion object {
         const val DEFAULT_VALUE = "default"
+
+        val TARGET_QUERY_ENVIRONMENT = mapOf(
+            "XMAKE_SKIP_HISTORY" to "1",
+            "XMAKE_ROOT" to "y",
+            "XMAKE_COLOR_TERM" to "nocolor",
+        )
 
         fun commandArguments(block: MutableList<String>.() -> Unit): List<String> = buildList(block)
     }

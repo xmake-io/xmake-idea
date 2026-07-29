@@ -21,29 +21,25 @@
 package io.xmake.run
 
 import com.intellij.execution.Executor
+import com.intellij.execution.ExecutionException
 import com.intellij.execution.configuration.EnvironmentVariablesData
 import com.intellij.execution.configurations.*
 import com.intellij.execution.executors.DefaultDebugExecutor
-import com.intellij.execution.process.NopProcessHandler
-import com.intellij.execution.process.ProcessHandler
-import com.intellij.execution.process.ProcessEvent
-import com.intellij.execution.process.ProcessListener
+import com.intellij.execution.executors.DefaultRunExecutor
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.project.Project
-import com.intellij.util.execution.ParametersListUtil
 import com.intellij.util.xmlb.XmlSerializer
 import com.intellij.util.xmlb.annotations.OptionTag
 import com.intellij.util.xmlb.annotations.Transient
-import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.util.IncorrectOperationException
 import io.xmake.utils.path.WorkingDirectoryResolver
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHostType
 import io.xmake.project.toolkit.ToolkitManager
-import io.xmake.project.console.xmakeConsoleService
-import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.SystemUtils
+import io.xmake.run.state.XMakeDebugState
+import io.xmake.run.state.XMakeRunState
 import io.xmake.utils.info.XMakeInfoManager
 import io.xmake.utils.info.xmakeInfo
 import io.xmake.debug.DapDriverDetector
@@ -88,7 +84,11 @@ class XMakeRunConfiguration(
     var runWorkingDir: String = project.basePath ?: ""
 
     val resolvedWorkingDirectory: String
-        get() = WorkingDirectoryResolver.resolve(project, runWorkingDir, runToolkit)
+        get() = WorkingDirectoryResolver.resolve(
+            project,
+            runWorkingDir,
+            runToolkit ?: throw RuntimeConfigurationError("XMake toolkit is not set"),
+        )
 
     @OptionTag(tag = "buildDirectory")
     var buildDirectory: String = ""
@@ -113,27 +113,6 @@ class XMakeRunConfiguration(
     @OptionTag(tag = "launchConfiguration")
     var launchConfiguration: String = getDefaultLaunchConfigJson()
 
-    // the run command line
-    val runCommandLine: GeneralCommandLine
-        get() {
-
-            // make parameters
-            val parameters = mutableListOf("run")
-            if (runTarget == "all") {
-                parameters.add("-a")
-            } else if (runTarget != "" && runTarget != "default") {
-                parameters.add(runTarget)
-            }
-            if (runArguments != "") {
-                parameters.addAll(ParametersListUtil.parse(runArguments))
-            }
-
-            // make command line
-            return project.xmakeConfiguration
-                .makeCommandLine(parameters, runEnvironment)
-                .withCharset(Charsets.UTF_8)
-        }
-
     // save configuration
     override fun writeExternal(element: Element) {
         super.writeExternal(element)
@@ -156,15 +135,17 @@ class XMakeRunConfiguration(
     }
 
     override fun checkConfiguration() {
-        if (runToolkit == null) {
-            throw RuntimeConfigurationError("Xmake toolkit is not set!")
+        val toolkit = runToolkit ?: throw RuntimeConfigurationError("XMake toolkit is not set")
+
+        if (toolkit.isOnRemote && toolkit.host.target == null) {
+            throw RuntimeConfigurationError("XMake ${toolkit.host.type} toolkit host is not available")
         }
 
         if (runWorkingDir.isBlank()) {
-            throw RuntimeConfigurationError("Working directory is not set!")
+            throw RuntimeConfigurationError("Working directory is not set")
         }
 
-        if (runToolkit?.host?.type == ToolkitHostType.LOCAL) {
+        if (toolkit.host.type == ToolkitHostType.LOCAL) {
             val resolvedWorkingDirectory = try {
                 WorkingDirectoryResolver.resolve(project, runWorkingDir, validation = true)
             } catch (e: IncorrectOperationException) {
@@ -184,40 +165,12 @@ class XMakeRunConfiguration(
     override fun getConfigurationEditor(): SettingsEditor<out RunConfiguration> =
         XMakeRunConfigurationEditor(project, this)
 
-    override fun getState(executor: Executor, environment: ExecutionEnvironment): RunProfileState? {
-
-        // save all files
-        FileDocumentManager.getInstance().saveAllDocuments()
-
-        if (executor.id == DefaultDebugExecutor.EXECUTOR_ID) {
-            return object : CommandLineState(environment) {
-                override fun startProcess(): ProcessHandler {
-                    return NopProcessHandler()
-                }
-            }
+    override fun getState(executor: Executor, environment: ExecutionEnvironment): RunProfileState {
+        return when (executor.id) {
+            DefaultDebugExecutor.EXECUTOR_ID -> XMakeDebugState.create(this)
+            DefaultRunExecutor.EXECUTOR_ID -> XMakeRunState.create(this, environment)
+            else -> throw ExecutionException("Unsupported XMake executor: ${executor.id}")
         }
-
-        project.xmakeConsoleService.whenReady { console ->
-            // clear console first
-            console.clear()
-
-            // configure and run it
-            val xmakeConfiguration = project.xmakeConfiguration
-            if (xmakeConfiguration.changed) {
-                SystemUtils.runvInConsole(project, console, xmakeConfiguration.configurationCommandLine)
-                    ?.addProcessListener(object : ProcessListener {
-                        override fun processTerminated(e: ProcessEvent) {
-                            SystemUtils.runvInConsole(project, console, runCommandLine, false, true, true)
-                        }
-                    })
-                xmakeConfiguration.changed = false
-            } else {
-                SystemUtils.runvInConsole(project, console, runCommandLine, true, true, true)
-            }
-        }
-
-        // does not use builtin run console panel
-        return null
     }
 
     val platforms: Array<String>

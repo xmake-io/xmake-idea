@@ -20,54 +20,11 @@
  */
 package io.xmake.actions
 
-import com.intellij.execution.process.ProcessEvent
-import com.intellij.execution.process.ProcessListener
-import com.intellij.execution.ui.ConsoleViewContentType
-import com.intellij.notification.NotificationGroupManager
-import com.intellij.notification.NotificationType
-import io.xmake.project.console.XMakeConsole
-import io.xmake.shared.xmakeConfiguration
-import io.xmake.utils.SystemUtils
-import io.xmake.utils.exception.XMakeRunConfigurationNotSetException
+import com.intellij.execution.executors.DefaultRunExecutor
 import com.intellij.openapi.project.Project
 
-class RunAction : XMakeConsoleAction() {
-
-    override fun execute(project: Project, console: XMakeConsole) {
-        // clear console first
-        console.clear()
-
-        try {
-            // configure and run it
-            val xmakeConfiguration = project.xmakeConfiguration
-            if (xmakeConfiguration.changed) {
-                SystemUtils.runvInConsole(project, console, xmakeConfiguration.configurationCommandLine)
-                    ?.addProcessListener(object : ProcessListener {
-                        override fun processTerminated(e: ProcessEvent) {
-                            SystemUtils.runvInConsole(
-                                project,
-                                console,
-                                xmakeConfiguration.configuration.runCommandLine,
-                                false,
-                                true,
-                                true
-                            )
-                        }
-                    })
-                xmakeConfiguration.changed = false
-            } else {
-                SystemUtils.runvInConsole(project, console, xmakeConfiguration.configuration.runCommandLine, true, true, true)
-            }
-
-        } catch (e: XMakeRunConfigurationNotSetException) {
-            console.print(
-                "Please select a xmake run configuration first!\n",
-                ConsoleViewContentType.ERROR_OUTPUT
-            )
-            NotificationGroupManager.getInstance()
-                .getNotificationGroup("XMake.NotificationGroup")
-                .createNotification("Error with XMake Configuration", e.message ?: "", NotificationType.ERROR)
-                .notify(project)
-        }
+class RunAction : XMakeProjectAction() {
+    override fun execute(project: Project) {
+        launchSelectedXMakeRunConfiguration(project, DefaultRunExecutor.getRunExecutorInstance())
     }
 }

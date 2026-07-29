@@ -16,6 +16,7 @@
  */
 package io.xmake.utils.path
 
+import com.intellij.execution.configurations.RuntimeConfigurationError
 import com.intellij.execution.util.ProgramParametersConfigurator
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.openapi.project.Project
@@ -34,15 +35,15 @@ object WorkingDirectoryResolver {
             .expandPathAndMacros(workingDirectory, null, project)
             ?: workingDirectory
 
-    fun resolve(project: Project, workingDirectory: String, toolkit: Toolkit?): String =
-        when (toolkit?.host?.type) {
+    fun resolve(project: Project, workingDirectory: String, toolkit: Toolkit): String =
+        when (toolkit.host.type) {
             ToolkitHostType.LOCAL -> resolve(project, workingDirectory)
             ToolkitHostType.WSL -> {
-                (toolkit.host.target as? WSLDistribution)?.let { distribution ->
-                    resolveForWsl(project, workingDirectory, distribution)
-                } ?: workingDirectory
+                val distribution = toolkit.host.target as? WSLDistribution
+                    ?: throw RuntimeConfigurationError("XMake WSL toolkit host is not available")
+                resolveForWsl(project, workingDirectory, distribution)
             }
-            ToolkitHostType.SSH, null -> workingDirectory
+            ToolkitHostType.SSH -> workingDirectory
         }
 
     fun resolveForWsl(

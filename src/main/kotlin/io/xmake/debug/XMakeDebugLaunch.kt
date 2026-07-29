@@ -16,7 +16,11 @@
  */
 package io.xmake.debug
 
-/** Resolved inputs passed from XMake preparation to the optional debugger integration. */
+/**
+ * Immutable boundary between cancellable background preparation and the
+ * EDT-owned XDebugger session startup. Every value originates from the same
+ * XMake run configuration captured before preparation begins.
+ */
 data class XMakeDebugLaunch(
     val executablePath: String,
     val driver: DapDriverDetector.DapDriverInfo,
