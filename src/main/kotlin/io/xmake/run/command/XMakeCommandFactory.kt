@@ -84,6 +84,10 @@ internal class XMakeCommandFactory(configuration: XMakeRunConfiguration) {
         flag("-v", verbose)
     }
 
+    fun createUpdateCmakeLists(): XMakeCommand = createCommand {
+        args("project", "-k", "cmake", "-y")
+    }
+
     fun createUpdateCompileCommands(): XMakeCommand = createCommand {
         args("project", "-k", "compile_commands", "--lsp=clangd")
         compileCommandsPath

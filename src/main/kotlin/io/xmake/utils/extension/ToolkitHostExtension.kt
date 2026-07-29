@@ -26,7 +26,6 @@ import io.xmake.project.directory.ui.DirectoryBrowser
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHost
 import io.xmake.utils.execute.SyncDirection
-import kotlinx.coroutines.CoroutineScope
 import java.awt.event.ActionListener
 
 interface ToolkitHostExtension {
@@ -40,13 +39,11 @@ interface ToolkitHostExtension {
 
     fun createToolkit(host: ToolkitHost, path: String, version: String): Toolkit
 
-    fun syncProject(
-        scope: CoroutineScope,
+    suspend fun syncProject(
         project: Project,
         host: ToolkitHost,
         direction: SyncDirection,
         remoteDirectory: String,
-        onComplete: () -> Unit = {},
     )
 
     fun getTargetId(target: Any? = null): String

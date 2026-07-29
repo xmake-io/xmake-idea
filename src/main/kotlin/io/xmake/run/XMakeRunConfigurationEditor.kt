@@ -41,15 +41,15 @@ import com.intellij.ui.dsl.builder.AlignY
 import com.intellij.ui.dsl.builder.RowLayout
 import com.intellij.ui.dsl.builder.panel
 import com.intellij.ui.layout.ComboBoxPredicate
+import com.intellij.platform.ide.progress.withBackgroundProgress
 import io.xmake.project.directory.ui.DirectoryBrowser
 import io.xmake.project.target.TargetManager
 import io.xmake.utils.path.WorkingDirectoryResolver
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ui.ToolkitComboBox
 import io.xmake.project.toolkit.ui.ToolkitListItem
-import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.execute.SyncDirection
-import io.xmake.utils.execute.transferFolderByToolkit
+import io.xmake.utils.execute.transferProjectFiles
 import io.xmake.utils.info.XMakeInfo
 import io.xmake.debug.DapDriverDetector
 import io.xmake.utils.info.XMakeInfoManager
@@ -389,8 +389,6 @@ class XMakeRunConfigurationEditor(
         // apply DAP driver configuration
         configuration.dapDriverAutoDetect = dapDriverAutoDetectCheckBox.isSelected
         configuration.dapDriverPath = dapDriverPathCustomField.text
-
-        project.xmakeConfiguration.changed = true
     }
 
     // create editor
@@ -544,13 +542,14 @@ class XMakeRunConfigurationEditor(
 
                     scope.launch(Dispatchers.IO) {
                         if (toolkit.isOnRemote) {
-                            transferFolderByToolkit(
-                                project,
-                                toolkit,
-                                SyncDirection.UPSTREAM_TO_LOCAL,
-                                workingDirectoryPath,
-                                null
-                            )
+                            withBackgroundProgress(project, "Sync directory", cancellable = true) {
+                                transferProjectFiles(
+                                    project,
+                                    toolkit,
+                                    SyncDirection.UPSTREAM_TO_LOCAL,
+                                    workingDirectoryPath,
+                                )
+                            }
                         }
                     }
                 }

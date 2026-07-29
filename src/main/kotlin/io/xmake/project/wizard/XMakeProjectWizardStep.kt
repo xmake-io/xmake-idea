@@ -42,6 +42,7 @@ import com.intellij.openapi.ui.shortenTextWithEllipsis
 import com.intellij.openapi.ui.validation.*
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.project.stateStore
+import com.intellij.platform.ide.progress.runWithModalProgressBlocking
 import com.intellij.ui.UIBundle
 import com.intellij.ui.dsl.builder.*
 import com.intellij.ui.util.getTextWidth
@@ -59,7 +60,7 @@ import io.xmake.run.XMakeRunConfigurationType
 import io.xmake.utils.execute.SyncDirection
 import io.xmake.utils.execute.createProcess
 import io.xmake.utils.execute.runProcess
-import io.xmake.utils.execute.transferFolderByToolkit
+import io.xmake.utils.execute.transferProjectFiles
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import java.io.File
@@ -234,7 +235,14 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
                     }
 
                     WSL, SSH -> {
-                        transferFolderByToolkit(project, this, SyncDirection.UPSTREAM_TO_LOCAL, workingDirectory, null)
+                        runWithModalProgressBlocking(project, "Sync directory") {
+                            transferProjectFiles(
+                                project,
+                                this@with,
+                                SyncDirection.UPSTREAM_TO_LOCAL,
+                                workingDirectory,
+                            )
+                        }
                     }
                 }
             }

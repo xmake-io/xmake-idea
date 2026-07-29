@@ -20,104 +20,31 @@
  */
 package io.xmake.actions
 
-import com.intellij.execution.process.ProcessEvent
-import com.intellij.execution.ExecutionException
-import com.intellij.execution.process.ProcessListener
-import com.intellij.execution.ui.ConsoleViewContentType
-import com.intellij.notification.NotificationGroupManager
-import com.intellij.notification.NotificationType
-import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.application.runWriteAction
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.vfs.VirtualFileManager
-import io.xmake.project.toolkit.activatedToolkit
 import io.xmake.project.console.XMakeConsole
-import io.xmake.shared.xmakeConfiguration
-import io.xmake.utils.SystemUtils
-import io.xmake.utils.exception.XMakeRunConfigurationNotSetException
+import io.xmake.run.command.XMakeCommandFactory
+import io.xmake.run.command.XMakeConsoleOptions
+import io.xmake.run.command.xmakeExecutionService
 import io.xmake.utils.execute.fetchGeneratedFile
 import io.xmake.utils.execute.syncBeforeFetch
 
-class UpdateCompileCommandsAction : XMakeConsoleAction() {
-    override fun execute(project: Project, console: XMakeConsole) {
-
-        // clear console first
-        console.clear()
-
-        try {
-            // configure and build it
-            val xmakeConfiguration = project.xmakeConfiguration
-            val updateCompileCommands = update@{
-                if (project.isDisposed) return@update
-                val toolkit = project.activatedToolkit
-
-                val launchUpdate = launch@{
-                    if (project.isDisposed) return@launch
-
-                    SystemUtils.runvInConsole(
-                        project,
-                        console,
-                        xmakeConfiguration.updateCompileCommandsLine,
-                        false,
-                        true,
-                        true
-                    )?.addProcessListener(
-                        object : ProcessListener {
-                            override fun processTerminated(event: ProcessEvent) {
-                                if (project.isDisposed || event.exitCode != 0) return
-
-                                if (toolkit != null) {
-                                    fetchGeneratedFile(project, toolkit, "compile_commands.json")
-                                } else {
-                                    ApplicationManager.getApplication().invokeLater {
-                                        if (project.isDisposed) return@invokeLater
-                                        runWriteAction {
-                                            VirtualFileManager.getInstance().syncRefresh()
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    )
-                }
-
-                if (toolkit != null) {
-                    syncBeforeFetch(project, toolkit) { launchUpdate() }
-                } else {
-                    launchUpdate()
-                }
-            }
-
-            if (xmakeConfiguration.changed) {
-                SystemUtils.runvInConsole(project, console, xmakeConfiguration.configurationCommandLine)
-                    ?.addProcessListener(object : ProcessListener {
-                        override fun processTerminated(event: ProcessEvent) {
-                            if (project.isDisposed || event.exitCode != 0) return
-                            xmakeConfiguration.changed = false
-                            updateCompileCommands()
-                        }
-                    })
-            } else {
-                updateCompileCommands()
-            }
-        } catch (e: XMakeRunConfigurationNotSetException) {
-            console.print(
-                "Please select a xmake run configuration first!\n",
-                ConsoleViewContentType.ERROR_OUTPUT
-            )
-            NotificationGroupManager.getInstance()
-                .getNotificationGroup("XMake.NotificationGroup")
-                .createNotification("Error with XMake Configuration", e.message ?: "", NotificationType.ERROR)
-                .notify(project)
-        } catch (e: ExecutionException) {
-            console.print(
-                "An error occurred during update: ${e.message}\n",
-                ConsoleViewContentType.ERROR_OUTPUT
-            )
-            NotificationGroupManager.getInstance()
-                .getNotificationGroup("XMake.NotificationGroup")
-                .createNotification("Error with XMake Update", e.message ?: "", NotificationType.ERROR)
-                .notify(project)
-        }
+class UpdateCompileCommandsAction : XMakeCommandAction() {
+    override suspend fun execute(
+        project: Project,
+        console: XMakeConsole,
+        commands: XMakeCommandFactory,
+    ) {
+        val execution = project.xmakeExecutionService
+        val updateCommand = commands.createUpdateCompileCommands()
+        val toolkit = updateCommand.toolkit
+        val workingDirectory = updateCommand.workingDirectory
+        syncBeforeFetch(project, toolkit, workingDirectory)
+        execution.execute(console, commands.createConfigure())
+        execution.execute(
+            console,
+            updateCommand,
+            XMakeConsoleOptions(showConsole = false, showProblems = true, showExitCode = true),
+        )
+        fetchGeneratedFile(project, toolkit, workingDirectory, "compile_commands.json")
     }
 }

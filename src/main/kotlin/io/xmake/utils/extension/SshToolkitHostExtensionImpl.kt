@@ -21,14 +21,9 @@
 package io.xmake.utils.extension
 
 import com.intellij.execution.configurations.GeneralCommandLine
-import com.intellij.openapi.application.EDT
-import com.intellij.openapi.application.runWriteAction
 import com.intellij.openapi.diagnostic.logger
-import com.intellij.openapi.progress.ProgressIndicator
-import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.guessProjectDir
-import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.ssh.*
 import com.intellij.ssh.config.unified.SshConfig
 import com.intellij.ssh.config.unified.SshConfigManager
@@ -72,86 +67,69 @@ class SshToolkitHostExtensionImpl : ToolkitHostExtension {
         return Toolkit(name, host, path, version)
     }
 
-    override fun syncProject(
-        scope: CoroutineScope,
+    override suspend fun syncProject(
         project: Project,
         host: ToolkitHost,
         direction: SyncDirection,
         remoteDirectory: String,
-        onComplete: () -> Unit,
     ) {
         val sshConfig = (host.target as? SshConfig) ?: throw IllegalArgumentException()
+        val projectDirectory = project.guessProjectDir()?.path
+            ?: project.basePath
+            ?: throw IllegalStateException("Cannot resolve project directory")
+        val projectDirectoryFile = File(projectDirectory)
+        val builder = ConnectionBuilder(sshConfig.host)
+            .withSshPasswordProvider(PlatformSshPasswordProvider(sshConfig.copyToCredentials()))
+        val cancellationContext = currentCoroutineContext()
+        val sftpChannel = runInterruptible(Dispatchers.IO) {
+            builder.openFailSafeSftpChannel()
+        }
 
-        object : Task.Backgroundable(project, "Sync directory", true) {
-            override fun run(indicator: ProgressIndicator) {
-                val projectDirectory = project.guessProjectDir()?.path
-                    ?: project.basePath
-                    ?: throw IllegalStateException("Cannot resolve project directory")
-                val projectDirectoryFile = File(projectDirectory)
-                val builder = ConnectionBuilder(sshConfig.host)
-                    .withSshPasswordProvider(PlatformSshPasswordProvider(sshConfig.copyToCredentials()))
-
-                runBlocking(scope.coroutineContext) {
-                    val sftpChannel = builder.openFailSafeSftpChannel()
-                    try {
-                        when (direction) {
-                            SyncDirection.LOCAL_TO_UPSTREAM -> {
-                                try {
-                                    sftpChannel.rmRecur(remoteDirectory)
-                                } catch (e: SftpChannelNoSuchFileException) {
-                                    Log.debug("Remote sync directory does not exist yet: $remoteDirectory", e)
-                                }
-
-                                sftpChannel.uploadFileOrDir(
-                                    projectDirectoryFile,
-                                    remoteDir = remoteDirectory,
-                                    relativePath = "/",
-                                    progressTracker = object : SftpProgressTracker {
-                                        override val isCanceled: Boolean
-                                            get() = indicator.isCanceled
-
-                                        override fun onBytesTransferred(count: Long) {}
-
-                                        override fun onFileCopied(file: File) {}
-                                    },
-                                    filesFilter = { file ->
-                                        mutableListOf(".xmake", ".idea", "build", ".gitignore")
-                                            .all {
-                                                !file.startsWith(
-                                                    Path(projectDirectory, it).toFile()
-                                                )
-                                            }
-                                    },
-                                    persistExecutableBit = true,
-                                )
-                            }
-
-                            SyncDirection.UPSTREAM_TO_LOCAL -> {
-                                sftpChannel.downloadFileOrDir(remoteDirectory, projectDirectory)
-                            }
+        try {
+            runInterruptible(Dispatchers.IO) {
+                cancellationContext.ensureActive()
+                when (direction) {
+                    SyncDirection.LOCAL_TO_UPSTREAM -> {
+                        try {
+                            sftpChannel.rmRecur(remoteDirectory)
+                        } catch (error: SftpChannelNoSuchFileException) {
+                            Log.debug("Remote sync directory does not exist yet: $remoteDirectory", error)
                         }
-                    } finally {
-                        sftpChannel.close()
+
+                        sftpChannel.uploadFileOrDir(
+                            projectDirectoryFile,
+                            remoteDir = remoteDirectory,
+                            relativePath = "/",
+                            progressTracker = object : SftpProgressTracker {
+                                override val isCanceled: Boolean
+                                    get() = !cancellationContext.isActive
+
+                                override fun onBytesTransferred(count: Long) {}
+
+                                override fun onFileCopied(file: File) {}
+                            },
+                            filesFilter = { file ->
+                                listOf(".xmake", ".idea", "build", ".gitignore")
+                                    .all {
+                                        !file.startsWith(
+                                            Path(projectDirectory, it).toFile()
+                                        )
+                                    }
+                            },
+                            persistExecutableBit = true,
+                        )
                     }
 
-                    withContext(Dispatchers.EDT) {
-                        runWriteAction {
-                            VirtualFileManager.getInstance().syncRefresh()
-                        }
+                    SyncDirection.UPSTREAM_TO_LOCAL -> {
+                        sftpChannel.downloadFileOrDir(remoteDirectory, projectDirectory)
                     }
                 }
             }
-
-            override fun onSuccess() {
-                if (!project.isDisposed) {
-                    onComplete()
-                }
+        } finally {
+            withContext(NonCancellable + Dispatchers.IO) {
+                sftpChannel.close()
             }
-
-            override fun onThrowable(error: Throwable) {
-                Log.warn("Failed to sync SSH files", error)
-            }
-        }.queue()
+        }
     }
 
     override suspend fun ToolkitHost.loadTargetX(project: Project?) = coroutineScope {

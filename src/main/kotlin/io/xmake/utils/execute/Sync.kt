@@ -20,26 +20,27 @@
  */
 package io.xmake.utils.execute
 
-import com.intellij.execution.RunManager
 import com.intellij.execution.wsl.WSLDistribution
-import com.intellij.openapi.application.invokeLater
+import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.runWriteAction
-import com.intellij.openapi.diagnostic.fileLogger
 import com.intellij.openapi.extensions.ExtensionPointName
 import com.intellij.openapi.progress.ProcessCanceledException
-import com.intellij.openapi.progress.ProgressIndicator
-import com.intellij.openapi.progress.Task
+import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.guessProjectDir
 import com.intellij.openapi.util.io.toCanonicalPath
 import com.intellij.openapi.vfs.VirtualFileManager
+import com.intellij.platform.ide.progress.withBackgroundProgress
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHost
 import io.xmake.project.toolkit.ToolkitHostType
-import io.xmake.run.XMakeRunConfiguration
 import io.xmake.utils.extension.ToolkitHostExtension
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.runInterruptible
+import kotlinx.coroutines.withContext
 import java.nio.file.FileVisitResult
 import java.nio.file.Files
 import java.nio.file.NoSuchFileException
@@ -50,66 +51,32 @@ import java.nio.file.SimpleFileVisitor
 import java.nio.file.attribute.BasicFileAttributes
 import kotlin.io.path.Path
 
-private val Log = fileLogger()
-
 private val EP_NAME: ExtensionPointName<ToolkitHostExtension> = ExtensionPointName("io.xmake.toolkitHostExtension")
-
-enum class SyncMode {
-    SYNC_ONLY,
-    FORCE_SYNC,
-}
-
-enum class SyncStatus {
-    SUCCESS,
-    FAILED,
-}
 
 enum class SyncDirection { LOCAL_TO_UPSTREAM, UPSTREAM_TO_LOCAL }
 
-fun SyncDirection.toBoolean(): Boolean = when (this) {
-    SyncDirection.LOCAL_TO_UPSTREAM -> false
-    SyncDirection.UPSTREAM_TO_LOCAL -> true
-}
-
-fun syncProjectByWslSync(
+private suspend fun transferWslFolder(
     project: Project,
     host: ToolkitHost,
     direction: SyncDirection,
     directoryPath: String,
     relativePath: String? = null,
-    onComplete: () -> Unit = {},
 ) {
     val wslDistribution = host.target as? WSLDistribution ?: throw IllegalArgumentException()
+    val cancellationContext = currentCoroutineContext()
+    runInterruptible(Dispatchers.IO) {
+        val localRoot = project.guessProjectDir()?.toNioPath()
+            ?: project.basePath?.let { Path(it) }
+            ?: throw IllegalStateException("Cannot resolve project directory")
+        val upstreamRoot = Path(wslDistribution.toWindowsPath(directoryPath))
+        val syncPaths = resolveSyncPaths(localRoot, upstreamRoot, relativePath)
+        val checkCanceled = { cancellationContext.ensureActive() }
 
-    object : Task.Backgroundable(project, "Sync directory", true) {
-        override fun run(indicator: ProgressIndicator) {
-            indicator.isIndeterminate = true
-            indicator.text = "Syncing WSL files"
-
-            val localRoot = project.guessProjectDir()?.toNioPath()
-                ?: project.basePath?.let { Path(it) }
-                ?: throw IllegalStateException("Cannot resolve project directory")
-            val upstreamRoot = Path(wslDistribution.toWindowsPath(directoryPath))
-            val syncPaths = resolveSyncPaths(localRoot, upstreamRoot, relativePath)
-
-            runSyncWithVfsRefresh(syncAction = {
-                when (direction) {
-                    SyncDirection.LOCAL_TO_UPSTREAM -> copyPath(syncPaths.local, syncPaths.upstream, indicator)
-                    SyncDirection.UPSTREAM_TO_LOCAL -> copyPath(syncPaths.upstream, syncPaths.local, indicator)
-                }
-            })
+        when (direction) {
+            SyncDirection.LOCAL_TO_UPSTREAM -> copyPath(syncPaths.local, syncPaths.upstream, checkCanceled)
+            SyncDirection.UPSTREAM_TO_LOCAL -> copyPath(syncPaths.upstream, syncPaths.local, checkCanceled)
         }
-
-        override fun onSuccess() {
-            if (!project.isDisposed) {
-                onComplete()
-            }
-        }
-
-        override fun onThrowable(error: Throwable) {
-            Log.warn("Failed to sync WSL files", error)
-        }
-    }.queue()
+    }
 }
 
 private fun WSLDistribution.toWindowsPath(path: String): String {
@@ -143,27 +110,16 @@ internal fun resolveSyncPaths(
     return SyncPaths(local, upstream)
 }
 
-internal fun runSyncWithVfsRefresh(
-    syncAction: () -> Unit,
-    refreshAction: () -> Unit = ::refreshVirtualFileSystem,
-) {
-    try {
-        syncAction()
-    } finally {
-        refreshAction()
-    }
-}
-
-private fun refreshVirtualFileSystem() {
-    invokeLater {
+private suspend fun refreshVirtualFileSystem() {
+    withContext(NonCancellable + Dispatchers.EDT) {
         runWriteAction {
             VirtualFileManager.getInstance().syncRefresh()
         }
     }
 }
 
-internal fun copyPath(source: NioPath, target: NioPath, indicator: ProgressIndicator) {
-    throwIfCanceled(indicator)
+internal fun copyPath(source: NioPath, target: NioPath, checkCanceled: () -> Unit) {
+    checkCanceled()
 
     val sourcePath = source.toAbsolutePath().normalize()
     if (!Files.exists(sourcePath)) {
@@ -181,9 +137,9 @@ internal fun copyPath(source: NioPath, target: NioPath, indicator: ProgressIndic
     }
 
     if (Files.isDirectory(resolvedSource)) {
-        copyDirectoryContents(resolvedSource, targetPath, indicator)
+        copyDirectoryContents(resolvedSource, targetPath, checkCanceled)
     } else {
-        copyFile(resolvedSource, targetPath, indicator)
+        copyFile(resolvedSource, targetPath)
     }
 }
 
@@ -202,36 +158,30 @@ private fun NioPath.toResolvedPath(): NioPath {
     return resolvedPath.normalize()
 }
 
-private fun copyDirectoryContents(sourceRoot: NioPath, targetRoot: NioPath, indicator: ProgressIndicator) {
+private fun copyDirectoryContents(sourceRoot: NioPath, targetRoot: NioPath, checkCanceled: () -> Unit) {
     Files.createDirectories(targetRoot)
     Files.walkFileTree(sourceRoot, object : SimpleFileVisitor<NioPath>() {
         override fun preVisitDirectory(
             dir: NioPath,
             attrs: BasicFileAttributes,
         ): FileVisitResult {
-            throwIfCanceled(indicator)
+            checkCanceled()
             val target = targetRoot.resolve(sourceRoot.relativize(dir).toString())
             Files.createDirectories(target)
             return FileVisitResult.CONTINUE
         }
 
         override fun visitFile(file: NioPath, attrs: BasicFileAttributes): FileVisitResult {
-            throwIfCanceled(indicator)
+            checkCanceled()
             val target = targetRoot.resolve(sourceRoot.relativize(file).toString())
-            copyFile(file, target, indicator)
+            copyFile(file, target)
             return FileVisitResult.CONTINUE
         }
     })
 }
 
-private fun throwIfCanceled(indicator: ProgressIndicator) {
-    if (indicator.isCanceled) {
-        throw ProcessCanceledException()
-    }
-}
-
-private fun copyFile(source: NioPath, target: NioPath, indicator: ProgressIndicator) {
-    indicator.text2 = source.fileName?.toString() ?: source.toString()
+private fun copyFile(source: NioPath, target: NioPath) {
+    ProgressManager.progress2(source.fileName?.toString() ?: source.toString())
     target.parent?.let { Files.createDirectories(it) }
 
     try {
@@ -241,54 +191,73 @@ private fun copyFile(source: NioPath, target: NioPath, indicator: ProgressIndica
     }
 }
 
-private val scope = CoroutineScope(Dispatchers.IO)
-
-fun transferFolderByToolkit(
+suspend fun transferProjectFiles(
     project: Project,
     toolkit: Toolkit,
     direction: SyncDirection,
-    directoryPath: String = (RunManager.getInstance(project).selectedConfiguration?.configuration as XMakeRunConfiguration).resolvedWorkingDirectory,
+    directoryPath: String,
     relativePath: String? = null,
-    onComplete: () -> Unit = {},
 ) {
-    if (project.isDisposed) return
+    if (project.isDisposed) {
+        throw ProcessCanceledException()
+    }
+    require(directoryPath.isNotBlank()) { "Sync directory must be explicit" }
 
-    when (toolkit.host.type) {
-        ToolkitHostType.LOCAL -> {
-            refreshVirtualFileSystem()
-            if (!project.isDisposed) {
-                onComplete()
-            }
-        }
-        ToolkitHostType.WSL -> {
-            syncProjectByWslSync(
+    if (toolkit.host.type == ToolkitHostType.LOCAL) {
+        refreshVirtualFileSystem()
+        return
+    }
+
+    try {
+        when (toolkit.host.type) {
+            ToolkitHostType.LOCAL -> Unit
+            ToolkitHostType.WSL -> transferWslFolder(
                 project,
                 toolkit.host,
                 direction,
                 directoryPath,
                 relativePath,
-                onComplete,
             )
+            ToolkitHostType.SSH -> {
+                val path = resolveSshSyncPath(directoryPath, relativePath)
+                EP_NAME.extensions.first { it.KEY == "SSH" }
+                    .syncProject(project, toolkit.host, direction, path)
+            }
         }
-        ToolkitHostType.SSH -> {
-            val path = relativePath?.let { Path(directoryPath).resolve(relativePath).toCanonicalPath() }
-                ?: directoryPath
-            EP_NAME.extensions.first { it.KEY == "SSH" }
-                .syncProject(scope, project, toolkit.host, direction, path, onComplete)
-        }
+    } finally {
+        refreshVirtualFileSystem()
     }
 }
 
-fun syncBeforeFetch(project: Project, toolkit: Toolkit, onComplete: () -> Unit = {}) {
-    transferFolderByToolkit(
-        project,
-        toolkit,
-        SyncDirection.LOCAL_TO_UPSTREAM,
-        relativePath = null,
-        onComplete = onComplete,
-    )
+internal fun resolveSshSyncPath(directoryPath: String, relativePath: String?): String {
+    require(directoryPath.isNotBlank()) { "Sync directory must be explicit" }
+    return relativePath?.let { Path(directoryPath).resolve(it).toCanonicalPath() } ?: directoryPath
 }
 
-fun fetchGeneratedFile(project: Project, toolkit: Toolkit, fileRelatedPath: String) {
-    transferFolderByToolkit(project, toolkit, SyncDirection.UPSTREAM_TO_LOCAL, relativePath = fileRelatedPath)
+suspend fun syncBeforeFetch(project: Project, toolkit: Toolkit, directoryPath: String) {
+    withBackgroundProgress(project, "Sync directory", cancellable = true) {
+        transferProjectFiles(
+            project,
+            toolkit,
+            SyncDirection.LOCAL_TO_UPSTREAM,
+            directoryPath,
+        )
+    }
+}
+
+suspend fun fetchGeneratedFile(
+    project: Project,
+    toolkit: Toolkit,
+    directoryPath: String,
+    fileRelatedPath: String,
+) {
+    withBackgroundProgress(project, "Sync directory", cancellable = true) {
+        transferProjectFiles(
+            project,
+            toolkit,
+            SyncDirection.UPSTREAM_TO_LOCAL,
+            directoryPath,
+            fileRelatedPath,
+        )
+    }
 }

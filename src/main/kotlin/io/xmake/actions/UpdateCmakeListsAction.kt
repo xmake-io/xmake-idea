@@ -20,75 +20,31 @@
  */
 package io.xmake.actions
 
-import com.intellij.execution.process.ProcessEvent
-import com.intellij.execution.process.ProcessListener
-import com.intellij.execution.ui.ConsoleViewContentType
-import com.intellij.notification.NotificationGroupManager
-import com.intellij.notification.NotificationType
 import com.intellij.openapi.project.Project
-import io.xmake.project.toolkit.activatedToolkit
 import io.xmake.project.console.XMakeConsole
-import io.xmake.shared.xmakeConfiguration
-import io.xmake.utils.SystemUtils
-import io.xmake.utils.exception.XMakeRunConfigurationNotSetException
+import io.xmake.run.command.XMakeCommandFactory
+import io.xmake.run.command.XMakeConsoleOptions
+import io.xmake.run.command.xmakeExecutionService
 import io.xmake.utils.execute.fetchGeneratedFile
 import io.xmake.utils.execute.syncBeforeFetch
 
-class UpdateCmakeListsAction : XMakeConsoleAction() {
-    override fun execute(project: Project, console: XMakeConsole) {
-
-        // clear console first
-        console.clear()
-
-        try {
-            // configure and build it
-            val xmakeConfiguration = project.xmakeConfiguration
-            val updateCmakeLists = update@{
-                if (project.isDisposed) return@update
-                val toolkit = project.activatedToolkit ?: return@update
-
-                syncBeforeFetch(project, toolkit) sync@{
-                    if (project.isDisposed) return@sync
-
-                    SystemUtils.runvInConsole(
-                        project,
-                        console,
-                        xmakeConfiguration.updateCmakeListsCommandLine,
-                        false,
-                        true,
-                        true
-                    )?.addProcessListener(
-                        object : ProcessListener {
-                            override fun processTerminated(event: ProcessEvent) {
-                                if (project.isDisposed || event.exitCode != 0) return
-                                fetchGeneratedFile(project, toolkit, "CMakeLists.txt")
-                            }
-                        }
-                    )
-                }
-            }
-
-            if (xmakeConfiguration.changed) {
-                SystemUtils.runvInConsole(project, console, xmakeConfiguration.configurationCommandLine)
-                    ?.addProcessListener(object : ProcessListener {
-                        override fun processTerminated(event: ProcessEvent) {
-                            if (project.isDisposed || event.exitCode != 0) return
-                            xmakeConfiguration.changed = false
-                            updateCmakeLists()
-                        }
-                    })
-            } else {
-                updateCmakeLists()
-            }
-        } catch (e: XMakeRunConfigurationNotSetException) {
-            console.print(
-                "Please select a xmake run configuration first!\n",
-                ConsoleViewContentType.ERROR_OUTPUT
-            )
-            NotificationGroupManager.getInstance()
-                .getNotificationGroup("XMake.NotificationGroup")
-                .createNotification("Error with XMake Configuration", e.message ?: "", NotificationType.ERROR)
-                .notify(project)
-        }
+class UpdateCmakeListsAction : XMakeCommandAction() {
+    override suspend fun execute(
+        project: Project,
+        console: XMakeConsole,
+        commands: XMakeCommandFactory,
+    ) {
+        val execution = project.xmakeExecutionService
+        val updateCommand = commands.createUpdateCmakeLists()
+        val toolkit = updateCommand.toolkit
+        val workingDirectory = updateCommand.workingDirectory
+        syncBeforeFetch(project, toolkit, workingDirectory)
+        execution.execute(console, commands.createConfigure())
+        execution.execute(
+            console,
+            updateCommand,
+            XMakeConsoleOptions(showConsole = false, showProblems = true, showExitCode = true),
+        )
+        fetchGeneratedFile(project, toolkit, workingDirectory, "CMakeLists.txt")
     }
 }
