@@ -26,6 +26,7 @@ import com.intellij.execution.process.ProcessListener
 import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
+import com.intellij.openapi.actionSystem.AnActionEvent
 import io.xmake.project.console.XMakeConsole
 import io.xmake.shared.xmakeConfiguration
 import io.xmake.utils.SystemUtils
@@ -34,6 +35,15 @@ import com.intellij.openapi.project.Project
 import io.xmake.project.xmakeSettings
 
 class BuildAction : XMakeConsoleAction() {
+
+    override fun update(e: AnActionEvent) {
+        super.update(e)
+        if (!e.presentation.isEnabledAndVisible) return
+        val project = e.project ?: return
+        if (SystemUtils.isXMakeExecutableConfigSelected(project)) {
+            e.presentation.isEnabledAndVisible = false
+        }
+    }
 
     override fun execute(project: Project, console: XMakeConsole) {
         // clear console first

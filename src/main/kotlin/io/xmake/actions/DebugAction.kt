@@ -17,7 +17,13 @@ class DebugAction : XMakeProjectAction() {
         super.update(e)
         if (!e.presentation.isEnabledAndVisible) return
 
-        if (e.project == null) return
+        val project = e.project ?: return
+
+        // Hide when a native "Xmake Executable" config is selected; CLion drives that build/run/debug natively.
+        if (SystemUtils.isXMakeExecutableConfigSelected(project)) {
+            e.presentation.isEnabledAndVisible = false
+            return
+        }
 
         // Disable if native debug is not available (grayed out)
         if (!SystemUtils.isNativeDebugAvailable()) {
