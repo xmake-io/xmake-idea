@@ -8,7 +8,6 @@ import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.project.Project
 import io.xmake.run.XMakeRunConfiguration
-import io.xmake.run.XMakeRunner
 import io.xmake.utils.SystemUtils
 
 class DebugAction : XMakeProjectAction() {

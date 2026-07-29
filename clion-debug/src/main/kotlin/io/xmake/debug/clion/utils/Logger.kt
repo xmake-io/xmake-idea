@@ -28,7 +28,7 @@ import java.time.format.DateTimeFormatter
  */
 object Logger {
 
-    private const val DEFAULT_TAG = "ClionDebugModule"
+    private const val DEFAULT_TAG = "ClionDebugSupport"
 
     // Log levels
     enum class LogLevel {

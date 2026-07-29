@@ -28,7 +28,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.application.ApplicationManager
-import io.xmake.debug.DebugModuleLoader
+import io.xmake.debug.XMakeDebugSupport
 import io.xmake.project.console.XMakeConsole
 import io.xmake.project.toolkit.activatedToolkit
 import io.xmake.shared.XMakeProblem
@@ -184,7 +184,7 @@ object SystemUtils {
      * Check if native debug functionality is available
      */
     fun isNativeDebugAvailable(): Boolean {
-        return DebugModuleLoader.loadDebugModuleIfNeeded()
+        return XMakeDebugSupport.isAvailable()
     }
 }
 
