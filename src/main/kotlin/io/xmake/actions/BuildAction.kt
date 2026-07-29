@@ -21,32 +21,25 @@
 package io.xmake.actions
 
 import com.intellij.openapi.project.Project
-import io.xmake.project.console.XMakeConsole
+import io.xmake.build.XMakeBuildTask
 import io.xmake.project.xmakeSettings
+import io.xmake.run.XMakeRunConfiguration
 import io.xmake.run.command.XMakeCommandFactory
-import io.xmake.run.command.XMakeConsoleOptions
-import io.xmake.run.command.xmakeExecutionService
 
-class BuildAction : XMakeCommandAction() {
+class BuildAction : XMakeBuildAction() {
 
-    override suspend fun execute(
+    override fun createTask(
         project: Project,
-        console: XMakeConsole,
+        configuration: XMakeRunConfiguration,
         commands: XMakeCommandFactory,
-    ) {
-        val execution = project.xmakeExecutionService
-        execution.execute(console, commands.createConfigure())
-        execution.execute(
-            console,
-            commands.createBuild(),
-            XMakeConsoleOptions(showProblems = true, showExitCode = true),
-        )
-        if (project.xmakeSettings.state.autoUpdateCompileCommands) {
-            execution.execute(
-                console,
-                commands.createUpdateCompileCommands(),
-                XMakeConsoleOptions(showConsole = false, showProblems = true, showExitCode = true),
-            )
-        }
-    }
+    ): XMakeBuildTask = XMakeBuildTask(
+        presentableName = "Build '${configuration.name}'",
+        commands = buildList {
+            add(commands.createConfigure())
+            add(commands.createBuild())
+            if (project.xmakeSettings.state.autoUpdateCompileCommands) {
+                add(commands.createUpdateCompileCommands())
+            }
+        },
+    )
 }

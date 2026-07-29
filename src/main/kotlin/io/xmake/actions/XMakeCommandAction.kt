@@ -16,7 +16,6 @@
  */
 package io.xmake.actions
 
-import com.intellij.execution.RunManager
 import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
@@ -25,7 +24,6 @@ import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
 import io.xmake.project.console.XMakeConsole
 import io.xmake.project.console.xmakeConsoleService
-import io.xmake.run.XMakeRunConfiguration
 import io.xmake.run.command.XMakeCommandFactory
 import io.xmake.run.command.xmakeExecutionService
 import kotlinx.coroutines.Dispatchers
@@ -35,9 +33,7 @@ import java.util.concurrent.CancellationException
 abstract class XMakeCommandAction : XMakeProjectAction() {
 
     final override fun execute(project: Project) {
-        val configuration = RunManager.getInstance(project)
-            .selectedConfiguration
-            ?.configuration as? XMakeRunConfiguration
+        val configuration = project.selectedXMakeRunConfiguration
         val commandsResult = configuration?.let { runCatching { XMakeCommandFactory(it) } }
         FileDocumentManager.getInstance().saveAllDocuments()
 

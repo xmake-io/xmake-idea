@@ -21,24 +21,18 @@
 package io.xmake.actions
 
 import com.intellij.openapi.project.Project
-import io.xmake.project.console.XMakeConsole
+import io.xmake.build.XMakeBuildTask
+import io.xmake.run.XMakeRunConfiguration
 import io.xmake.run.command.XMakeCommandFactory
-import io.xmake.run.command.XMakeConsoleOptions
-import io.xmake.run.command.xmakeExecutionService
 
-class CleanAction : XMakeCommandAction() {
+class CleanAction : XMakeBuildAction() {
 
-    override suspend fun execute(
+    override fun createTask(
         project: Project,
-        console: XMakeConsole,
+        configuration: XMakeRunConfiguration,
         commands: XMakeCommandFactory,
-    ) {
-        val execution = project.xmakeExecutionService
-        execution.execute(console, commands.createConfigure())
-        execution.execute(
-            console,
-            commands.createClean(),
-            XMakeConsoleOptions(showExitCode = true),
-        )
-    }
+    ): XMakeBuildTask = XMakeBuildTask(
+        presentableName = "Clean '${configuration.name}'",
+        commands = listOf(commands.createConfigure(), commands.createClean()),
+    )
 }
