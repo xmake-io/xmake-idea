@@ -55,7 +55,7 @@ object SystemUtils {
     }
 
     // parse problems for the given line
-    fun parseProblem(info: String): XMakeProblem? {
+    fun parseProblem(info: String, workingDirectory: Path? = null): XMakeProblem? {
 
         if (SystemInfo.isWindows) {
 
@@ -70,7 +70,7 @@ object SystemUtils {
                 val line = matcher.group(2)
                 val kind = matcher.group(3)
                 val message = matcher.group(4)
-                return XMakeProblem(file, line, "0", kind, message)
+                return XMakeProblem(file, line, "0", kind, message, workingDirectory)
             }
 
         } else {
@@ -84,7 +84,7 @@ object SystemUtils {
                 val column = matcher.group(4)
                 val kind = matcher.group(5)
                 val message = matcher.group(6)
-                return XMakeProblem(file, line, column, kind, message)
+                return XMakeProblem(file, line, column, kind, message, workingDirectory)
             }
         }
         return null

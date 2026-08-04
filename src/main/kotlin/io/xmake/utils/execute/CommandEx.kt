@@ -135,7 +135,7 @@ fun runProcessWithHandler(
             override fun processTerminated(e: ProcessEvent) {
                 val problems = mutableListOf<XMakeProblem>()
                 content.split(Regex("\\r\\n|\\n|\\r")).forEach {
-                    val problem = parseProblem(it.trim())
+                    val problem = parseProblem(it.trim(), command.workDirectory?.toPath())
                     if (problem !== null) {
                         problems.add(problem)
                     }
