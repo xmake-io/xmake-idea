@@ -15,8 +15,12 @@ kotlin {
 }
 
 dependencies {
+    compileOnly(project(":"))
+
     intellijPlatform {
         clion(providers.gradleProperty("runIdeVersion"))
+        bundledModule("intellij.platform.dap")
+        bundledModule("intellij.cidr.debugger.core")
         bundledPlugin("com.intellij.nativeDebug")
     }
 }

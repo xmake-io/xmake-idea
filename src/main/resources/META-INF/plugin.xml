@@ -5,6 +5,7 @@
     <vendor email="waruqi@gmail.com" url="https://xmake.io">xmake.io</vendor>
 
     <extensionPoints>
+        <extensionPoint name="debugSupport" interface="io.xmake.debug.XMakeDebugSupport"/>
         <extensionPoint name="toolkitHostExtension" interface="io.xmake.utils.extension.ToolkitHostExtension"
                         dynamic="true"/>
     </extensionPoints>

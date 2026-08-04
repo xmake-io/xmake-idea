@@ -67,7 +67,7 @@ open class XMakeRunner : XMakeDefaultRunner() {
         val promise = AsyncPromise<RunContentDescriptor?>()
         environment.project.xmakeConsoleService.whenReady(onUnavailable = { promise.setError(it) }) { console ->
             try {
-                promise.setResult(executeDebug(state, environment, console))
+                promise.setResult(executeDebug(environment, console))
             } catch (e: Exception) {
                 promise.setError(e)
             }
@@ -76,7 +76,6 @@ open class XMakeRunner : XMakeDefaultRunner() {
     }
 
     private fun executeDebug(
-        state: RunProfileState,
         environment: ExecutionEnvironment,
         console: XMakeConsole
     ): RunContentDescriptor? {
@@ -90,7 +89,7 @@ open class XMakeRunner : XMakeDefaultRunner() {
             Logger.w(TAG, "Debug functionality is not available in this IDE. Please use CLion for C/C++ debugging.")
             return null
         }
-        return XMakeDebugSession(state, environment, console).startDebugSession()
+        return XMakeDebugSession(environment, console).startDebugSession()
     }
     
     companion object {

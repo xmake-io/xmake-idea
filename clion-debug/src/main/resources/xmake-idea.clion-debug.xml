@@ -1,6 +1,16 @@
 <idea-plugin>
     <dependencies>
+        <module name="intellij.platform.dap"/>
+        <module name="intellij.cidr.debugger.core"/>
         <plugin id="com.intellij.modules.clion"/>
         <plugin id="com.intellij.nativeDebug"/>
     </dependencies>
+
+    <extensions defaultExtensionNs="io.xmake">
+        <debugSupport implementation="io.xmake.debug.clion.ClionDebugSupport"/>
+    </extensions>
+
+    <extensions defaultExtensionNs="com.intellij.platform.dap">
+        <debugAdapterSupportProvider implementation="io.xmake.debug.clion.dap.XMakeDebugAdapterProvider"/>
+    </extensions>
 </idea-plugin>
