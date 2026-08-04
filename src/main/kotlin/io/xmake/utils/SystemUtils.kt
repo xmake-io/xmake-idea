@@ -55,41 +55,90 @@ object SystemUtils {
     }
 
     // parse problems for the given line
-    fun parseProblem(info: String): XMakeProblem? {
-
-        if (SystemInfo.isWindows) {
-
-            // gbk => utf8
-            val info_utf8 = String(info.toByteArray(), charset("UTF-8"))
-
-            // parse problem info
-            val pattern = Pattern.compile("(.*?)\\(([0-9]*)\\): (.*?) .*?: (.*)")
-            val matcher = pattern.matcher(info_utf8)
-            if (matcher.find()) {
-                val file = matcher.group(1)
-                val line = matcher.group(2)
-                val kind = matcher.group(3)
-                val message = matcher.group(4)
-                return XMakeProblem(file, line, "0", kind, message)
-            }
-
-        } else {
-
-            // parse problem info
-            val pattern = Pattern.compile("^(error: )?(.*?):([0-9]*):([0-9]*): (.*?): (.*)\$")
-            val matcher = pattern.matcher(info)
-            if (matcher.find()) {
-                val file = matcher.group(2)
-                val line = matcher.group(3)
-                val column = matcher.group(4)
-                val kind = matcher.group(5)
-                val message = matcher.group(6)
-                return XMakeProblem(file, line, column, kind, message)
-            }
-        }
-        return null
+    fun parseProblem(info: String, workingDirectory: Path? = null): XMakeProblem? {
+        // xmake diagnostics follow one of the common compiler formats below, on any host OS
+        parseGccStyleProblem(info, workingDirectory)?.let { return it }
+        parseMsvcFamilyProblem(info, workingDirectory)?.let { return it }
+        parseArmCcStyleProblem(info, workingDirectory)?.let { return it }
+        parseIarProblem(info, workingDirectory)?.let { return it }
+        return parseLineOnlyProblem(info, workingDirectory)
     }
 
+    private fun parseGccStyleProblem(info: String, workingDirectory: Path?): XMakeProblem? {
+        val pattern = Pattern.compile("^(error: )?(.*?):([0-9]*):([0-9]*): (.*?): (.*)$")
+        val matcher = pattern.matcher(info)
+        if (!matcher.find()) return null
+        return XMakeProblem(
+            file = matcher.group(2),
+            line = matcher.group(3),
+            column = matcher.group(4),
+            kind = matcher.group(5),
+            message = matcher.group(6),
+            workingDirectory = workingDirectory,
+        )
+    }
+
+    // Matches MSVC, clang-cl, and Keil C51 diagnostics: file(line[,column]): kind [Cxxxx]: message
+    private fun parseMsvcFamilyProblem(info: String, workingDirectory: Path?): XMakeProblem? {
+        val pattern = Pattern.compile("^(.*?)\\(([0-9]+)(?:,([0-9]+))?\\): (.*?): (.*)$")
+        val matcher = pattern.matcher(info)
+        if (!matcher.find()) return null
+        return XMakeProblem(
+            file = matcher.group(1).unquote(),
+            line = matcher.group(2),
+            column = matcher.group(3) ?: "0",
+            kind = matcher.group(4),
+            message = matcher.group(5),
+            workingDirectory = workingDirectory,
+        )
+    }
+
+    // Matches ARM Compiler 5 and TI diagnostics: "file", line N: kind: message
+    private fun parseArmCcStyleProblem(info: String, workingDirectory: Path?): XMakeProblem? {
+        val pattern = Pattern.compile("^\"(.*)\", line ([0-9]+): (.*?): (.*)$")
+        val matcher = pattern.matcher(info)
+        if (!matcher.find()) return null
+        return XMakeProblem(
+            file = matcher.group(1),
+            line = matcher.group(2),
+            column = "0",
+            kind = matcher.group(3),
+            message = matcher.group(4),
+            workingDirectory = workingDirectory,
+        )
+    }
+
+    // Matches IAR diagnostics that include a file reference: "file",line  Error[PeNNNN]: message
+    private fun parseIarProblem(info: String, workingDirectory: Path?): XMakeProblem? {
+        val pattern = Pattern.compile("^\"(.*)\",([0-9]+)\\s+(Error|Warning)\\[Pe[0-9]+\\]: (.*)$")
+        val matcher = pattern.matcher(info)
+        if (!matcher.find()) return null
+        return XMakeProblem(
+            file = matcher.group(1),
+            line = matcher.group(2),
+            column = "0",
+            kind = matcher.group(3),
+            message = matcher.group(4),
+            workingDirectory = workingDirectory,
+        )
+    }
+
+    // Matches line-only formats (TCC, SDCC, ...): file:line: kind [code]: message
+    private fun parseLineOnlyProblem(info: String, workingDirectory: Path?): XMakeProblem? {
+        val pattern = Pattern.compile("^(.*?):([0-9]+): (error|warning|fatal error|note)(?: [0-9]+)?: (.*)$")
+        val matcher = pattern.matcher(info)
+        if (!matcher.find()) return null
+        return XMakeProblem(
+            file = matcher.group(1),
+            line = matcher.group(2),
+            column = "0",
+            kind = matcher.group(3),
+            message = matcher.group(4),
+            workingDirectory = workingDirectory,
+        )
+    }
+
+    private fun String.unquote(): String = removePrefix("\"").removeSuffix("\"")
     fun runvInConsole(
         project: Project,
         console: XMakeConsole,
@@ -115,7 +164,6 @@ object SystemUtils {
             throw ProcessNotCreatedException(e.message ?: "", commandLine)
         }
     }
-
     fun getResourceFilePath(resourceName: String, resourceDir: String = "lib"): String? {
         val resourcePath = "/$resourceDir/$resourceName"
         val url = SystemUtils::class.java.getResource(resourcePath)

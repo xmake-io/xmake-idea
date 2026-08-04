@@ -20,7 +20,6 @@
  */
 package io.xmake.project.console
 
-import com.intellij.execution.RunManager
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.ActionToolbar
 import com.intellij.openapi.actionSystem.DefaultActionGroup
@@ -39,13 +38,12 @@ import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.panel
 import io.xmake.icons.XMakeIcons
-import io.xmake.run.XMakeRunConfiguration
-import io.xmake.utils.path.WorkingDirectoryResolver
 import io.xmake.shared.XMakeProblem
 import java.awt.Font
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
-import java.io.File
+import java.nio.file.InvalidPathException
+import java.nio.file.Path
 import javax.swing.JList
 import javax.swing.ListSelectionModel
 
@@ -74,26 +72,19 @@ class XMakeToolWindowProblemPanel(project: Project) : SimpleToolWindowPanel(fals
         cellRenderer = object : ColoredListCellRenderer<XMakeProblem>() {
             override fun customizeCellRenderer(list: JList<out XMakeProblem>, value: XMakeProblem, index: Int, selected: Boolean, hasFocus: Boolean) {
 
-                // get file path
-                var file = value.file
-                if (file === null) {
-                    return
-                }
-
                 // init icon
-                if (value.kind == "warning") {
-                    icon = XMakeIcons.WARNING
-                } else if (value.kind == "error") {
-                    icon = XMakeIcons.ERROR
-                } else {
-                    icon = XMakeIcons.WARNING
-                }
+                icon = if (value.kind == "error") XMakeIcons.ERROR else XMakeIcons.WARNING
 
                 // init tips
                 toolTipText = value.message ?: ""
 
                 // append text
-                append("${file}(${value.line ?: "0"}): ${value.message ?: ""}", SimpleTextAttributes.REGULAR_ATTRIBUTES)
+                val file = value.file
+                if (file !== null) {
+                    append("${file}(${value.line ?: "0"}): ${value.message ?: ""}", SimpleTextAttributes.REGULAR_ATTRIBUTES)
+                } else {
+                    append(value.message ?: "", SimpleTextAttributes.REGULAR_ATTRIBUTES)
+                }
             }
         }
     }
@@ -134,28 +125,22 @@ class XMakeToolWindowProblemPanel(project: Project) : SimpleToolWindowPanel(fals
 
                     // get the clicked problem
                     val index   = problemList.locationToIndex(e.getPoint())
-                    if (index < problems.size && problems[index].file !== null) {
+                    if (index in problems.indices) {
 
                         // get file path
                         val problem     = problems[index]
-                        var filename    = problem.file
-                        if (File(filename).exists()) {
-                            filename = File(filename).absolutePath
-                        } else {
-                            val configuration =
-                                RunManager.getInstance(project).selectedConfiguration?.configuration as XMakeRunConfiguration
-                            filename = File(
-                                WorkingDirectoryResolver.resolve(project, configuration.runWorkingDir),
-                                filename,
-                            ).absolutePath
-                        }
+                        val filename = resolveProblemPath(problem) ?: return
 
                         // open this file
-                        val file = LocalFileSystem.getInstance().findFileByPath(filename)
+                        val file = LocalFileSystem.getInstance().findFileByPath(filename.toString())
                         if (file !== null) {
 
+                            // compiler line and column numbers are 1-based; the editor APIs are 0-based
+                            val line = (problem.line?.toIntOrNull() ?: 1).coerceAtLeast(1) - 1
+                            val column = (problem.column?.toIntOrNull() ?: 0).coerceAtLeast(0)
+
                             // goto file:line
-                            val descriptor = OpenFileDescriptor(project, file, problem.line?.toInt() ?: 0, problem.column?.toInt() ?: 0)
+                            val descriptor = OpenFileDescriptor(project, file, line, column)
                             descriptor.navigate(true)
 
                             // highlight line
@@ -166,10 +151,6 @@ class XMakeToolWindowProblemPanel(project: Project) : SimpleToolWindowPanel(fals
                                     editor.markupModel.removeAllHighlighters()
                                     return
                                 }
-
-                                // get line offset
-                                var line = problem.line?.toInt() ?: 0
-                                if (line > 0) line -= 1
 
                                 // init box color
                                 var boxcolor = JBColor.GRAY
@@ -187,5 +168,20 @@ class XMakeToolWindowProblemPanel(project: Project) : SimpleToolWindowPanel(fals
                 }
             }
         })
+    }
+}
+
+internal fun resolveProblemPath(problem: XMakeProblem): Path? {
+    val file = problem.file ?: return null
+    val path = try {
+        Path.of(file)
+    } catch (_: InvalidPathException) {
+        return null
+    }
+
+    return if (path.isAbsolute) {
+        path.normalize()
+    } else {
+        problem.workingDirectory?.resolve(path)?.normalize()
     }
 }
