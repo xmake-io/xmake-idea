@@ -24,7 +24,7 @@ repositories {
 }
 
 kotlin {
-    jvmToolchain(21)
+    jvmToolchain(25)
 }
 
 intellijPlatform {
@@ -51,6 +51,7 @@ intellijPlatform {
 dependencies {
     intellijPlatform {
         clion(runIdeVersion)
+        bundledPlugin("intellij.ssh.plugin")
         testFramework(TestFrameworkType.Platform)
         pluginModule(implementation(project(":clion-debug")))
     }
