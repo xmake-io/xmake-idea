@@ -23,6 +23,7 @@ package io.xmake.actions
 import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
+import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.project.Project
 import io.xmake.project.console.XMakeConsole
 import io.xmake.shared.xmakeConfiguration
@@ -30,6 +31,15 @@ import io.xmake.utils.SystemUtils
 import io.xmake.utils.exception.XMakeRunConfigurationNotSetException
 
 class CleanConfigurationAction : XMakeConsoleAction() {
+
+    override fun update(e: AnActionEvent) {
+        super.update(e)
+        if (!e.presentation.isEnabledAndVisible) return
+        val project = e.project ?: return
+        if (SystemUtils.isXMakeExecutableConfigSelected(project)) {
+            e.presentation.isEnabledAndVisible = false
+        }
+    }
 
     override fun execute(project: Project, console: XMakeConsole) {
 

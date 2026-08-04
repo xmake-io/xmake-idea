@@ -26,7 +26,7 @@ import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.Project
 import com.intellij.util.execution.ParametersListUtil
-import io.xmake.project.toolkit.activatedToolkit
+import io.xmake.project.toolkit.xmakeActiveToolkit
 import io.xmake.run.XMakeRunConfiguration
 import io.xmake.utils.exception.XMakeRunConfigurationNotSetException
 import io.xmake.project.xmakeSettings
@@ -85,54 +85,61 @@ class XMakeConfiguration(val project: Project) {
     // the clean configuration command line
     val cleanConfigurationCommandLine: GeneralCommandLine
         get() {
+            val settings = project.xmakeSettings.state
+            val profile = project.xmakeSettings.activeProfile
 
             // make parameters
             val parameters = mutableListOf("f", "-c", "-y")
-            if (configuration.enableVerbose) {
+            if (settings.verbose) {
                 parameters.add("-v")
             }
-            if (configuration.buildDirectory != "") {
+            if (profile.buildDirectory != "") {
                 parameters.add("-o")
-                parameters.add(configuration.buildDirectory)
+                parameters.add(profile.buildDirectory)
             }
 
             // make command line
             return makeCommandLine(parameters)
         }
 
-    // the configuration command line
+    // the configuration command line — reads the project-level xmake configuration (the active
+    // XMakeProfile plus the global mode/verbose flags in XMakeSettings), NOT the selected run
+    // configuration, so `xmake f` works with a CLion-native run config selected.
     val configurationCommandLine: GeneralCommandLine
         get() {
+            val settings = project.xmakeSettings.state
+            val profile = project.xmakeSettings.activeProfile
 
             // make parameters
             val parameters =
                 mutableListOf(
                     "f",
                     "-y",
+                    "-c",
                     "-m",
-                    configuration.runMode
+                    settings.buildMode
                 )
-            if (configuration.runPlatform != "default") {
-                parameters.addAll(listOf("-p", configuration.runPlatform))
+            if (profile.platform != "default" && profile.platform.isNotEmpty()) {
+                parameters.addAll(listOf("-p", profile.platform))
             }
-            if (configuration.runArchitecture != "default") {
-                parameters.addAll(listOf("-a", configuration.runArchitecture))
+            if (profile.architecture != "default" && profile.architecture.isNotEmpty()) {
+                parameters.addAll(listOf("-a", profile.architecture))
             }
-            if (configuration.runToolchain != "default" ) {
-                parameters.add("--toolchain=${configuration.runToolchain}")
+            if (profile.toolchain != "default" && profile.toolchain.isNotEmpty()) {
+                parameters.add("--toolchain=${profile.toolchain}")
             }
-            if (configuration.runPlatform == "android" && configuration.androidNDKDirectory != "") {
-                parameters.add("--ndk=\"${configuration.androidNDKDirectory}\"")
+            if (profile.platform == "android" && profile.androidNDKDirectory != "") {
+                parameters.add("--ndk=\"${profile.androidNDKDirectory}\"")
             }
-            if (configuration.enableVerbose) {
+            if (settings.verbose) {
                 parameters.add("-v")
             }
-            if (configuration.buildDirectory != "") {
+            if (profile.buildDirectory != "") {
                 parameters.add("-o")
-                parameters.add(configuration.buildDirectory)
+                parameters.add(profile.buildDirectory)
             }
-            if (configuration.additionalConfiguration != "") {
-                parameters.addAll(ParametersListUtil.parse(configuration.additionalConfiguration))
+            if (profile.additionalConfiguration != "") {
+                parameters.addAll(ParametersListUtil.parse(profile.additionalConfiguration))
             }
 
             // make command line
@@ -176,11 +183,12 @@ class XMakeConfiguration(val project: Project) {
         environmentVariables: EnvironmentVariablesData = EnvironmentVariablesData.DEFAULT
     ): GeneralCommandLine {
 
-        // make command
-        return GeneralCommandLine(project.activatedToolkit?.path ?: "xmake")
+        // make command — the xmake binary and working directory come from the project-level active
+        // toolkit / project root, not the selected run configuration, so this works in the native flow.
+        return GeneralCommandLine(project.xmakeActiveToolkit?.path ?: "xmake")
             .withParameters(parameters)
             .withCharset(Charsets.UTF_8)
-            .withWorkDirectory(configuration.resolvedWorkingDirectory)
+            .withWorkDirectory(project.basePath)
             .withEnvironment(environmentVariables.envs)
             .withRedirectErrorStream(true)
     }

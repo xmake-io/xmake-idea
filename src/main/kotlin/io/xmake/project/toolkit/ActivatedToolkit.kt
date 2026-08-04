@@ -22,9 +22,25 @@ package io.xmake.project.toolkit
 
 import com.intellij.execution.RunManager
 import com.intellij.openapi.project.Project
+import io.xmake.project.xmakeSettings
 import io.xmake.run.XMakeRunConfiguration
 
 val Project.activatedToolkit: Toolkit?
     get() = RunManager.getInstance(this).selectedConfiguration?.configuration.let {
         if (it is XMakeRunConfiguration) it.runToolkit else null
+    }
+
+/**
+ * The project's active xmake toolkit, independent of which run configuration is selected. Resolves
+ * (in order) the toolkit pinned in [io.xmake.project.XMakeSettings] by id, then the selected run
+ * config's toolkit ([activatedToolkit]), then the first registered toolkit. This is what config and
+ * command building should use in the native flow, where [activatedToolkit] is null.
+ */
+val Project.xmakeActiveToolkit: Toolkit?
+    get() {
+        val registered = ToolkitManager.getInstance().getRegisteredToolkits()
+        val pinnedId = xmakeSettings.state.activeToolkitId
+        return registered.firstOrNull { it.id == pinnedId && pinnedId.isNotEmpty() }
+            ?: activatedToolkit
+            ?: registered.firstOrNull()
     }

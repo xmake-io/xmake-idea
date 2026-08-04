@@ -20,6 +20,7 @@
  */
 package io.xmake.utils
 
+import com.intellij.execution.RunManager
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.process.ProcessNotCreatedException
 import com.intellij.notification.NotificationGroupManager
@@ -209,6 +210,17 @@ object SystemUtils {
     // check if xmake project
     fun isXMakeProject(project: Project): Boolean {
         return project.basePath?.let { File(it, "xmake.lua").exists() } == true
+    }
+
+    // Type id of the native "Xmake Executable" run configuration (CLion's own Custom Build
+    // Target under the hood, see XMakeExecutableRunConfigurationType in the clion-debug module,
+    // which isn't a compile-time dependency of this module).
+    private const val XMAKE_EXECUTABLE_CONFIG_TYPE_ID = "io.xmake.XMakeExecutable"
+
+    // check if the currently selected run configuration is a native "Xmake Executable" config;
+    // those are built/run/debugged natively by CLion, so the XMake console actions don't apply
+    fun isXMakeExecutableConfigSelected(project: Project): Boolean {
+        return RunManager.getInstance(project).selectedConfiguration?.type?.id == XMAKE_EXECUTABLE_CONFIG_TYPE_ID
     }
 
     /**

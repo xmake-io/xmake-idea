@@ -131,6 +131,7 @@ class XMakeRunConfiguration(
             // make command line
             return project.xmakeConfiguration
                 .makeCommandLine(parameters, runEnvironment)
+                .withWorkDirectory(resolvedWorkingDirectory)
                 .withCharset(Charsets.UTF_8)
         }
 

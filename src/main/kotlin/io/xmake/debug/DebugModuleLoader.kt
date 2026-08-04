@@ -151,4 +151,64 @@ object DebugModuleLoader {
         }
     }
 
+    /**
+     * Feed CLion IntelliSense from an xmake-generated compile_commands.json, loading the CLion
+     * module on demand. No-ops (returns false) on IDEA Community / when CLion or the compilation
+     * database subsystem is unavailable.
+     */
+    fun attachCompileCommands(project: Project, compileCommandsPath: String): Boolean {
+        val moduleClass = debugModuleClass ?: return false
+        return try {
+            val method = moduleClass.getMethod(
+                "attachCompileCommands",
+                Project::class.java,
+                String::class.java
+            )
+            val result = method.invoke(null, project, compileCommandsPath)
+            result as? Boolean ?: false
+        } catch (e: Exception) {
+            Logger.e(TAG, "Failed to attach compile_commands", e)
+            false
+        }
+    }
+
+    /**
+     * Register xmake targets as CLion Custom Build Targets, loading the CLion module on demand.
+     * No-ops (returns false) on IDEA Community / when CLion or the Custom Build Targets subsystem is
+     * unavailable. [specJson] describes the targets (see [CustomBuildTargetsSupport]).
+     */
+    fun syncBuildTargets(project: Project, specJson: String): Boolean {
+        val moduleClass = debugModuleClass ?: return false
+        return try {
+            val method = moduleClass.getMethod(
+                "syncBuildTargets",
+                Project::class.java,
+                String::class.java
+            )
+            val result = method.invoke(null, project, specJson)
+            result as? Boolean ?: false
+        } catch (e: Exception) {
+            Logger.e(TAG, "Failed to sync build targets", e)
+            false
+        }
+    }
+
+    /**
+     * Register the native "Xmake Executable" run configuration type, loading the CLion module on
+     * demand. No-ops (returns false) on IDEA Community / when CLion is unavailable. Idempotent.
+     */
+    fun registerXMakeExecutableType(pluginId: String): Boolean {
+        val moduleClass = debugModuleClass ?: return false
+        return try {
+            val method = moduleClass.getMethod(
+                "registerXMakeExecutableType",
+                String::class.java
+            )
+            val result = method.invoke(null, pluginId)
+            result as? Boolean ?: false
+        } catch (e: Exception) {
+            Logger.e(TAG, "Failed to register Xmake Executable run configuration type", e)
+            false
+        }
+    }
 }
