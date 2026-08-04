@@ -72,26 +72,19 @@ class XMakeToolWindowProblemPanel(project: Project) : SimpleToolWindowPanel(fals
         cellRenderer = object : ColoredListCellRenderer<XMakeProblem>() {
             override fun customizeCellRenderer(list: JList<out XMakeProblem>, value: XMakeProblem, index: Int, selected: Boolean, hasFocus: Boolean) {
 
-                // get file path
-                var file = value.file
-                if (file === null) {
-                    return
-                }
-
                 // init icon
-                if (value.kind == "warning") {
-                    icon = XMakeIcons.WARNING
-                } else if (value.kind == "error") {
-                    icon = XMakeIcons.ERROR
-                } else {
-                    icon = XMakeIcons.WARNING
-                }
+                icon = if (value.kind == "error") XMakeIcons.ERROR else XMakeIcons.WARNING
 
                 // init tips
                 toolTipText = value.message ?: ""
 
                 // append text
-                append("${file}(${value.line ?: "0"}): ${value.message ?: ""}", SimpleTextAttributes.REGULAR_ATTRIBUTES)
+                val file = value.file
+                if (file !== null) {
+                    append("${file}(${value.line ?: "0"}): ${value.message ?: ""}", SimpleTextAttributes.REGULAR_ATTRIBUTES)
+                } else {
+                    append(value.message ?: "", SimpleTextAttributes.REGULAR_ATTRIBUTES)
+                }
             }
         }
     }
