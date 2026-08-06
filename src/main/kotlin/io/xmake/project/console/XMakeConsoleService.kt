@@ -2,6 +2,7 @@ package io.xmake.project.console
 
 import com.intellij.execution.ui.ConsoleView
 import com.intellij.execution.ui.ConsoleViewContentType
+import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.logger
@@ -10,6 +11,8 @@ import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.ui.content.Content
 import io.xmake.shared.XMakeProblem
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 private val Log = logger<XMakeConsoleService>()
 
@@ -91,36 +94,32 @@ class XMakeConsoleService(private val project: Project) {
         }
     }
 
+    suspend fun awaitReady(): XMakeConsole = withContext(Dispatchers.EDT) {
+        getOrInitializeConsole()
+    }
+
     private fun runWhenReady(
         onUnavailable: (Throwable) -> Unit,
         action: (XMakeConsole) -> Unit
     ) {
+        try {
+            action(getOrInitializeConsole())
+        } catch (error: Throwable) {
+            onUnavailable(error)
+        }
+    }
+
+    private fun getOrInitializeConsole(): XMakeConsole {
         check(ApplicationManager.getApplication().isDispatchThread)
+        check(!project.isDisposed) { "Project was disposed before the XMake console was initialized" }
 
-        if (project.isDisposed) {
-            onUnavailable(IllegalStateException("Project was disposed before the XMake console was initialized"))
-            return
-        }
-
-        console?.let {
-            action(it)
-            return
-        }
-
+        console?.let { return it }
         val toolWindow = ToolWindowManager.getInstance(project).getToolWindow(XMAKE_TOOL_WINDOW_ID)
-        if (toolWindow == null) {
-            onUnavailable(IllegalStateException("XMake tool window is not registered"))
-            return
-        }
+            ?: error("XMake tool window is not registered")
 
         // Accessing the content manager initializes descriptor-owned tool window content.
         toolWindow.contentManager
-        val initializedConsole = console
-        if (initializedConsole == null) {
-            onUnavailable(IllegalStateException("XMake console was not initialized"))
-            return
-        }
-        action(initializedConsole)
+        return console ?: error("XMake console was not initialized")
     }
 }
 

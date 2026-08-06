@@ -20,70 +20,33 @@
  */
 package io.xmake.actions
 
-import com.intellij.execution.process.ProcessEvent
-import com.intellij.execution.ExecutionException
-import com.intellij.execution.process.ProcessListener
-import com.intellij.execution.ui.ConsoleViewContentType
-import com.intellij.notification.NotificationGroupManager
-import com.intellij.notification.NotificationType
-import io.xmake.project.console.XMakeConsole
-import io.xmake.shared.xmakeConfiguration
-import io.xmake.utils.SystemUtils
-import io.xmake.utils.exception.XMakeRunConfigurationNotSetException
 import com.intellij.openapi.project.Project
+import io.xmake.project.console.XMakeConsole
 import io.xmake.project.xmakeSettings
+import io.xmake.run.command.XMakeCommandFactory
+import io.xmake.run.command.XMakeConsoleOptions
+import io.xmake.run.command.xmakeExecutionService
 
-class BuildAction : XMakeConsoleAction() {
+class BuildAction : XMakeCommandAction() {
 
-    override fun execute(project: Project, console: XMakeConsole) {
-        // clear console first
-        console.clear()
-
-        try {
-            // configure and build it
-            val xmakeConfiguration = project.xmakeConfiguration
-            if (xmakeConfiguration.changed) {
-                SystemUtils.runvInConsole(project, console, xmakeConfiguration.configurationCommandLine)
-                    ?.addProcessListener(object : ProcessListener {
-                        override fun processTerminated(e: ProcessEvent) {
-                            if (e.exitCode == 0) {
-                                runBuild(project, console, xmakeConfiguration)
-                            }
-                        }
-                    })
-                xmakeConfiguration.changed = false
-            } else {
-                runBuild(project, console, xmakeConfiguration)
-            }
-        } catch (e: XMakeRunConfigurationNotSetException) {
-            console.print(
-                "Please select a xmake run configuration first!\n",
-                ConsoleViewContentType.ERROR_OUTPUT
+    override suspend fun execute(
+        project: Project,
+        console: XMakeConsole,
+        commands: XMakeCommandFactory,
+    ) {
+        val execution = project.xmakeExecutionService
+        execution.execute(console, commands.createConfigure())
+        execution.execute(
+            console,
+            commands.createBuild(),
+            XMakeConsoleOptions(showProblems = true, showExitCode = true),
+        )
+        if (project.xmakeSettings.state.autoUpdateCompileCommands) {
+            execution.execute(
+                console,
+                commands.createUpdateCompileCommands(),
+                XMakeConsoleOptions(showConsole = false, showProblems = true, showExitCode = true),
             )
-            NotificationGroupManager.getInstance()
-                .getNotificationGroup("XMake.NotificationGroup")
-                .createNotification("Error with XMake Configuration", e.message ?: "", NotificationType.ERROR)
-                .notify(project)
-        } catch (e: ExecutionException) {
-            console.print(
-                "An error occurred during build: ${e.message}\n",
-                ConsoleViewContentType.ERROR_OUTPUT
-            )
-            NotificationGroupManager.getInstance()
-                .getNotificationGroup("XMake.NotificationGroup")
-                .createNotification("Error with XMake Build", e.message ?: "", NotificationType.ERROR)
-                .notify(project)
         }
-    }
-
-    private fun runBuild(project: Project, console: XMakeConsole, xmakeConfiguration: io.xmake.shared.XMakeConfiguration) {
-        SystemUtils.runvInConsole(project, console, xmakeConfiguration.buildCommandLine, true, true, true)
-            ?.addProcessListener(object : ProcessListener {
-                override fun processTerminated(e: ProcessEvent) {
-                    if (e.exitCode == 0 && project.xmakeSettings.state.autoUpdateCompileCommands) {
-                        SystemUtils.runvInConsole(project, console, xmakeConfiguration.updateCompileCommandsLine, false, true, true)
-                    }
-                }
-            })
     }
 }

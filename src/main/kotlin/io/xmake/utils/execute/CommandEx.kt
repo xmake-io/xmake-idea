@@ -50,20 +50,21 @@ fun GeneralCommandLine.createLocalProcess(): Process{
         .toProcessBuilder().start()
 }
 
-fun GeneralCommandLine.createWslProcess(wslDistribution: WSLDistribution, project: Project? = null): Process {
-    val remoteWorkingDirectory = workDirectory
-        ?.path
-        ?.replace(File.separatorChar, '/')
-        ?.also { directory ->
-            require(directory.startsWith('/')) { "WSL working directory must be an absolute Linux path: $directory" }
-        }
+fun GeneralCommandLine.createWslProcess(
+    wslDistribution: WSLDistribution,
+    project: Project? = null,
+    remoteWorkingDirectory: String? = null,
+): Process {
     val commandInWsl = object : GeneralCommandLine(this) {}.apply {
         // The Windows-side wsl.exe process must not inherit a Linux working directory.
         setWorkDirectory(null as File?)
     }
     val options = WSLCommandLineOptions().apply {
         isLaunchWithWslExe = true
-        this.remoteWorkingDirectory = remoteWorkingDirectory
+        remoteWorkingDirectory?.let { directory ->
+            require(directory.startsWith('/')) { "WSL working directory must be an absolute Linux path: $directory" }
+            this.remoteWorkingDirectory = directory
+        }
     }
     val patchedCommandLine = wslDistribution.patchCommandLine(commandInWsl, project, options)
 
@@ -72,7 +73,11 @@ fun GeneralCommandLine.createWslProcess(wslDistribution: WSLDistribution, projec
         .toProcessBuilder().start()
 }
 
-fun GeneralCommandLine.createProcess(toolkit: Toolkit): Process {
+fun GeneralCommandLine.createProcess(
+    toolkit: Toolkit,
+    project: Project? = null,
+    workingDirectory: String? = null,
+): Process {
     return with(toolkit) {
         Log.info("createProcessWithToolkit: $toolkit")
         when (host.type) {
@@ -82,7 +87,7 @@ fun GeneralCommandLine.createProcess(toolkit: Toolkit): Process {
 
             WSL -> {
                 val wslDistribution = host.target as WSLDistribution
-                this@createProcess.createWslProcess(wslDistribution)
+                this@createProcess.createWslProcess(wslDistribution, project, workingDirectory)
             }
 
             SSH -> {
