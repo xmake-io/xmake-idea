@@ -21,10 +21,9 @@
 package io.xmake.actions
 
 import com.intellij.execution.configurations.GeneralCommandLine
-import com.intellij.execution.process.OSProcessHandler
+import com.intellij.execution.process.KillableColoredProcessHandler
 import com.intellij.execution.process.ProcessEvent
 import com.intellij.execution.process.ProcessListener
-import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -33,12 +32,12 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.wm.ToolWindowManager
-import io.xmake.project.toolkit.activatedToolkit
 import io.xmake.project.console.xmakeConsoleService
-import io.xmake.shared.xmakeConfiguration
+import io.xmake.project.toolkit.Toolkit
+import io.xmake.project.toolkit.ToolkitManager
 import io.xmake.utils.SystemUtils
-import io.xmake.utils.exception.XMakeRunConfigurationNotSetException
-import java.io.File
+import io.xmake.utils.execute.createProcess
+import io.xmake.utils.path.WorkingDirectoryResolver
 
 class QuickStartAction : XMakeProjectAction() {
 
@@ -57,12 +56,19 @@ class QuickStartAction : XMakeProjectAction() {
         FileDocumentManager.getInstance().saveAllDocuments()
 
         if (!SystemUtils.isXMakeProject(project)) {
-            val xmakePath = project.activatedToolkit?.path ?: "xmake"
-            val commandLine = GeneralCommandLine(xmakePath, "create", "-P", ".")
-            commandLine.workDirectory = File(project.basePath ?: return)
+            val toolkit = findLocalToolkit()
+            val projectPath = project.basePath ?: return
+            val workingDirectory = WorkingDirectoryResolver.resolve(project, projectPath, toolkit)
+            val commandLine = GeneralCommandLine(toolkit.path, "create", "-P", ".")
+                .withWorkDirectory(workingDirectory)
 
             try {
-                val processHandler = OSProcessHandler(commandLine)
+                val process = commandLine.createProcess(toolkit)
+                val processHandler = KillableColoredProcessHandler(
+                    process,
+                    commandLine.commandLineString,
+                    Charsets.UTF_8,
+                )
                 processHandler.addProcessListener(object : ProcessListener {
                     override fun processTerminated(event: ProcessEvent) {
                         if (project.isDisposed) return
@@ -99,32 +105,25 @@ class QuickStartAction : XMakeProjectAction() {
                 })
                 processHandler.startNotify()
             } catch (e: Exception) {
-                NotificationGroupManager.getInstance()
-                    .getNotificationGroup("XMake.NotificationGroup")
-                    .createNotification("Failed to start xmake create: ${e.message}", NotificationType.ERROR)
-                    .notify(project)
-            }
-            return
-        }
-
-        project.xmakeConsoleService.whenReady { console ->
-            // clear console first
-            console.clear()
-
-            try {
-                // quick start
-                SystemUtils.runvInConsole(project, console, project.xmakeConfiguration.quickStartCommandLine, true, false, true)
-            } catch (e: XMakeRunConfigurationNotSetException) {
-                console.print(
-                    "Please select a xmake run configuration first!\n",
-                    ConsoleViewContentType.ERROR_OUTPUT
-                )
-                NotificationGroupManager.getInstance()
-                    .getNotificationGroup("XMake.NotificationGroup")
-                    .createNotification("Error with XMake Configuration", e.message ?: "", NotificationType.ERROR)
-                    .notify(project)
+                notifyQuickStartFailure(project, "Failed to start xmake create: ${e.message}")
             }
         }
+    }
 
+    private fun notifyQuickStartFailure(project: Project, message: String) {
+        NotificationGroupManager.getInstance()
+            .getNotificationGroup("XMake.NotificationGroup")
+            .createNotification(message, NotificationType.ERROR)
+            .notify(project)
+    }
+
+    private fun findLocalToolkit(): Toolkit {
+        val manager = ToolkitManager.getInstance()
+        val preferred = manager.state.lastSelectedToolkitId
+            ?.let(manager::findRegisteredToolkitById)
+            ?.takeUnless(Toolkit::isOnRemote)
+        return preferred
+            ?: manager.getRegisteredToolkits().firstOrNull { !it.isOnRemote }
+            ?: Toolkit(path = "xmake")
     }
 }

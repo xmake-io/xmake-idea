@@ -20,24 +20,10 @@
  */
 package io.xmake.utils
 
-import com.intellij.execution.configurations.GeneralCommandLine
-import com.intellij.execution.process.ProcessNotCreatedException
-import com.intellij.notification.NotificationGroupManager
-import com.intellij.notification.NotificationType
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.vfs.VirtualFile
-import com.intellij.openapi.application.ApplicationManager
-import io.xmake.debug.XMakeDebugSupport
-import io.xmake.project.console.XMakeConsole
-import io.xmake.project.toolkit.activatedToolkit
 import io.xmake.shared.XMakeProblem
-import io.xmake.utils.exception.XMakeToolkitNotSetException
-import io.xmake.utils.execute.createProcess
-import io.xmake.utils.execute.createLocalProcess
-import io.xmake.utils.execute.runProcessWithHandler
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.nio.file.Path
 import java.nio.file.Paths
@@ -139,31 +125,6 @@ object SystemUtils {
     }
 
     private fun String.unquote(): String = removePrefix("\"").removeSuffix("\"")
-    fun runvInConsole(
-        project: Project,
-        console: XMakeConsole,
-        commandLine: GeneralCommandLine,
-        showConsole: Boolean = true,
-        showProblem: Boolean = false,
-        showExitCode: Boolean = false
-    ) = runProcessWithHandler(project, console, commandLine, showConsole, showProblem, showExitCode) {
-        try {
-            val activatedToolkit = project.activatedToolkit
-            if (activatedToolkit != null) {
-                runBlocking(Dispatchers.Default) {
-                    commandLine.createProcess(activatedToolkit)
-                }
-            } else {
-                commandLine.createLocalProcess()
-            }
-        } catch (e: XMakeToolkitNotSetException) {
-            NotificationGroupManager.getInstance()
-                .getNotificationGroup("XMake.NotificationGroup")
-                .createNotification("Error with Xmake Toolkit", e.message ?: "", NotificationType.ERROR)
-                .notify(project)
-            throw ProcessNotCreatedException(e.message ?: "", commandLine)
-        }
-    }
     fun getResourceFilePath(resourceName: String, resourceDir: String = "lib"): String? {
         val resourcePath = "/$resourceDir/$resourceName"
         val url = SystemUtils::class.java.getResource(resourcePath)
@@ -226,13 +187,6 @@ object SystemUtils {
     // check if xmake project
     fun isXMakeProject(project: Project): Boolean {
         return project.basePath?.let { File(it, "xmake.lua").exists() } == true
-    }
-
-    /**
-     * Check if native debug functionality is available
-     */
-    fun isNativeDebugAvailable(): Boolean {
-        return XMakeDebugSupport.isAvailable()
     }
 }
 

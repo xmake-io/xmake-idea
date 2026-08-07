@@ -20,37 +20,23 @@
  */
 package io.xmake.actions
 
-import com.intellij.execution.ui.ConsoleViewContentType
-import com.intellij.notification.NotificationGroupManager
-import com.intellij.notification.NotificationType
 import com.intellij.openapi.project.Project
 import io.xmake.project.console.XMakeConsole
-import io.xmake.shared.xmakeConfiguration
-import io.xmake.utils.SystemUtils
-import io.xmake.utils.exception.XMakeRunConfigurationNotSetException
+import io.xmake.run.command.XMakeCommandFactory
+import io.xmake.run.command.XMakeConsoleOptions
+import io.xmake.run.command.xmakeExecutionService
 
-class CleanConfigurationAction : XMakeConsoleAction() {
+class CleanConfigurationAction : XMakeCommandAction() {
 
-    override fun execute(project: Project, console: XMakeConsole) {
-
-        // clear console first
-        console.clear()
-
-        try {
-            // clear configure
-            val xmakeConfiguration = project.xmakeConfiguration
-            SystemUtils.runvInConsole(project, console, xmakeConfiguration.cleanConfigurationCommandLine, true, false, true)
-            xmakeConfiguration.changed = false
-        } catch (e: XMakeRunConfigurationNotSetException) {
-            console.print(
-                "Please select a xmake run configuration first!\n",
-                ConsoleViewContentType.ERROR_OUTPUT
-            )
-            NotificationGroupManager.getInstance()
-                .getNotificationGroup("XMake.NotificationGroup")
-                .createNotification("Error with XMake Configuration", e.message ?: "", NotificationType.ERROR)
-                .notify(project)
-        }
-
+    override suspend fun execute(
+        project: Project,
+        console: XMakeConsole,
+        commands: XMakeCommandFactory,
+    ) {
+        project.xmakeExecutionService.execute(
+            console,
+            commands.createCleanConfiguration(),
+            XMakeConsoleOptions(showExitCode = true),
+        )
     }
 }

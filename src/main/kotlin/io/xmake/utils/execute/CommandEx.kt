@@ -21,21 +21,15 @@
 package io.xmake.utils.execute
 
 import com.intellij.execution.configurations.GeneralCommandLine
-import com.intellij.execution.process.*
 import com.intellij.execution.processTools.getResultStdoutStr
-import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.execution.wsl.WSLCommandLineOptions
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.extensions.ExtensionPointName
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.Key
 import com.intellij.util.io.awaitExit
-import io.xmake.project.console.XMakeConsole
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHostType.*
-import io.xmake.shared.XMakeProblem
-import io.xmake.utils.SystemUtils.parseProblem
 import io.xmake.utils.extension.ToolkitHostExtension
 import java.io.File
 
@@ -50,20 +44,21 @@ fun GeneralCommandLine.createLocalProcess(): Process{
         .toProcessBuilder().start()
 }
 
-fun GeneralCommandLine.createWslProcess(wslDistribution: WSLDistribution, project: Project? = null): Process {
-    val remoteWorkingDirectory = workDirectory
-        ?.path
-        ?.replace(File.separatorChar, '/')
-        ?.also { directory ->
-            require(directory.startsWith('/')) { "WSL working directory must be an absolute Linux path: $directory" }
-        }
+fun GeneralCommandLine.createWslProcess(
+    wslDistribution: WSLDistribution,
+    project: Project? = null,
+    remoteWorkingDirectory: String? = null,
+): Process {
     val commandInWsl = object : GeneralCommandLine(this) {}.apply {
         // The Windows-side wsl.exe process must not inherit a Linux working directory.
         setWorkDirectory(null as File?)
     }
     val options = WSLCommandLineOptions().apply {
         isLaunchWithWslExe = true
-        this.remoteWorkingDirectory = remoteWorkingDirectory
+        remoteWorkingDirectory?.let { directory ->
+            require(directory.startsWith('/')) { "WSL working directory must be an absolute Linux path: $directory" }
+            this.remoteWorkingDirectory = directory
+        }
     }
     val patchedCommandLine = wslDistribution.patchCommandLine(commandInWsl, project, options)
 
@@ -72,7 +67,11 @@ fun GeneralCommandLine.createWslProcess(wslDistribution: WSLDistribution, projec
         .toProcessBuilder().start()
 }
 
-fun GeneralCommandLine.createProcess(toolkit: Toolkit): Process {
+fun GeneralCommandLine.createProcess(
+    toolkit: Toolkit,
+    project: Project? = null,
+    workingDirectory: String? = null,
+): Process {
     return with(toolkit) {
         Log.info("createProcessWithToolkit: $toolkit")
         when (host.type) {
@@ -82,7 +81,7 @@ fun GeneralCommandLine.createProcess(toolkit: Toolkit): Process {
 
             WSL -> {
                 val wslDistribution = host.target as WSLDistribution
-                this@createProcess.createWslProcess(wslDistribution)
+                this@createProcess.createWslProcess(wslDistribution, project, workingDirectory)
             }
 
             SSH -> {
@@ -98,58 +97,4 @@ suspend fun runProcess(process: Process): Pair<Result<String>, Int>{
     val result = process.getResultStdoutStr()
     val exitCode = process.awaitExit()
     return Pair(result, exitCode)
-}
-
-fun runProcessWithHandler(
-    project: Project,
-    console: XMakeConsole,
-    command: GeneralCommandLine,
-    showConsole: Boolean = true,
-    showProblem: Boolean = false,
-    showExitCode: Boolean = false,
-    createProcess: (GeneralCommandLine) -> Process,
-): ProcessHandler? {
-
-    val process = try {
-        createProcess(command)
-    } catch (e: ProcessNotCreatedException) {
-        return null
-    }
-    val processHandler = KillableColoredProcessHandler(process, command.commandLineString, Charsets.UTF_8)
-    var content = ""
-
-    processHandler.addProcessListener(object : ProcessListener {
-        override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {
-            super.onTextAvailable(event, outputType)
-            console.print(event.text, ConsoleViewContentType.getConsoleViewType(outputType))
-            content += event.text
-        }
-    })
-
-    if (showConsole) {
-        console.showOutput()
-    }
-
-    if (showProblem) {
-        processHandler.addProcessListener(object : ProcessListener {
-            override fun processTerminated(e: ProcessEvent) {
-                val problems = mutableListOf<XMakeProblem>()
-                content.split(Regex("\\r\\n|\\n|\\r")).forEach {
-                    val problem = parseProblem(it.trim(), command.workDirectory?.toPath())
-                    if (problem !== null) {
-                        problems.add(problem)
-                    }
-                }
-                console.updateProblems(problems)
-            }
-        })
-    }
-
-    if (showExitCode) {
-        ProcessTerminatedListener.attach(processHandler)
-    }
-
-    processHandler.startNotify()
-    ProcessTerminatedListener.attach(processHandler, project)
-    return processHandler
 }

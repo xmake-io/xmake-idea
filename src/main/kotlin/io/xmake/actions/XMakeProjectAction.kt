@@ -2,10 +2,13 @@ package io.xmake.actions
 
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.project.Project
 import io.xmake.utils.SystemUtils
 
 abstract class XMakeProjectAction : AnAction() {
+
+    final override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     final override fun actionPerformed(event: AnActionEvent) {
         val project = event.project ?: return
@@ -17,12 +20,12 @@ abstract class XMakeProjectAction : AnAction() {
     override fun update(e: AnActionEvent) {
         val project = e.project
         val presentation = e.presentation
-        
+
         if (project == null) {
             presentation.isEnabledAndVisible = false
             return
         }
-        
+
         presentation.isEnabledAndVisible = SystemUtils.isXMakeProject(project)
     }
 }
