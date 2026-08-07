@@ -17,11 +17,14 @@
 package io.xmake.run.command
 
 import com.intellij.execution.ExecutionException
+import com.intellij.execution.process.AnsiEscapeDecoder
 import com.intellij.execution.process.KillableColoredProcessHandler
 import com.intellij.execution.process.ProcessEvent
 import com.intellij.execution.process.ProcessHandler
 import com.intellij.execution.process.ProcessListener
+import com.intellij.execution.process.KillableProcessHandler
 import com.intellij.execution.process.ProcessOutputType
+import com.intellij.execution.process.ProcessOutputTypes
 import com.intellij.execution.process.ProcessTerminatedListener
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
@@ -85,7 +88,11 @@ internal class XMakeCommandProcessHandler(
             throw ExecutionException("Failed to start XMake command: ${command.commandLine.commandLineString}", error)
         }
         return try {
-            val handler = KillableColoredProcessHandler(process, command.commandLine.commandLineString, Charsets.UTF_8)
+            val handler = if (options.preserveAnsiEscapes) {
+                KillableProcessHandler(process, command.commandLine.commandLineString, Charsets.UTF_8)
+            } else {
+                KillableColoredProcessHandler(process, command.commandLine.commandLineString, Charsets.UTF_8)
+            }
 
             handler.addProcessListener(object : ProcessListener {
                 override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {
@@ -133,7 +140,11 @@ internal class XMakeCommandProcessHandler(
             null
         }
 
-        return output.split(LINE_BREAK_REGEX)
+        val plainOutput = StringBuilder()
+        AnsiEscapeDecoder().escapeText(output.toString(), ProcessOutputTypes.STDOUT) { text, _ ->
+            plainOutput.append(text)
+        }
+        return plainOutput.split(LINE_BREAK_REGEX)
             .mapNotNull { parseProblem(it.trim(), path) }
     }
 

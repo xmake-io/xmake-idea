@@ -101,7 +101,7 @@ internal class XMakeCommandBuilder private constructor(
             return XMakeCommandBuilder(
                 toolkit,
                 workingDirectory,
-                environmentOverrides = mapOf(XMAKE_CONFIG_DIRECTORY to configurationRoot),
+                environmentOverrides = mapOf(XMAKE_CONFIG_DIRECTORY_ENV to configurationRoot),
             )
         }
 
@@ -131,7 +131,5 @@ internal class XMakeCommandBuilder private constructor(
 
         private fun hostPath(parent: String, child: String): String =
             "${parent.trimEnd('/', '\\')}/$child"
-
-        private const val XMAKE_CONFIG_DIRECTORY = "XMAKE_CONFIGDIR"
     }
 }
