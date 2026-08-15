@@ -16,9 +16,9 @@
  */
 package io.xmake.migration
 
+import com.intellij.openapi.util.JDOMUtil
 import com.intellij.util.xmlb.XmlSerializer
 import com.intellij.util.xmlb.annotations.OptionTag
-import com.intellij.openapi.util.JDOMUtil
 import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHost
@@ -59,6 +59,11 @@ internal fun removeLegacyBuildSettings(element: Element) {
     LEGACY_BUILD_SETTING_TAGS.forEach(element::removeChildren)
 }
 
+internal fun writeBuildProfileReference(element: Element, profileId: String) {
+    element.removeChildren(BUILD_PROFILE_TAG)
+    element.addContent(Element(BUILD_PROFILE_TAG).setAttribute("value", profileId))
+}
+
 /**
  * Maps a legacy run configuration to a deterministic profile ID derived from its name and build
  * settings, so pre-load conversion and the runtime fallback remain idempotent regardless of which
@@ -69,12 +74,11 @@ private fun profileIdForConfiguration(
     element: Element,
 ): String =
     UUID.nameUUIDFromBytes(
-        "xmake-legacy-profile-v1\u0000$configurationName\u0000${settingsFingerprint(element)}"
-            .toByteArray(Charsets.UTF_8),
+        "xmake-legacy-profile-v1\u0000$configurationName\u0000${settingsFingerprint(element)}".toByteArray(Charsets.UTF_8),
     ).toString()
 
 private fun settingsFingerprint(element: Element): String =
-    element.children
+        element.children
         .filter { child -> child.name in LEGACY_BUILD_SETTING_TAGS }
         .joinToString(separator = "\u0000") { child -> JDOMUtil.write(child, "") }
 
@@ -100,7 +104,7 @@ private class LegacyBuildSettings {
     var toolchain: String = XMakeBuildProfile.USE_XMAKE_DEFAULT
 
     @OptionTag(tag = "mode")
-    var buildMode: String = "release"
+    var buildMode: String = XMakeBuildProfile.DEFAULT_BUILD_MODE
 
     @OptionTag(tag = "workingDirectory")
     var workingDirectory: String = ""
@@ -117,6 +121,8 @@ private class LegacyBuildSettings {
     @OptionTag(tag = "additionalConfiguration")
     var configureArguments: String = ""
 }
+
+private const val BUILD_PROFILE_TAG = "buildProfile"
 
 private val LEGACY_BUILD_SETTING_TAGS = setOf(
     "activatedToolkit",

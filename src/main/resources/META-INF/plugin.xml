@@ -26,6 +26,8 @@
 
     <extensions defaultExtensionNs="com.intellij">
 
+        <project.converterProvider implementation="io.xmake.migration.XMakeBuildProfilesConverterProvider"/>
+
         <!-- icons -->
         <iconProvider implementation="io.xmake.icons.XMakeIconProvider"/>
 
