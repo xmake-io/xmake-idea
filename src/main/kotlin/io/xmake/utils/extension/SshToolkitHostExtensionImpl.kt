@@ -21,48 +21,51 @@
 package io.xmake.utils.extension
 
 import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.guessProjectDir
-import com.intellij.ssh.*
+import com.intellij.openapi.ui.Messages
+import com.intellij.ssh.ConnectionBuilder
+import com.intellij.ssh.SftpProgressTracker
+import com.intellij.ssh.SftpChannelNoSuchFileException
 import com.intellij.ssh.config.unified.SshConfig
 import com.intellij.ssh.config.unified.SshConfigManager
+import com.intellij.ssh.channels.SftpChannel
+import com.intellij.ssh.channels.isDir
 import com.intellij.ssh.interaction.PlatformSshPasswordProvider
+import com.intellij.ssh.processBuilder
 import com.intellij.ssh.ui.sftpBrowser.RemoteBrowserDialog
 import com.intellij.ssh.ui.sftpBrowser.SftpRemoteBrowserProvider
 import io.xmake.project.directory.ui.DirectoryBrowser
-import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHost
+import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHostType
+import io.xmake.utils.execute.defaultSyncExcludedEntryNames
 import io.xmake.utils.execute.SyncDirection
-import io.xmake.utils.execute.rmRecur
-import kotlinx.coroutines.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.runInterruptible
+import kotlinx.coroutines.withContext
 import java.awt.event.ActionListener
 import java.io.File
-import kotlin.io.path.Path
 
 class SshToolkitHostExtensionImpl : ToolkitHostExtension {
 
     override val KEY: String = "SSH"
 
-    private val sshConfigManager = SshConfigManager.getInstance(null)
-
-    override fun getHostType(): String {
-        return "SSH"
-    }
-
     override fun getToolkitHosts(project: Project?): List<ToolkitHost> {
-        return sshConfigManager.configs.map {
+        return SshConfigManager.getInstance(project).configs.map {
             ToolkitHost.ssh(it)
         }
     }
 
-    override fun filterRegistered(): (Toolkit) -> Boolean {
-        return { it.isOnRemote }
-    }
-
     override fun createToolkit(host: ToolkitHost, path: String, version: String): Toolkit {
-        val sshConfig = (host.backend as? SshConfig) ?: throw IllegalArgumentException()
+        val sshConfig = host.requireSshConfig()
         val name = sshConfig.presentableShortName
         return Toolkit(name, host, path, version)
     }
@@ -73,13 +76,12 @@ class SshToolkitHostExtensionImpl : ToolkitHostExtension {
         direction: SyncDirection,
         remoteDirectory: String,
     ) {
-        val sshConfig = (host.backend as? SshConfig) ?: throw IllegalArgumentException()
+        val sshConfig = host.requireSshConfig()
         val projectDirectory = project.guessProjectDir()?.path
             ?: project.basePath
             ?: throw IllegalStateException("Cannot resolve project directory")
         val projectDirectoryFile = File(projectDirectory)
-        val builder = ConnectionBuilder(sshConfig.host)
-            .withSshPasswordProvider(PlatformSshPasswordProvider(sshConfig.copyToCredentials()))
+        val builder = connectionBuilder(sshConfig)
         val cancellationContext = currentCoroutineContext()
         val sftpChannel = runInterruptible(Dispatchers.IO) {
             builder.openFailSafeSftpChannel()
@@ -90,12 +92,9 @@ class SshToolkitHostExtensionImpl : ToolkitHostExtension {
                 cancellationContext.ensureActive()
                 when (direction) {
                     SyncDirection.LOCAL_TO_UPSTREAM -> {
-                        try {
-                            sftpChannel.rmRecur(remoteDirectory)
-                        } catch (error: SftpChannelNoSuchFileException) {
-                            Log.debug("Remote sync directory does not exist yet: $remoteDirectory", error)
+                        sftpChannel.pruneMissingEntries(projectDirectoryFile, remoteDirectory) {
+                            cancellationContext.ensureActive()
                         }
-
                         sftpChannel.uploadFileOrDir(
                             projectDirectoryFile,
                             remoteDir = remoteDirectory,
@@ -109,12 +108,7 @@ class SshToolkitHostExtensionImpl : ToolkitHostExtension {
                                 override fun onFileCopied(file: File) {}
                             },
                             filesFilter = { file ->
-                                listOf(".xmake", ".idea", "build", ".gitignore")
-                                    .all {
-                                        !file.startsWith(
-                                            Path(projectDirectory, it).toFile()
-                                        )
-                                    }
+                                file.name !in defaultSyncExcludedEntryNames
                             },
                             persistExecutableBit = true,
                         )
@@ -132,49 +126,141 @@ class SshToolkitHostExtensionImpl : ToolkitHostExtension {
         }
     }
 
-    override suspend fun ToolkitHost.loadHostBackend(project: Project?) = coroutineScope {
-        backend = SshConfigManager.getInstance(project).findConfigById(backendId!!)!!
+    override suspend fun ToolkitHost.loadHostBackend(project: Project?) {
+        backend = backendId?.let { hostId ->
+            SshConfigManager.getInstance(project).findConfigById(hostId)
+        }
     }
 
     override fun DirectoryBrowser.createBrowseListener(host: ToolkitHost): ActionListener {
-        val sshConfig = host.backend as? SshConfig ?: throw IllegalArgumentException()
+        val sshConfig = host.requireSshConfig()
 
-        val sftpChannel = runBlocking(Dispatchers.Default) {
-            ConnectionBuilder(sshConfig.host)
-                .withSshPasswordProvider(PlatformSshPasswordProvider(sshConfig.copyToCredentials()))
+        return ActionListener {
+            val application = ApplicationManager.getApplication()
+            val pathToExpand = text.takeIf(String::isNotBlank)
+            application.executeOnPooledThread {
+                val channel = try {
+                    connectionBuilder(sshConfig).openFailSafeSftpChannel()
+                } catch (error: Exception) {
+                    showBrowseError(error)
+                    return@executeOnPooledThread
+                }
+
+                application.invokeLater(
+                    {
+                        if (project?.isDisposed == true) {
+                            application.executeOnPooledThread(channel::close)
+                            return@invokeLater
+                        }
+                        try {
+                            val dialog = RemoteBrowserDialog(
+                                remoteBrowserProvider = SftpRemoteBrowserProvider(channel),
+                                project = project,
+                                foldersOnly = true,
+                                hostName = sshConfig.presentableShortName,
+                                pathToExpand = pathToExpand,
+                                withCreateDirectoryButton = true,
+                            )
+                            if (dialog.showAndGet()) text = dialog.getResult()
+                        } catch (error: Exception) {
+                            showBrowseError(error)
+                        } finally {
+                            application.executeOnPooledThread(channel::close)
+                        }
+                    },
+                    ModalityState.any(),
+                )
+            }
+        }
+    }
+
+    override suspend fun resolveDefaultWorkingDirectory(project: Project, host: ToolkitHost): String {
+        val sshConfig = host.requireSshConfig()
+        return runInterruptible(Dispatchers.IO) {
+            connectionBuilder(sshConfig)
                 .openFailSafeSftpChannel()
+                .use { channel ->
+                    val workspaceRoot = joinRemotePath(channel.home, ".xmake")
+                    joinRemotePath(workspaceRoot, project.locationHash)
+                }
         }
-        val sftpRemoteBrowserProvider = SftpRemoteBrowserProvider(sftpChannel)
-        val remoteBrowseFolderListener = ActionListener {
-            text = RemoteBrowserDialog(
-                sftpRemoteBrowserProvider,
-                project,
-                true,
-                withCreateDirectoryButton = true
-            ).apply { showAndGet() }.getResult()
-        }
-        return remoteBrowseFolderListener
     }
 
     override fun GeneralCommandLine.createProcess(host: ToolkitHost): Process {
+        val sshConfig = host.requireSshConfig()
+        Log.info("commandOnRemote: $commandLineString")
+        return connectionBuilder(sshConfig)
+            .processBuilder(this)
+            .withAllocatePty(false)
+            .start()
+    }
 
-        val sshConfig = host.backend as? SshConfig ?: throw IllegalArgumentException()
-
-        val builder = ConnectionBuilder(sshConfig.host)
+    private fun connectionBuilder(sshConfig: SshConfig): ConnectionBuilder =
+        ConnectionBuilder(sshConfig.host)
             .withSshPasswordProvider(PlatformSshPasswordProvider(sshConfig.copyToCredentials()))
 
-        val command = GeneralCommandLine("sh").withParameters("-c")
-            .withParameters(this.commandLineString)
-            .withWorkDirectory(workDirectory)
-            .withCharset(charset)
-            .withEnvironment(environment)
-            .withInput(inputFile)
-            .withRedirectErrorStream(isRedirectErrorStream)
+    private fun ToolkitHost.requireSshConfig(): SshConfig =
+        backend as? SshConfig
+            ?: error("SSH toolkit host is unavailable: ${backendId.orEmpty()}")
 
-        return builder
-            .also { Log.info("commandOnRemote: ${command.commandLineString}") }
-            .processBuilder(command)
-            .start()
+    private fun DirectoryBrowser.showBrowseError(error: Exception) {
+        Log.warn("Failed to open the SSH directory browser", error)
+        ApplicationManager.getApplication().invokeLater(
+            {
+                if (project?.isDisposed != true) {
+                    Messages.showErrorDialog(
+                        project,
+                        error.message ?: "Unable to open the SSH directory browser",
+                        "SSH Directory Browser",
+                    )
+                }
+            },
+            ModalityState.any(),
+        )
+    }
+
+    private fun joinRemotePath(parent: String, child: String): String =
+        if (parent == "/") "/$child" else "${parent.trimEnd('/')}/$child"
+
+    /** Removes remote entries without a local counterpart so uploads mirror the local project. */
+    private fun SftpChannel.pruneMissingEntries(
+        localRoot: File,
+        remoteRoot: String,
+        checkCanceled: () -> Unit,
+    ) {
+        val entries = try {
+            ls(remoteRoot)
+        } catch (_: SftpChannelNoSuchFileException) {
+            return
+        }
+        entries.forEach { entry ->
+            checkCanceled()
+            val name = entry.name
+            if (name == "." || name == ".." || name in defaultSyncExcludedEntryNames) return@forEach
+            val localFile = File(localRoot, name)
+            val remotePath = joinRemotePath(remoteRoot, name)
+            when {
+                !entry.attrs.isDir -> if (!localFile.isFile) rm(remotePath)
+                localFile.isDirectory -> pruneMissingEntries(localFile, remotePath, checkCanceled)
+                else -> deleteRemoteTree(remotePath, checkCanceled)
+            }
+        }
+    }
+
+    private fun SftpChannel.deleteRemoteTree(remotePath: String, checkCanceled: () -> Unit) {
+        val entries = try {
+            ls(remotePath)
+        } catch (_: SftpChannelNoSuchFileException) {
+            return
+        }
+        entries.forEach { entry ->
+            checkCanceled()
+            val name = entry.name
+            if (name == "." || name == "..") return@forEach
+            val childPath = joinRemotePath(remotePath, name)
+            if (entry.attrs.isDir) deleteRemoteTree(childPath, checkCanceled) else rm(childPath)
+        }
+        rmdir(remotePath)
     }
 
     companion object {

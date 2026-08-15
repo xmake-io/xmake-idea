@@ -31,11 +31,7 @@ import java.awt.event.ActionListener
 interface ToolkitHostExtension {
     val KEY: String
 
-    fun getHostType(): String
-
     fun getToolkitHosts(project: Project? = null): List<ToolkitHost>
-
-    fun filterRegistered(): (Toolkit) -> Boolean
 
     fun createToolkit(host: ToolkitHost, path: String, version: String): Toolkit
 
@@ -49,6 +45,8 @@ interface ToolkitHostExtension {
     suspend fun ToolkitHost.loadHostBackend(project: Project? = null)
 
     fun DirectoryBrowser.createBrowseListener(host: ToolkitHost): ActionListener
+
+    suspend fun resolveDefaultWorkingDirectory(project: Project, host: ToolkitHost): String? = null
 
     fun GeneralCommandLine.createProcess(host: ToolkitHost): Process
 }

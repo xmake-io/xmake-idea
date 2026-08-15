@@ -90,7 +90,7 @@ class DirectoryBrowser(val project: Project?) : TextFieldWithBrowseButton() {
                     val browseListener = with(extension) { createBrowseListener(host) }
                     addActionListener(browseListener)
                     listeners.add(browseListener)
-                    Log.debug("addActionListener ${extension.getHostType()}: $browseListener")
+                    Log.debug("addActionListener SSH: $browseListener")
                 }
             }
         }
@@ -105,4 +105,3 @@ class DirectoryBrowser(val project: Project?) : TextFieldWithBrowseButton() {
         private val Log = logger<DirectoryBrowser>()
     }
 }
-

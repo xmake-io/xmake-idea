@@ -316,12 +316,7 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
     }
 
     fun getRegisteredToolkits(): List<Toolkit> {
-        return state.registeredToolkits.filter { toolkit ->
-            !toolkit.isOnRemote ||
-                    EP_NAME.extensions.filter { it.KEY == "SSH" }.fold(true) { acc, sshExtension ->
-                        acc || sshExtension.filterRegistered()(toolkit)
-                    }
-        }
+        return state.registeredToolkits.toList()
 //            .filterNot { (it.host.type == SSH && PlatformUtils.isCommunityEdition()) }
     }
 
