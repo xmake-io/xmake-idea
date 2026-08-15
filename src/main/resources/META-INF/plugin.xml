@@ -139,4 +139,9 @@
         </group>
     </actions>
 
+    <projectListeners>
+        <listener class="io.xmake.project.profile.XMakeBuildProfileToolkitListener"
+                  topic="io.xmake.project.toolkit.ToolkitListener"/>
+    </projectListeners>
+
 </idea-plugin>
