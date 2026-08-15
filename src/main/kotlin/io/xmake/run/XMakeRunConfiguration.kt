@@ -76,6 +76,10 @@ class XMakeRunConfiguration(
     @OptionTag(tag = "arguments")
     var runArguments: String = ""
 
+    /** Preferred profile reference; the execution target remains the runtime authority. */
+    @OptionTag(tag = "buildProfile")
+    var preferredBuildProfileId: String? = null
+
     // the run environmen
     @get:Transient
     var runEnvironment: EnvironmentVariablesData = EnvironmentVariablesData.DEFAULT

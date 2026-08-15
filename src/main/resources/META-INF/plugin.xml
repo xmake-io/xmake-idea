@@ -45,12 +45,14 @@
         <programRunner implementation="io.xmake.run.XMakeRunner"/>
         <configurationType implementation="io.xmake.run.XMakeRunConfigurationType"/>
         <runConfigurationProducer implementation="io.xmake.run.XMakeRunConfigurationProducer"/>
+        <executionTargetProvider implementation="io.xmake.run.target.XMakeBuildProfileExecutionTargetProvider"/>
         <projectTaskRunner implementation="io.xmake.build.XMakeProjectTaskRunner"/>
 
         <!-- notifications -->
         <notificationGroup id="XMake.NotificationGroup" displayType="BALLOON"/>
 
         <postStartupActivity implementation="io.xmake.utils.info.XMakeInfoActivity"/>
+        <postStartupActivity implementation="io.xmake.run.target.XMakeExecutionTargetSyncActivity"/>
 
         <fileType name="xmake.lua" language="xmake.lua" fieldName="INSTANCE"
                   fileNames="xmake.lua" fileNamesCaseInsensitive="xmake.lua"

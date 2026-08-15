@@ -97,6 +97,21 @@ class XMakeBuildProfileManager(private val project: Project) :
         publishProfilesChanged()
     }
 
+    internal fun importMigratedProfile(profile: XMakeBuildProfile): XMakeBuildProfile {
+        require(XMakeBuildProfile.isValidId(profile.id)) { "Invalid XMake build profile ID: ${profile.id}" }
+        val (importedProfile, changed) = synchronized(stateLock) {
+            profileState.profiles.firstOrNull { existing -> existing.id == profile.id }?.let { existing ->
+                return@synchronized existing.copy() to false
+            }
+            val existingNames = profileState.profiles.mapTo(mutableSetOf()) { existing -> existing.name.trim() }
+            val imported = profile.copy(name = XMakeBuildProfile.uniqueName(profile.name, existingNames))
+            profileState = State((profileState.profiles + imported).toMutableList())
+            imported.copy() to true
+        }
+        if (changed) publishProfilesChanged()
+        return importedProfile
+    }
+
     internal fun handleToolkitChanges() {
         val toolkitManager = ToolkitManager.getInstance()
         val shouldPublish = synchronized(stateLock) {
