@@ -185,8 +185,10 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
                 }
             }.flowOn(Dispatchers.Default).buffer()
 
-            versionFlow.collect { toolkit ->
+            versionFlow.collect { scannedToolkit ->
                 // Todo: Consider cache
+                val toolkit = refreshMatchingRegistration(scannedToolkit) ?: scannedToolkit
+                fetchedToolkitsSet.removeIf { known -> known.location == toolkit.location }
                 fetchedToolkitsSet.add(toolkit)
                 listenerList.forEach { listener ->
                     listener.onToolkitDetected(ToolkitDetectEvent(toolkit))
@@ -248,11 +250,13 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
     }
 
     override fun loadState(state: State) {
-        state.registeredToolkits.forEach {
-            registerToolkit(it)
-            fetchedToolkitsSet.add(it)
+        storage = state
+        state.registeredToolkits.forEach { toolkit ->
+            toolkit.isRegistered = true
+            loadToolkit(toolkit)
+            fetchedToolkitsSet.removeIf { known -> known.location == toolkit.location }
+            fetchedToolkitsSet.add(toolkit)
         }
-        this.storage = state
     }
 
     private fun loadToolkit(toolkit: Toolkit) {
@@ -263,22 +267,26 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
     }
 
     fun registerToolkit(toolkit: Toolkit) {
-        toolkit.isRegistered = true
-        if (state.registeredToolkits.add(toolkit)){
-            loadToolkit(toolkit)
-        } else {
-            loadToolkit(findRegisteredToolkitById(toolkit.id)!!)
+        val existing = findRegisteredToolkit(toolkit)
+        val registeredToolkit = toolkit.copy(id = existing?.id ?: toolkit.id).apply {
+            isRegistered = true
+            isValid = toolkit.isValid
         }
-        Logger.i(TAG, "load registered toolkit: ${toolkit.name}, ${toolkit.id}")
+        toolkit.isRegistered = true
+        existing?.let(storage.registeredToolkits::remove)
+        storage.registeredToolkits.add(registeredToolkit)
+        loadToolkit(registeredToolkit)
+        Logger.i(TAG, "load registered toolkit: ${registeredToolkit.name}, ${registeredToolkit.id}")
     }
 
     // Todo: Increase robustness of this method
     fun unregisterToolkit(toolkit: Toolkit) {
-        if(state.registeredToolkits.remove(toolkit)) {
+        val registeredToolkit = findRegisteredToolkit(toolkit) ?: return
+        if (storage.registeredToolkits.remove(registeredToolkit)) {
             ProjectManager.getInstance().openProjects.forEach { project ->
                 RunManager.getInstance(project).allConfigurationsList.forEach {
                     if (it is XMakeRunConfiguration) {
-                        if (it.runToolkit?.id == toolkit.id)
+                        if (it.runToolkit?.id == registeredToolkit.id)
                             it.runToolkit = null
                     }
                 }
@@ -287,7 +295,24 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
     }
 
     fun findRegisteredToolkitById(id: String): Toolkit? {
-        return state.registeredToolkits.find { it.id == id }
+        return storage.registeredToolkits.find { it.id == id }
+    }
+
+    private fun findRegisteredToolkit(toolkit: Toolkit): Toolkit? =
+        findRegisteredToolkitById(toolkit.id)
+            ?: storage.registeredToolkits.firstOrNull { registered ->
+                registered.location == toolkit.location
+            }
+
+    private fun refreshMatchingRegistration(toolkit: Toolkit): Toolkit? {
+        val registeredToolkit = findRegisteredToolkit(toolkit) ?: return null
+        val refreshedToolkit = toolkit.copy(id = registeredToolkit.id).apply {
+            isRegistered = true
+            isValid = toolkit.isValid
+        }
+        storage.registeredToolkits.remove(registeredToolkit)
+        storage.registeredToolkits.add(refreshedToolkit)
+        return refreshedToolkit
     }
 
     fun getRegisteredToolkits(): List<Toolkit> {

@@ -112,9 +112,7 @@ internal class XMakeCommandBuilder private constructor(
         ): String {
             val identity = buildString {
                 appendField("xmake-configuration-v1")
-                appendField(toolkit.id)
-                appendField(toolkit.host.type.name)
-                appendField(toolkit.host.backendId.orEmpty())
+                appendField(toolkit.host.id.canonical)
                 appendField(toolkit.path)
                 appendField(toolkit.version)
                 appendField(workingDirectory)
