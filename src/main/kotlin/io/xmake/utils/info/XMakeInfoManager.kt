@@ -34,6 +34,8 @@ import com.intellij.util.messages.Topic
 import io.xmake.file.highlight.XMakeLuaLexer
 import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.project.profile.XMakeBuildProfileManager
+import io.xmake.project.profile.XMakeBuildProfileOptions
+import io.xmake.project.profile.xmakeBuildProfileOptionsCache
 import io.xmake.project.toolkit.ToolkitListener
 import io.xmake.run.command.configureBestEffort
 import io.xmake.run.command.executeInfoQuery
@@ -68,13 +70,17 @@ class XMakeInfoManager(
             ToolkitListener.TOPIC,
             object : ToolkitListener {
                 override fun toolkitsChanged() {
+                    project.xmakeBuildProfileOptionsCache.clear()
                     probeActiveBuildProfile()
                 }
             },
         )
         messageBusConnection.subscribe(
             XMakeBuildProfileManager.TOPIC,
-            XMakeBuildProfileManager.Listener { probeActiveBuildProfile() },
+            XMakeBuildProfileManager.Listener {
+                project.xmakeBuildProfileOptionsCache.clear()
+                probeActiveBuildProfile()
+            },
         )
         messageBusConnection.subscribe(
             VirtualFileManager.VFS_CHANGES,
@@ -87,6 +93,7 @@ class XMakeInfoManager(
                                 event.file?.name?.equals("xmake.lua", ignoreCase = true) == true
                     }
                     if (xmakeProjectAppearedOrChanged) probeActiveBuildProfile()
+                    if (xmakeProjectAppearedOrChanged) project.xmakeBuildProfileOptionsCache.clear()
                 }
             },
         )
@@ -106,17 +113,32 @@ class XMakeInfoManager(
     private suspend fun probeBuildProfile(profile: XMakeBuildProfile) {
         try {
             withContext(Dispatchers.IO) {
-                project.withProfileCommands(profile) {
-                    configureBestEffort(it)
-                    val parser = XMakeInfo()
-                    xmakeInfo.apply {
-                        architectures = parser.parseArchitectures(executeInfoQuery("architectures", it))
-                        buildModes = parser.parseBuildModes(executeInfoQuery("buildmodes", it))
-                        platforms = parser.parsePlatforms(executeInfoQuery("platforms", it))
-                        targets = parser.parseTargets(executeInfoQuery("targets", it))
-                        toolchains = parser.parseToolchains(executeInfoQuery("toolchains", it))
-                        apis = parser.parseApis(executeInfoQuery("apis", it))
-                    }
+                    project.withProfileCommands(profile) {
+                        configureBestEffort(it)
+                        val parser = XMakeInfo()
+                        val architectures = parser.parseArchitectures(executeInfoQuery("architectures", it))
+                        val buildModes = parser.parseBuildModes(executeInfoQuery("buildmodes", it))
+                        val platforms = parser.parsePlatforms(executeInfoQuery("platforms", it))
+                        val targets = parser.parseTargets(executeInfoQuery("targets", it))
+                        val toolchains = parser.parseToolchains(executeInfoQuery("toolchains", it))
+                        val apis = parser.parseApis(executeInfoQuery("apis", it))
+                        xmakeInfo.apply {
+                            this.architectures = architectures
+                            this.buildModes = buildModes
+                            this.platforms = platforms
+                            this.targets = targets
+                            this.toolchains = toolchains
+                            this.apis = apis
+                        }
+                        project.xmakeBuildProfileOptionsCache.put(
+                            profile,
+                            XMakeBuildProfileOptions(
+                                architectures = architectures,
+                                buildModes = buildModes,
+                                platforms = platforms,
+                                toolchains = toolchains,
+                            ),
+                        )
 
                     if (xmakeInfo.apis.isNotEmpty()) {
                         XMakeLuaLexer.updateApis(xmakeInfo.apis)
