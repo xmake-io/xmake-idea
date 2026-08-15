@@ -31,11 +31,11 @@ class CleanConfigurationAction : XMakeCommandAction() {
     override suspend fun execute(
         project: Project,
         console: XMakeConsole,
-        commands: XMakeCommandFactory,
+        commandFactory: XMakeCommandFactory,
     ) {
         project.xmakeExecutionService.execute(
             console,
-            commands.createCleanConfiguration(),
+            commandFactory.createCleanConfiguration(),
             XMakeConsoleOptions(showExitCode = true),
         )
     }

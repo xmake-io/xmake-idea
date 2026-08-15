@@ -20,10 +20,12 @@ import com.intellij.execution.ExecutionException
 import com.intellij.execution.Executor
 import com.intellij.execution.configurations.RunProfileState
 import com.intellij.execution.runners.ProgramRunner
+import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.util.execution.ParametersListUtil
 import io.xmake.run.XMakeRunConfiguration
 import io.xmake.run.command.XMakeCommand
 import io.xmake.run.command.XMakeCommandFactory
+import io.xmake.run.target.requireXMakeBuildProfileFor
 
 internal class XMakeDebugState private constructor(
     val configureCommand: XMakeCommand,
@@ -32,7 +34,7 @@ internal class XMakeDebugState private constructor(
     val targetName: String,
     val buildMode: String,
     val configuredDapDriverPath: String,
-    val detectDapDriver: Boolean,
+    val autoDetectDapDriver: Boolean,
     val launchConfiguration: String,
     val arguments: List<String>,
     val environment: Map<String, String>,
@@ -43,21 +45,25 @@ internal class XMakeDebugState private constructor(
         throw ExecutionException("XMakeDebugState must be executed by XMakeRunner")
 
     companion object {
-        fun create(configuration: XMakeRunConfiguration): XMakeDebugState {
-            val commands = XMakeCommandFactory(configuration)
-            val buildCommand = commands.createTargetBuild()
+        fun create(
+            configuration: XMakeRunConfiguration,
+            environment: ExecutionEnvironment,
+        ): XMakeDebugState {
+            val profile = configuration.project.requireXMakeBuildProfileFor(environment.executionTarget)
+            val commandFactory = XMakeCommandFactory(configuration.project, profile)
+            val buildCommand = commandFactory.createTargetBuild(configuration.runTarget)
             if (buildCommand.toolkit.requiresBackend) {
-                throw ExecutionException("Remote XMake toolkits are not supported for debugging")
+                throw ExecutionException("XMake debugging is supported only for local toolkits")
             }
 
             return XMakeDebugState(
-                configureCommand = commands.createConfigure(),
+                configureCommand = commandFactory.createConfigure(),
                 buildCommand = buildCommand,
-                targetPathCommand = commands.createTargetPathQuery(),
+                targetPathCommand = commandFactory.createTargetPathQuery(configuration.runTarget),
                 targetName = configuration.runTarget,
-                buildMode = configuration.runMode,
+                buildMode = profile.buildMode,
                 configuredDapDriverPath = configuration.dapDriverPath,
-                detectDapDriver = configuration.dapDriverAutoDetect,
+                autoDetectDapDriver = configuration.dapDriverAutoDetect,
                 launchConfiguration = configuration.launchConfiguration,
                 arguments = ParametersListUtil.parse(configuration.runArguments),
                 environment = configuration.runEnvironment.envs.toMap(),

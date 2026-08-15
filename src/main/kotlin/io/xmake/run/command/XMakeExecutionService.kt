@@ -39,13 +39,16 @@ internal class XMakeExecutionService(
 
     /** Keeps the commands in one submitted operation from interleaving with another operation. */
     fun <T> submit(task: suspend () -> T): Deferred<T> =
-        coroutineScope.async { taskMutex.withLock { task() } }
+        coroutineScope.async { runExclusive(task) }
+
+    /** Runs a command operation without interleaving it with another XMake operation. */
+    suspend fun <T> runExclusive(task: suspend () -> T): T = taskMutex.withLock { task() }
 
     suspend fun execute(
         console: XMakeConsole,
         command: XMakeCommand,
         options: XMakeConsoleOptions = XMakeConsoleOptions(),
-    ) = start(
+    ) = runToCompletion(
         command,
         options,
         onTextAvailable = { text, outputType ->
@@ -55,9 +58,13 @@ internal class XMakeExecutionService(
         beforeStart = { if (options.showConsole) console.showOutput() },
     )
 
+    suspend fun execute(command: XMakeCommand) {
+        runToCompletion(command)
+    }
+
     suspend fun captureStandardOutput(command: XMakeCommand): String {
         val output = StringBuilder()
-        start(
+        runToCompletion(
             command,
             onTextAvailable = { text, outputType ->
                 if (ProcessOutputType.isStdout(outputType)) output.append(text)
@@ -66,7 +73,7 @@ internal class XMakeExecutionService(
         return output.toString()
     }
 
-    private suspend fun start(
+    private suspend fun runToCompletion(
         command: XMakeCommand,
         options: XMakeConsoleOptions = XMakeConsoleOptions(),
         onTextAvailable: (String, Key<*>) -> Unit = { _, _ -> },

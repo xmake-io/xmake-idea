@@ -79,7 +79,7 @@ private fun resolveTarget(state: XMakeDebugState, output: String): File {
 }
 
 private fun resolveDriver(state: XMakeDebugState): DapDriverDetector.DapDriverInfo {
-    val driverPath = if (!state.detectDapDriver && state.configuredDapDriverPath.isNotBlank()) {
+    val driverPath = if (!state.autoDetectDapDriver && state.configuredDapDriverPath.isNotBlank()) {
         state.configuredDapDriverPath
     } else {
         DapDriverDetector.findBestDriver()?.path.orEmpty()

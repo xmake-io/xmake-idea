@@ -18,37 +18,43 @@ package io.xmake.actions
 
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
 import com.intellij.task.ProjectTaskManager
 import io.xmake.build.XMakeBuildTask
-import io.xmake.run.XMakeRunConfiguration
+import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.run.command.XMakeCommandFactory
+import io.xmake.run.target.activeOrSingleXMakeBuildProfile
 
 abstract class XMakeBuildAction : XMakeProjectAction() {
     final override fun execute(project: Project) {
-        val configuration = project.selectedXMakeRunConfiguration
-        if (configuration == null) {
-            notifyConfigurationError(project, "Please select an XMake run configuration first")
-            return
-        }
-
-        val task = try {
-            configuration.checkConfiguration()
-            createTask(project, configuration, XMakeCommandFactory(configuration))
-        } catch (error: Exception) {
-            notifyConfigurationError(project, error.message ?: "The XMake configuration is invalid")
+        val profile = project.activeOrSingleXMakeBuildProfile
+        if (profile == null) {
+            notifyConfigurationError(project, "Please select an XMake build profile first")
             return
         }
 
         FileDocumentManager.getInstance().saveAllDocuments()
-        ProjectTaskManager.getInstance(project).run(task)
+        ApplicationManager.getApplication().executeOnPooledThread {
+            val task = try {
+                createTask(project, profile, XMakeCommandFactory(project, profile))
+            } catch (error: Exception) {
+                notifyConfigurationError(project, error.message ?: "The XMake build profile is invalid")
+                return@executeOnPooledThread
+            }
+            ApplicationManager.getApplication().invokeLater {
+                if (!project.isDisposed) {
+                    ProjectTaskManager.getInstance(project).run(task)
+                }
+            }
+        }
     }
 
     internal abstract fun createTask(
         project: Project,
-        configuration: XMakeRunConfiguration,
-        commands: XMakeCommandFactory,
+        profile: XMakeBuildProfile,
+        commandFactory: XMakeCommandFactory,
     ): XMakeBuildTask
 }
 

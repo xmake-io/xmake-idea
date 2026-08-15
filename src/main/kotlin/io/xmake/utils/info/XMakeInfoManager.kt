@@ -20,94 +20,119 @@
  */
 package io.xmake.utils.info
 
-import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service
-import com.intellij.openapi.components.serviceOrNull
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.vfs.VirtualFileManager
+import com.intellij.openapi.vfs.newvfs.BulkFileListener
+import com.intellij.openapi.vfs.newvfs.events.VFileEvent
+import com.intellij.openapi.vfs.newvfs.events.VFileContentChangeEvent
+import com.intellij.openapi.vfs.newvfs.events.VFileCreateEvent
+import com.intellij.openapi.vfs.newvfs.events.VFilePropertyChangeEvent
 import com.intellij.util.messages.Topic
 import io.xmake.file.highlight.XMakeLuaLexer
-import io.xmake.project.toolkit.Toolkit
-import io.xmake.utils.execute.createProcess
-import io.xmake.utils.execute.runProcess
+import io.xmake.project.profile.XMakeBuildProfile
+import io.xmake.project.profile.XMakeBuildProfileManager
+import io.xmake.project.toolkit.ToolkitListener
+import io.xmake.run.command.configureBestEffort
+import io.xmake.run.command.executeInfoQuery
+import io.xmake.run.command.withProfileCommands
+import io.xmake.run.target.activeOrSingleXMakeBuildProfile
+import io.xmake.utils.SystemUtils
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.consumeAsFlow
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
-import java.io.File
+import kotlinx.coroutines.withContext
+import kotlin.time.Duration.Companion.milliseconds
 
+@OptIn(FlowPreview::class)
 @Service(Service.Level.PROJECT)
-class XMakeInfoManager(val project: Project, private val scope: CoroutineScope) {
+class XMakeInfoManager(
+    val project: Project,
+    scope: CoroutineScope,
+) : Disposable {
 
     val xmakeInfo: XMakeInfo = XMakeInfo()
 
-    // Todo
-    val cachedXMakeInfoMap: MutableMap<Toolkit, XMakeInfo> = mutableMapOf()
+    private val messageBusConnection = project.messageBus.connect(this)
+    private val probeRequests = Channel<XMakeBuildProfile>(Channel.CONFLATED)
 
-    fun probeXMakeInfo(toolkit: Toolkit?) {
-        scope.launch {
-            toolkit?.let {
-                val workingDirectory = project.basePath?.let { path -> File(path) }
-
-                suspend fun runXMakeShow(key: String): String {
-                    val cmd = GeneralCommandLine(
-                        "xmake show -l $key --json".split(" ")
-                    ).apply {
-                        workingDirectory?.let { wd -> withWorkDirectory(wd) }
-                        withEnvironment("XMAKE_SKIP_HISTORY", "1")
-                        withEnvironment("XMAKE_ROOT", "y")
-                        withEnvironment("XMAKE_COLOR_TERM", "nocolor")
+    init {
+        messageBusConnection.subscribe(
+            ToolkitListener.TOPIC,
+            object : ToolkitListener {
+                override fun toolkitsChanged() {
+                    probeActiveBuildProfile()
+                }
+            },
+        )
+        messageBusConnection.subscribe(
+            XMakeBuildProfileManager.TOPIC,
+            XMakeBuildProfileManager.Listener { probeActiveBuildProfile() },
+        )
+        messageBusConnection.subscribe(
+            VirtualFileManager.VFS_CHANGES,
+            object : BulkFileListener {
+                override fun after(events: MutableList<out VFileEvent>) {
+                    val xmakeProjectAppearedOrChanged = events.any { event ->
+                        (event is VFileCreateEvent ||
+                                event is VFileContentChangeEvent ||
+                                event is VFilePropertyChangeEvent) &&
+                                event.file?.name?.equals("xmake.lua", ignoreCase = true) == true
                     }
-                    val result = runProcess(cmd.createProcess(it)).first.getOrDefault("")
-                    return result
+                    if (xmakeProjectAppearedOrChanged) probeActiveBuildProfile()
                 }
-
-                val architecturesString = runXMakeShow("architectures")
-                val buildModesString = runXMakeShow("buildmodes")
-                val platformsString = runXMakeShow("platforms")
-                val targetsString = runXMakeShow("targets")
-                val toolchainsString = runXMakeShow("toolchains")
-
-                with(xmakeInfo) {
-                    architectures = parseArchitectures(architecturesString)
-                    buildModes = parseBuildModes(buildModesString)
-                    platforms = parsePlatforms(platformsString)
-                    targets = parseTargets(targetsString)
-                    toolchains = parseToolchains(toolchainsString)
-                }
-
-                project.messageBus.syncPublisher(XMAKE_INFO_TOPIC).onXMakeInfoUpdated(xmakeInfo)
-            }
+            },
+        )
+        scope.launch {
+            probeRequests.consumeAsFlow()
+                .debounce(PROBE_DEBOUNCE)
+                .collect { profile -> probeBuildProfile(profile) }
         }
     }
 
-    fun probeXMakeApis(toolkit: Toolkit?) {
-        scope.launch {
-            toolkit?.let {
-                val workingDirectory = project.basePath?.let { path -> File(path) }
+    fun probeActiveBuildProfile() {
+        if (project.isDisposed || !SystemUtils.isXMakeProject(project)) return
+        val profile = project.activeOrSingleXMakeBuildProfile ?: return
+        probeRequests.trySend(profile)
+    }
 
-                suspend fun runXMakeShow(key: String): String {
-                    val cmd = GeneralCommandLine(
-                        "xmake show -l $key --json".split(" ")
-                    ).apply {
-                        workingDirectory?.let { wd -> withWorkDirectory(wd) }
-                        withEnvironment("XMAKE_SKIP_HISTORY", "1")
-                        withEnvironment("XMAKE_ROOT", "y")
-                        withEnvironment("XMAKE_COLOR_TERM", "nocolor")
+    private suspend fun probeBuildProfile(profile: XMakeBuildProfile) {
+        try {
+            withContext(Dispatchers.IO) {
+                project.withProfileCommands(profile) {
+                    configureBestEffort(it)
+                    val parser = XMakeInfo()
+                    xmakeInfo.apply {
+                        architectures = parser.parseArchitectures(executeInfoQuery("architectures", it))
+                        buildModes = parser.parseBuildModes(executeInfoQuery("buildmodes", it))
+                        platforms = parser.parsePlatforms(executeInfoQuery("platforms", it))
+                        targets = parser.parseTargets(executeInfoQuery("targets", it))
+                        toolchains = parser.parseToolchains(executeInfoQuery("toolchains", it))
+                        apis = parser.parseApis(executeInfoQuery("apis", it))
                     }
-                    val result = runProcess(cmd.createProcess(it)).first.getOrDefault("")
-                    return result
-                }
 
-                val apisString = runXMakeShow("apis")
-
-                with(xmakeInfo) {
-                    apis = parseApis(apisString)
-                }
-
-                if (xmakeInfo.apis.isNotEmpty()) {
-                    XMakeLuaLexer.updateApis(xmakeInfo.apis)
+                    if (xmakeInfo.apis.isNotEmpty()) {
+                        XMakeLuaLexer.updateApis(xmakeInfo.apis)
+                    }
+                    project.messageBus.syncPublisher(XMAKE_INFO_TOPIC).onXMakeInfoUpdated(xmakeInfo)
                 }
             }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            Log.warn("Failed to probe XMake information for profile ${profile.id}", error)
         }
+    }
+
+    override fun dispose() {
+        messageBusConnection.disconnect()
     }
 
     interface XMakeInfoListener {
@@ -115,9 +140,12 @@ class XMakeInfoManager(val project: Project, private val scope: CoroutineScope) 
     }
 
     companion object {
+        private val PROBE_DEBOUNCE = 300.milliseconds
+
         val Log = logger<XMakeInfoManager>()
         val XMAKE_INFO_TOPIC = Topic.create("XMake Info Updated", XMakeInfoListener::class.java)
 
-        fun getInstance(project: Project): XMakeInfoManager = project.serviceOrNull() ?: throw IllegalStateException()
+        fun getInstance(project: Project): XMakeInfoManager =
+            project.getService(XMakeInfoManager::class.java) ?: error("Failed to get XMakeInfoManager for $project")
     }
 }

@@ -22,23 +22,23 @@ package io.xmake.actions
 
 import com.intellij.openapi.project.Project
 import io.xmake.build.XMakeBuildTask
+import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.project.xmakeSettings
-import io.xmake.run.XMakeRunConfiguration
 import io.xmake.run.command.XMakeCommandFactory
 
 class BuildAction : XMakeBuildAction() {
 
     override fun createTask(
         project: Project,
-        configuration: XMakeRunConfiguration,
-        commands: XMakeCommandFactory,
+        profile: XMakeBuildProfile,
+        commandFactory: XMakeCommandFactory,
     ): XMakeBuildTask = XMakeBuildTask(
-        presentableName = "Build '${configuration.name}'",
+        presentableName = "Build '${profile.name}'",
         commands = buildList {
-            add(commands.createConfigure())
-            add(commands.createBuild())
+            add(commandFactory.createConfigure())
+            add(commandFactory.createBuild())
             if (project.xmakeSettings.state.autoUpdateCompileCommands) {
-                add(commands.createUpdateCompileCommands())
+                add(commandFactory.createUpdateCompileCommands())
             }
         },
     )

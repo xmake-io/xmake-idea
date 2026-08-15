@@ -18,73 +18,75 @@ package io.xmake.run.command
 
 import com.intellij.execution.ExecutionException
 import com.intellij.execution.configuration.EnvironmentVariablesData
+import com.intellij.execution.configurations.RuntimeConfigurationError
+import com.intellij.openapi.project.Project
 import com.intellij.util.execution.ParametersListUtil
+import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.project.xmakeSettings
-import io.xmake.run.XMakeRunConfiguration
 import io.xmake.utils.SystemUtils
 
-/** Builds commands from one run configuration captured at construction time. */
-internal class XMakeCommandFactory(configuration: XMakeRunConfiguration) {
-    private val target = configuration.runTarget
-    private val platform = configuration.runPlatform
-    private val architecture = configuration.runArchitecture
-    private val toolchain = configuration.runToolchain
-    private val mode = configuration.runMode
-    private val arguments = configuration.runArguments
-    private val environment = configuration.runEnvironment
-    private val buildDirectory = configuration.buildDirectory
-    private val androidNdkDirectory = configuration.androidNDKDirectory
-    private val verbose = configuration.enableVerbose
-    private val additionalConfiguration = configuration.additionalConfiguration
-    private val compileCommandsPath = configuration.project.xmakeSettings.state.compileCommandsPath
-    private val configureOptions = commandArguments {
-        args("-m", mode)
-        option("-p", platform.takeUnless { it == DEFAULT_VALUE })
-        option("-a", architecture.takeUnless { it == DEFAULT_VALUE })
-        if (toolchain != DEFAULT_VALUE) {
-            args("--toolchain=$toolchain")
+/** Builds commands from one project-owned build profile captured at construction time. */
+internal class XMakeCommandFactory(project: Project, profile: XMakeBuildProfile) {
+    private val profileSnapshot = profile.copy()
+    private val compileCommandsPath = project.xmakeSettings.state.compileCommandsPath
+    private val configureArguments = buildList {
+        args("-m", profileSnapshot.buildMode)
+        option("-p", profileSnapshot.platform.takeUnless { it == XMakeBuildProfile.USE_XMAKE_DEFAULT })
+        option("-a", profileSnapshot.architecture.takeUnless { it == XMakeBuildProfile.USE_XMAKE_DEFAULT })
+        if (profileSnapshot.toolchain != XMakeBuildProfile.USE_XMAKE_DEFAULT) {
+            args("--toolchain=${profileSnapshot.toolchain}")
         }
-        if (platform == "android" && androidNdkDirectory.isNotEmpty()) {
-            args("--ndk=$androidNdkDirectory")
+        if (profileSnapshot.platform == ANDROID_PLATFORM && profileSnapshot.androidNdkDirectory.isNotEmpty()) {
+            args("--ndk=${profileSnapshot.androidNdkDirectory}")
         }
-        option("-o", buildDirectory.takeIf { it.isNotEmpty() })
-        if (additionalConfiguration.isNotEmpty()) {
-            parsedArgs(additionalConfiguration)
+        option("-o", profileSnapshot.buildDirectory.takeIf { it.isNotEmpty() })
+        if (profileSnapshot.configureArguments.isNotEmpty()) {
+            parsedArgs(profileSnapshot.configureArguments)
         }
     }
-    private val commandBuilder = XMakeCommandBuilder.forConfiguration(configuration, configureOptions)
+    private val commandBuilder = run {
+        val toolkit = profileSnapshot.resolveToolkit(project)
+            ?: throw RuntimeConfigurationError(
+                "XMake toolkit is not set, is unavailable in this project, or is no longer registered",
+            )
+        if (!toolkit.isAvailable) {
+            throw RuntimeConfigurationError("XMake toolkit is unavailable in this project")
+        }
+        val workingDirectory = profileSnapshot.resolveWorkingDirectory(project, toolkit)
+        XMakeCommandBuilder.forBuildProfile(profileSnapshot.id, toolkit, workingDirectory, configureArguments)
+    }
 
-    fun createBuild(): XMakeCommand = createTargetBuild(DEFAULT_VALUE)
+    fun createBuild(): XMakeCommand = createTargetBuild(DEFAULT_BUILD_TARGET)
 
-    fun createTargetBuild(target: String = this.target): XMakeCommand = createCommand {
+    fun createTargetBuild(targetName: String): XMakeCommand = createCommand {
         args("build", "-y")
-        flag("-v", verbose)
-        target(target)
+        flag("-v", profileSnapshot.verbose)
+        appendTarget(targetName)
     }
 
     fun createRebuild(): XMakeCommand = createCommand {
         args("build", "-r", "-y")
-        flag("-v", verbose)
+        flag("-v", profileSnapshot.verbose)
     }
 
     fun createClean(): XMakeCommand = createCommand {
         args("clean")
-        flag("-v", verbose)
+        flag("-v", profileSnapshot.verbose)
     }
 
     fun createCleanConfiguration(): XMakeCommand = createCommand {
         args("config", "-c", "-y")
-        flag("-v", verbose)
-        option("-o", buildDirectory.takeIf { it.isNotEmpty() })
+        flag("-v", profileSnapshot.verbose)
+        option("-o", profileSnapshot.buildDirectory.takeIf { it.isNotEmpty() })
     }
 
     fun createConfigure(): XMakeCommand = createCommand {
         args("config", "-y")
-        args(configureOptions)
-        flag("-v", verbose)
+        args(configureArguments)
+        flag("-v", profileSnapshot.verbose)
     }
 
-    fun createUpdateCmakeLists(): XMakeCommand = createCommand {
+    fun createUpdateCMakeLists(): XMakeCommand = createCommand {
         args("project", "-k", "cmake", "-y")
     }
 
@@ -95,24 +97,35 @@ internal class XMakeCommandFactory(configuration: XMakeRunConfiguration) {
             ?.let { args(it) }
     }
 
-    fun createRun(): XMakeCommand = createCommand(
+    fun createRun(
+        targetName: String,
+        arguments: String,
+        environment: EnvironmentVariablesData,
+    ): XMakeCommand = createCommand(
         environmentVariables = environment,
     ) {
         args("run")
-        target(target)
+        appendTarget(targetName)
         if (arguments.isNotEmpty()) {
             parsedArgs(arguments)
         }
     }
 
-    fun createTargetPathQuery(): XMakeCommand {
+    fun createTargetPathQuery(targetName: String): XMakeCommand {
         val scriptPath = SystemUtils.getScriptPath("targetpath.lua")
             ?: throw ExecutionException("The target path script was not found")
-        return createCommand(environmentOverrides = TARGET_QUERY_ENVIRONMENT) {
+        return createCommand(environmentOverrides = QUERY_ENVIRONMENT) {
             args("l", scriptPath)
-            target
-                .takeUnless { it == DEFAULT_VALUE || it.isBlank() }
+            targetName
+                .takeUnless { it == DEFAULT_BUILD_TARGET || it.isBlank() }
                 ?.let { args(it) }
+        }
+    }
+
+    fun createInfoQuery(queryName: String): XMakeCommand {
+        require(INFO_QUERY_PATTERN.matches(queryName)) { "Invalid XMake info query: $queryName" }
+        return createCommand(environmentOverrides = QUERY_ENVIRONMENT) {
+            args("show", "-l", queryName, "--json")
         }
     }
 
@@ -121,29 +134,30 @@ internal class XMakeCommandFactory(configuration: XMakeRunConfiguration) {
         environmentOverrides: Map<String, String> = emptyMap(),
         parameters: MutableList<String>.() -> Unit,
     ): XMakeCommand = commandBuilder
-        .parameters(commandArguments(parameters))
-        .environment(environmentVariables)
-        .overrideEnvironment(environmentOverrides)
+        .parameters(buildList(parameters))
+        .environmentVariables(environmentVariables)
+        .environmentOverrides(environmentOverrides)
         .build()
 
-    private fun MutableList<String>.target(value: String) {
-        when (value) {
+    private fun MutableList<String>.appendTarget(name: String) {
+        when (name) {
             "all" -> args("-a")
-            "", DEFAULT_VALUE -> Unit
-            else -> args(value)
+            "", DEFAULT_BUILD_TARGET -> Unit
+            else -> args(name)
         }
     }
 
     private companion object {
-        const val DEFAULT_VALUE = "default"
+        private const val ANDROID_PLATFORM = "android"
 
-        val TARGET_QUERY_ENVIRONMENT = mapOf(
+        val INFO_QUERY_PATTERN = Regex("[a-z]+")
+
+        val QUERY_ENVIRONMENT = mapOf(
             "XMAKE_SKIP_HISTORY" to "1",
             "XMAKE_ROOT" to "y",
             "XMAKE_COLOR_TERM" to "nocolor",
         )
 
-        fun commandArguments(block: MutableList<String>.() -> Unit): List<String> = buildList(block)
     }
 }
 

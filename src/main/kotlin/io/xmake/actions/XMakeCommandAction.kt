@@ -26,32 +26,34 @@ import io.xmake.project.console.XMakeConsole
 import io.xmake.project.console.xmakeConsoleService
 import io.xmake.run.command.XMakeCommandFactory
 import io.xmake.run.command.xmakeExecutionService
+import io.xmake.run.target.activeOrSingleXMakeBuildProfile
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.util.concurrent.CancellationException
 
 abstract class XMakeCommandAction : XMakeProjectAction() {
 
     final override fun execute(project: Project) {
-        val configuration = project.selectedXMakeRunConfiguration
-        val commandsResult = configuration?.let { runCatching { XMakeCommandFactory(it) } }
+        val profile = project.activeOrSingleXMakeBuildProfile
         FileDocumentManager.getInstance().saveAllDocuments()
 
         project.xmakeExecutionService.submit {
             val console = project.xmakeConsoleService.awaitReady()
             withContext(Dispatchers.EDT) {
                 console.clear()
-                if (commandsResult == null) {
-                    console.reportMissingRunConfiguration(project)
+                if (profile == null) {
+                    console.reportMissingBuildProfile(project)
                 }
             }
-            if (commandsResult == null) {
-                return@submit
+            if (profile != null) {
+                execute(project, console, XMakeCommandFactory(project, profile))
             }
-
-            execute(project, console, commandsResult.getOrThrow())
         }.invokeOnCompletion { error ->
-            if (error == null || error is CancellationException || project.isDisposed) {
+            if (
+                error == null ||
+                error is CancellationException ||
+                project.isDisposed
+            ) {
                 return@invokeOnCompletion
             }
             project.xmakeConsoleService.whenReady { console ->
@@ -63,13 +65,13 @@ abstract class XMakeCommandAction : XMakeProjectAction() {
     internal abstract suspend fun execute(
         project: Project,
         console: XMakeConsole,
-        commands: XMakeCommandFactory,
+        commandFactory: XMakeCommandFactory,
     )
 }
 
-private fun XMakeConsole.reportMissingRunConfiguration(project: Project) {
-    print("Please select an XMake run configuration first!\n", ConsoleViewContentType.ERROR_OUTPUT)
-    notifyError(project, "Error with XMake Configuration", "XMake configuration is not selected!")
+private fun XMakeConsole.reportMissingBuildProfile(project: Project) {
+    print("Please select an XMake build profile first!\n", ConsoleViewContentType.ERROR_OUTPUT)
+    notifyError(project, "Error with XMake Build Profile", "XMake build profile is not selected!")
 }
 
 private fun XMakeConsole.reportCommandError(project: Project, error: Throwable) {
