@@ -80,7 +80,7 @@ fun GeneralCommandLine.createProcess(
             }
 
             WSL -> {
-                val wslDistribution = host.target as WSLDistribution
+                val wslDistribution = host.backend as WSLDistribution
                 this@createProcess.createWslProcess(wslDistribution, project, workingDirectory)
             }
 

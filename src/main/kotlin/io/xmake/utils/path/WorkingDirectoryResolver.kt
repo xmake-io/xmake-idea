@@ -39,7 +39,7 @@ object WorkingDirectoryResolver {
         when (toolkit.host.type) {
             ToolkitHostType.LOCAL -> resolve(project, workingDirectory)
             ToolkitHostType.WSL -> {
-                val distribution = toolkit.host.target as? WSLDistribution
+                val distribution = toolkit.host.backend as? WSLDistribution
                     ?: throw RuntimeConfigurationError("XMake WSL toolkit host is not available")
                 resolveForWsl(project, workingDirectory, distribution)
             }

@@ -53,11 +53,11 @@ class DirectoryBrowser(val project: Project?) : TextFieldWithBrowseButton() {
         return browseFolderListener
     }
 
-    private fun createWslBrowseListener(target: WSLDistribution): ActionListener {
+    private fun createWslBrowseListener(distribution: WSLDistribution): ActionListener {
         val fileChooserDescriptor = FileChooserDescriptorFactory.createSingleFolderDescriptor()
         val wslBrowseFolderListener = ActionListener {
             browseWslPath(this,
-                target,
+                distribution,
                 this,
                 true,
                 fileChooserDescriptor)
@@ -79,7 +79,7 @@ class DirectoryBrowser(val project: Project?) : TextFieldWithBrowseButton() {
             }
 
             WSL -> {
-                val wslBrowseListener = createWslBrowseListener(host.target as WSLDistribution)
+                val wslBrowseListener = createWslBrowseListener(host.backend as WSLDistribution)
                 addActionListener(wslBrowseListener)
                 listeners.add(wslBrowseListener)
                 Log.debug("addActionListener wsl: $wslBrowseListener")

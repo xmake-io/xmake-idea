@@ -46,9 +46,7 @@ interface ToolkitHostExtension {
         remoteDirectory: String,
     )
 
-    fun getTargetId(target: Any? = null): String
-
-    suspend fun ToolkitHost.loadTargetX(project: Project? = null)
+    suspend fun ToolkitHost.loadHostBackend(project: Project? = null)
 
     fun DirectoryBrowser.createBrowseListener(host: ToolkitHost): ActionListener
 

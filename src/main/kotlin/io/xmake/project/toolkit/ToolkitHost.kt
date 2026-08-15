@@ -24,54 +24,83 @@ import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.execution.wsl.WslDistributionManager
 import com.intellij.openapi.extensions.ExtensionPointName
 import com.intellij.openapi.project.Project
-import com.intellij.util.system.OS
+import com.intellij.ssh.config.unified.SshConfig
 import com.intellij.util.xmlb.annotations.Attribute
+import com.intellij.util.xmlb.annotations.Transient
 import com.intellij.util.xmlb.annotations.Tag
 import io.xmake.project.toolkit.ToolkitHostType.*
 import io.xmake.utils.extension.ToolkitHostExtension
-import kotlinx.coroutines.coroutineScope
 
 @Tag("toolkitHost")
 data class ToolkitHost(
     @Attribute
     val type: ToolkitHostType = LOCAL,
+    @Attribute("backendId")
+    val backendId: String? = null,
 ) {
+    /** Compatibility inputs for toolkit hosts persisted by versions before `backendId`. */
+    @Attribute("id")
+    var legacyId: String? = null
 
-    private val EP_NAME: ExtensionPointName<ToolkitHostExtension> =
-        ExtensionPointName("io.xmake.toolkitHostExtension")
+    @Attribute("targetId")
+    var legacyTargetId: String? = null
 
-    constructor(type: ToolkitHostType, target: Any? = null) : this(type) {
-        this.target = target
-        this.id = when (type) {
-            LOCAL -> OS.CURRENT.name
-            WSL -> (target as WSLDistribution).id
-            SSH -> EP_NAME.extensions.first { it.KEY == "SSH" }.getTargetId(target)
-        }
-    }
+    @Attribute("runtimeId")
+    var legacyRuntimeId: String? = null
 
     @Transient
-    var target: Any? = null
+    var backend: Any? = null
 
-    @Attribute
-    var id: String? = null
+    /** Stable host ID across backend reloads. */
+    internal val id: Id = Id(type, backendId)
 
-    suspend fun loadTarget(project: Project? = null) {
+    internal val migratedBackendId: String?
+        get() = backendId ?: legacyId ?: legacyTargetId ?: legacyRuntimeId
+
+    suspend fun loadBackend(project: Project? = null) {
         when (type) {
             LOCAL -> {}
-            WSL -> loadWslTarget()
+            WSL -> {
+                backend = WslDistributionManager.getInstance().installedDistributions
+                    .firstOrNull { distribution -> distribution.id == migratedBackendId }
+            }
             SSH -> {
-                with(EP_NAME.extensions.first { it.KEY == "SSH" }) {
-                    loadTargetX(project)
+                with(EP_NAME.extensions.firstOrNull { it.KEY == "SSH" } ?: return) {
+                    loadHostBackend(project)
                 }
             }
         }
     }
 
-    private suspend fun loadWslTarget() = coroutineScope {
-        target = WslDistributionManager.getInstance().installedDistributions.find { it.id == id }!!
+    override fun toString(): String = "ToolkitHost(type=$type, backendId=$backendId)"
+
+    /** Stable ID of a host: the host type and its backend ID. */
+    internal data class Id(
+        val type: ToolkitHostType,
+        val backendId: String?,
+    ) : Comparable<Id> {
+        /** Canonical string form used for installation IDs and logs. */
+        val canonical: String
+            get() = listOfNotNull(type.name, backendId).joinToString(":")
+
+        override fun compareTo(other: Id): Int =
+            compareValuesBy(this, other, Id::type, Id::backendId)
+
+        override fun toString(): String = canonical
     }
 
-    override fun toString(): String {
-        return "ToolkitHost(type=$type, id=$id)"
+    companion object {
+        private val EP_NAME: ExtensionPointName<ToolkitHostExtension> =
+            ExtensionPointName("io.xmake.toolkitHostExtension")
+
+        internal fun wsl(distribution: WSLDistribution): ToolkitHost =
+            ToolkitHost(type = WSL, backendId = distribution.id).apply {
+                backend = distribution
+            }
+
+        internal fun ssh(config: SshConfig): ToolkitHost =
+            ToolkitHost(type = SSH, backendId = config.id).apply {
+                backend = config
+            }
     }
 }

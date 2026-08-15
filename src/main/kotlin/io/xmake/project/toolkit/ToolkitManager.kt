@@ -78,11 +78,11 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
     private fun toolkitHostFlow(project: Project? = null): Flow<ToolkitHost> = flow {
         val wslDistributions = scope.async { getInstalledWslDistributions() }
 
-        emit(ToolkitHost(LOCAL).also { host -> Logger.i(TAG, "emit host: $host") })
+            emit(ToolkitHost().also { host -> Logger.i(TAG, "emit host: $host") })
 
-        wslDistributions.await().forEach {
-            emit(ToolkitHost(WSL, it).also { host -> Logger.i(TAG, "emit host: $host") })
-        }
+            wslDistributions.await().forEach {
+                emit(ToolkitHost.wsl(it).also { host -> Logger.i(TAG, "emit host: $host") })
+            }
 
         EP_NAME.extensions.filter { it.KEY == "SSH" }.forEach {
             it.getToolkitHosts(project).forEach {
@@ -116,7 +116,7 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
         val process = probeXmakeLocCommand.let {
             when (host.type) {
                 LOCAL -> (if (OS.CURRENT == OS.Windows) probeXmakeLocCommandOnWin else it).createLocalProcess()
-                WSL -> it.createWslProcess(host.target as WSLDistribution)
+                WSL -> it.createWslProcess(host.backend as WSLDistribution)
                 SSH -> with(EP_NAME.extensions.first { it.KEY == "SSH" }) { it.createProcess(host) }
             }
         }
@@ -135,7 +135,7 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
         val process = probeXmakeVersionCommand.withExePath(path).let {
             when (host.type) {
                 LOCAL -> it.createLocalProcess()
-                WSL -> it.createWslProcess(host.target as WSLDistribution)
+                WSL -> it.createWslProcess(host.backend as WSLDistribution)
                 SSH -> with(EP_NAME.extensions.first { it.KEY == "SSH" }) { it.createProcess(host) }
             }
         }
@@ -172,7 +172,7 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
                         }
 
                         WSL -> {
-                            val wslDistribution = host.target as WSLDistribution
+                            val wslDistribution = host.backend as WSLDistribution
                             val name = wslDistribution.presentableName
                             Toolkit(name, host, path, versionString)
                         }
@@ -257,7 +257,7 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
 
     private fun loadToolkit(toolkit: Toolkit) {
         scope.launch(Dispatchers.IO) {
-            toolkit.host.loadTarget()
+            toolkit.host.loadBackend()
             joinAll()
         }
     }

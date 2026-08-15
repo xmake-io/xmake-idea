@@ -62,7 +62,7 @@ private suspend fun transferWslFolder(
     directoryPath: String,
     relativePath: String? = null,
 ) {
-    val wslDistribution = host.target as? WSLDistribution ?: throw IllegalArgumentException()
+    val wslDistribution = host.backend as? WSLDistribution ?: throw IllegalArgumentException()
     val cancellationContext = currentCoroutineContext()
     runInterruptible(Dispatchers.IO) {
         val localRoot = project.guessProjectDir()?.toNioPath()

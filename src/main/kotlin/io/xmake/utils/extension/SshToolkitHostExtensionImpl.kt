@@ -53,7 +53,7 @@ class SshToolkitHostExtensionImpl : ToolkitHostExtension {
 
     override fun getToolkitHosts(project: Project?): List<ToolkitHost> {
         return sshConfigManager.configs.map {
-            ToolkitHost(ToolkitHostType.SSH, it)
+            ToolkitHost.ssh(it)
         }
     }
 
@@ -62,7 +62,7 @@ class SshToolkitHostExtensionImpl : ToolkitHostExtension {
     }
 
     override fun createToolkit(host: ToolkitHost, path: String, version: String): Toolkit {
-        val sshConfig = (host.target as? SshConfig) ?: throw IllegalArgumentException()
+        val sshConfig = (host.backend as? SshConfig) ?: throw IllegalArgumentException()
         val name = sshConfig.presentableShortName
         return Toolkit(name, host, path, version)
     }
@@ -73,7 +73,7 @@ class SshToolkitHostExtensionImpl : ToolkitHostExtension {
         direction: SyncDirection,
         remoteDirectory: String,
     ) {
-        val sshConfig = (host.target as? SshConfig) ?: throw IllegalArgumentException()
+        val sshConfig = (host.backend as? SshConfig) ?: throw IllegalArgumentException()
         val projectDirectory = project.guessProjectDir()?.path
             ?: project.basePath
             ?: throw IllegalStateException("Cannot resolve project directory")
@@ -132,17 +132,12 @@ class SshToolkitHostExtensionImpl : ToolkitHostExtension {
         }
     }
 
-    override suspend fun ToolkitHost.loadTargetX(project: Project?) = coroutineScope {
-        target = SshConfigManager.getInstance(project).findConfigById(id!!)!!
-    }
-
-    override fun getTargetId(target: Any?): String {
-        val sshConfig = target as? SshConfig ?: throw IllegalArgumentException()
-        return sshConfig.id
+    override suspend fun ToolkitHost.loadHostBackend(project: Project?) = coroutineScope {
+        backend = SshConfigManager.getInstance(project).findConfigById(backendId!!)!!
     }
 
     override fun DirectoryBrowser.createBrowseListener(host: ToolkitHost): ActionListener {
-        val sshConfig = host.target as? SshConfig ?: throw IllegalArgumentException()
+        val sshConfig = host.backend as? SshConfig ?: throw IllegalArgumentException()
 
         val sftpChannel = runBlocking(Dispatchers.Default) {
             ConnectionBuilder(sshConfig.host)
@@ -163,7 +158,7 @@ class SshToolkitHostExtensionImpl : ToolkitHostExtension {
 
     override fun GeneralCommandLine.createProcess(host: ToolkitHost): Process {
 
-        val sshConfig = host.target as? SshConfig ?: throw IllegalArgumentException()
+        val sshConfig = host.backend as? SshConfig ?: throw IllegalArgumentException()
 
         val builder = ConnectionBuilder(sshConfig.host)
             .withSshPasswordProvider(PlatformSshPasswordProvider(sshConfig.copyToCredentials()))
