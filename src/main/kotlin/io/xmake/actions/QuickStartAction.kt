@@ -26,6 +26,7 @@ import com.intellij.execution.process.ProcessEvent
 import com.intellij.execution.process.ProcessListener
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
@@ -68,50 +69,52 @@ class QuickStartAction : XMakeProjectAction() {
             val commandLine = GeneralCommandLine(toolkit.path, "create", "-P", ".")
                 .withWorkDirectory(workingDirectory)
 
-            try {
-                val process = commandLine.createProcess(toolkit)
-                val processHandler = KillableColoredProcessHandler(
-                    process,
-                    commandLine.commandLineString,
-                    Charsets.UTF_8,
-                )
-                processHandler.addProcessListener(object : ProcessListener {
-                    override fun processTerminated(event: ProcessEvent) {
-                        if (project.isDisposed) return
+            ApplicationManager.getApplication().executeOnPooledThread {
+                try {
+                    val process = commandLine.createProcess(toolkit)
+                    val processHandler = KillableColoredProcessHandler(
+                        process,
+                        commandLine.commandLineString,
+                        Charsets.UTF_8,
+                    )
+                    processHandler.addProcessListener(object : ProcessListener {
+                        override fun processTerminated(event: ProcessEvent) {
+                            if (project.isDisposed) return
 
-                        if (event.exitCode == 0) {
-                            NotificationGroupManager.getInstance()
-                                .getNotificationGroup("XMake.NotificationGroup")
-                                .createNotification("XMake project created successfully!", NotificationType.INFORMATION)
-                                .notify(project)
+                            if (event.exitCode == 0) {
+                                NotificationGroupManager.getInstance()
+                                    .getNotificationGroup("XMake.NotificationGroup")
+                                    .createNotification("XMake project created successfully!", NotificationType.INFORMATION)
+                                    .notify(project)
 
-                            ToolWindowManager.getInstance(project).invokeLater {
-                                if (project.isDisposed) return@invokeLater
+                                ToolWindowManager.getInstance(project).invokeLater {
+                                    if (project.isDisposed) return@invokeLater
 
-                                // Refresh VFS
-                                project.basePath?.let { path ->
-                                    val file = LocalFileSystem.getInstance().findFileByPath(path)
-                                    file?.let {
-                                        VfsUtil.markDirtyAndRefresh(false, true, true, it)
+                                    // Refresh VFS
+                                    project.basePath?.let { path ->
+                                        val file = LocalFileSystem.getInstance().findFileByPath(path)
+                                        file?.let {
+                                            VfsUtil.markDirtyAndRefresh(false, true, true, it)
+                                        }
+                                    }
+
+                                    // Show Tool Window
+                                    project.xmakeConsoleService.whenReady { console ->
+                                        console.showOutput()
                                     }
                                 }
-
-                                // Show Tool Window
-                                project.xmakeConsoleService.whenReady { console ->
-                                    console.showOutput()
-                                }
+                            } else {
+                                NotificationGroupManager.getInstance()
+                                    .getNotificationGroup("XMake.NotificationGroup")
+                                    .createNotification("Failed to create XMake project.", NotificationType.ERROR)
+                                    .notify(project)
                             }
-                        } else {
-                            NotificationGroupManager.getInstance()
-                                .getNotificationGroup("XMake.NotificationGroup")
-                                .createNotification("Failed to create XMake project.", NotificationType.ERROR)
-                                .notify(project)
                         }
-                    }
-                })
-                processHandler.startNotify()
-            } catch (e: Exception) {
-                notifyQuickStartFailure(project, "Failed to start xmake create: ${e.message}")
+                    })
+                    processHandler.startNotify()
+                } catch (e: Exception) {
+                    notifyQuickStartFailure(project, "Failed to start xmake create: ${e.message}")
+                }
             }
         }
     }
