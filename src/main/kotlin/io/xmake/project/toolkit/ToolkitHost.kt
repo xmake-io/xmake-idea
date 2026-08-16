@@ -21,13 +21,10 @@
 package io.xmake.project.toolkit
 
 import com.intellij.execution.wsl.WSLDistribution
-import com.intellij.execution.wsl.WslDistributionManager
-import com.intellij.openapi.project.Project
 import com.intellij.ssh.config.unified.SshConfig
 import com.intellij.util.xmlb.annotations.Attribute
 import com.intellij.util.xmlb.annotations.Tag
 import io.xmake.project.toolkit.ToolkitHostType.*
-import io.xmake.utils.extension.ToolkitHostExtension
 
 @Tag("toolkitHost")
 data class ToolkitHost(
@@ -79,20 +76,6 @@ data class ToolkitHost(
 
     internal fun requireWslDistribution(): WSLDistribution =
         wslDistribution ?: error("XMake WSL host backend is not available")
-
-    suspend fun loadBackend(project: Project? = null) {
-        when (type) {
-            LOCAL -> {}
-            WSL -> WslDistributionManager.getInstance().installedDistributions
-                .firstOrNull { distribution -> distribution.id == migratedBackendId }
-                ?.let { distribution -> backend = Backend.WSL(distribution) }
-
-            SSH -> ToolkitHostExtension.forHostType(SSH)
-                ?.getHosts(project)
-                ?.firstOrNull { host -> host.id == id }
-                ?.let { host -> backend = host.backend }
-        }
-    }
 
     /** Stable host ID across backend reloads. */
     internal val id: Id = Id(type, backendId)
