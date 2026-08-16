@@ -39,9 +39,8 @@ import com.intellij.ssh.processBuilder
 import com.intellij.ssh.ui.sftpBrowser.RemoteBrowserDialog
 import com.intellij.ssh.ui.sftpBrowser.SftpRemoteBrowserProvider
 import io.xmake.project.directory.ui.DirectoryBrowser
-import io.xmake.project.toolkit.ToolkitHost
-import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHostType
+import io.xmake.project.toolkit.ToolkitHost
 import io.xmake.utils.execute.defaultSyncExcludedEntryNames
 import io.xmake.utils.execute.SyncDirection
 import kotlinx.coroutines.Dispatchers
@@ -56,25 +55,16 @@ import java.io.File
 
 class SshToolkitHostExtensionImpl : ToolkitHostExtension {
 
-    override val KEY: String = "SSH"
+    override val hostType: ToolkitHostType = ToolkitHostType.SSH
 
-    override fun getToolkitHosts(project: Project?): List<ToolkitHost> {
-        return SshConfigManager.getInstance(project).configs.map {
-            ToolkitHost.ssh(it)
-        }
-    }
-
-    override fun createToolkit(host: ToolkitHost, path: String, version: String): Toolkit {
-        val sshConfig = host.requireSshConfig()
-        val name = sshConfig.presentableShortName
-        return Toolkit(name, host, path, version)
-    }
+    override fun getHosts(project: Project?): List<ToolkitHost> =
+        SshConfigManager.getInstance(project).configs.map { ToolkitHost.ssh(it) }
 
     override suspend fun syncProject(
         project: Project,
         host: ToolkitHost,
         direction: SyncDirection,
-        remoteDirectory: String,
+        hostDirectory: String,
     ) {
         val sshConfig = host.requireSshConfig()
         val projectDirectory = project.guessProjectDir()?.path
@@ -92,12 +82,12 @@ class SshToolkitHostExtensionImpl : ToolkitHostExtension {
                 cancellationContext.ensureActive()
                 when (direction) {
                     SyncDirection.LOCAL_TO_UPSTREAM -> {
-                        sftpChannel.pruneMissingEntries(projectDirectoryFile, remoteDirectory) {
+                        sftpChannel.pruneMissingEntries(projectDirectoryFile, hostDirectory) {
                             cancellationContext.ensureActive()
                         }
                         sftpChannel.uploadFileOrDir(
                             projectDirectoryFile,
-                            remoteDir = remoteDirectory,
+                            remoteDir = hostDirectory,
                             relativePath = "/",
                             progressTracker = object : SftpProgressTracker {
                                 override val isCanceled: Boolean
@@ -115,7 +105,7 @@ class SshToolkitHostExtensionImpl : ToolkitHostExtension {
                     }
 
                     SyncDirection.UPSTREAM_TO_LOCAL -> {
-                        sftpChannel.downloadFileOrDir(remoteDirectory, projectDirectory)
+                        sftpChannel.downloadFileOrDir(hostDirectory, projectDirectory)
                     }
                 }
             }
@@ -126,44 +116,38 @@ class SshToolkitHostExtensionImpl : ToolkitHostExtension {
         }
     }
 
-    override suspend fun ToolkitHost.loadHostBackend(project: Project?) {
-        backend = backendId?.let { hostId ->
-            SshConfigManager.getInstance(project).findConfigById(hostId)
-        }
-    }
-
-    override fun DirectoryBrowser.createBrowseListener(host: ToolkitHost): ActionListener {
+    override fun createBrowseListener(browser: DirectoryBrowser, host: ToolkitHost): ActionListener {
         val sshConfig = host.requireSshConfig()
 
         return ActionListener {
             val application = ApplicationManager.getApplication()
-            val pathToExpand = text.takeIf(String::isNotBlank)
+            val pathToExpand = browser.text.takeIf(String::isNotBlank)
             application.executeOnPooledThread {
                 val channel = try {
                     connectionBuilder(sshConfig).openFailSafeSftpChannel()
                 } catch (error: Exception) {
-                    showBrowseError(error)
+                    browser.showBrowseError(error)
                     return@executeOnPooledThread
                 }
 
                 application.invokeLater(
                     {
-                        if (project?.isDisposed == true) {
+                        if (browser.project?.isDisposed == true) {
                             application.executeOnPooledThread(channel::close)
                             return@invokeLater
                         }
                         try {
                             val dialog = RemoteBrowserDialog(
                                 remoteBrowserProvider = SftpRemoteBrowserProvider(channel),
-                                project = project,
+                                project = browser.project,
                                 foldersOnly = true,
                                 hostName = sshConfig.presentableShortName,
                                 pathToExpand = pathToExpand,
                                 withCreateDirectoryButton = true,
                             )
-                            if (dialog.showAndGet()) text = dialog.getResult()
+                            if (dialog.showAndGet()) browser.text = dialog.getResult()
                         } catch (error: Exception) {
-                            showBrowseError(error)
+                            browser.showBrowseError(error)
                         } finally {
                             application.executeOnPooledThread(channel::close)
                         }
@@ -186,11 +170,11 @@ class SshToolkitHostExtensionImpl : ToolkitHostExtension {
         }
     }
 
-    override fun GeneralCommandLine.createProcess(host: ToolkitHost): Process {
+    override fun startProcess(host: ToolkitHost, command: GeneralCommandLine): Process {
         val sshConfig = host.requireSshConfig()
-        Log.info("commandOnRemote: $commandLineString")
+        Log.info("commandOnRemote: ${command.commandLineString}")
         return connectionBuilder(sshConfig)
-            .processBuilder(this)
+            .processBuilder(command)
             .withAllocatePty(false)
             .start()
     }
@@ -200,8 +184,8 @@ class SshToolkitHostExtensionImpl : ToolkitHostExtension {
             .withSshPasswordProvider(PlatformSshPasswordProvider(sshConfig.copyToCredentials()))
 
     private fun ToolkitHost.requireSshConfig(): SshConfig =
-        backend as? SshConfig
-            ?: error("SSH toolkit host is unavailable: ${backendId.orEmpty()}")
+        sshConfig
+            ?: error("SSH host backend is not available: ${backendId.orEmpty()}")
 
     private fun DirectoryBrowser.showBrowseError(error: Exception) {
         Log.warn("Failed to open the SSH directory browser", error)

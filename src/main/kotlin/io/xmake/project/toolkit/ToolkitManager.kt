@@ -27,7 +27,6 @@ import com.intellij.execution.wsl.WSLUtil
 import com.intellij.execution.wsl.WslDistributionManager
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.*
-import com.intellij.openapi.extensions.ExtensionPointName
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
@@ -45,9 +44,6 @@ import java.util.*
 @Service
 @State(name = "toolkits", storages = [Storage("xmakeToolkits.xml")])
 class ToolkitManager(private val scope: CoroutineScope) : PersistentStateComponent<ToolkitManager.State> {
-
-    private val EP_NAME: ExtensionPointName<ToolkitHostExtension> =
-        ExtensionPointName("io.xmake.toolkitHostExtension")
 
     val fetchedToolkitsSet = mutableSetOf<Toolkit>()
     private lateinit var detectionJob: Job
@@ -78,16 +74,14 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
     private fun toolkitHostFlow(project: Project? = null): Flow<ToolkitHost> = flow {
         val wslDistributions = scope.async { getInstalledWslDistributions() }
 
-            emit(ToolkitHost().also { host -> Logger.i(TAG, "emit host: $host") })
+        emit(ToolkitHost(LOCAL).also { host -> Logger.i(TAG, "emit host: $host") })
 
-            wslDistributions.await().forEach {
-                emit(ToolkitHost.wsl(it).also { host -> Logger.i(TAG, "emit host: $host") })
-            }
+        wslDistributions.await().forEach {
+            emit(ToolkitHost.wsl(it).also { host -> Logger.i(TAG, "emit host: $host") })
+        }
 
-        EP_NAME.extensions.filter { it.KEY == "SSH" }.forEach {
-            it.getToolkitHosts(project).forEach {
-                emit(it).also { host -> Logger.i(TAG, "emit host: $host") }
-            }
+        ToolkitHostExtension.forHostType(SSH)?.getHosts(project)?.forEach { host ->
+            emit(host).also { Logger.i(TAG, "emit host: $host") }
         }
     }
 
@@ -116,8 +110,8 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
         val process = probeXmakeLocCommand.let {
             when (host.type) {
                 LOCAL -> (if (OS.CURRENT == OS.Windows) probeXmakeLocCommandOnWin else it).createLocalProcess()
-                WSL -> it.createWslProcess(host.backend as WSLDistribution)
-                SSH -> with(EP_NAME.extensions.first { it.KEY == "SSH" }) { it.createProcess(host) }
+                WSL -> it.createWslProcess(host.requireWslDistribution())
+                SSH -> ToolkitHostExtension.requireForHostType(SSH).startProcess(host, it)
             }
         }
 
@@ -135,8 +129,8 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
         val process = probeXmakeVersionCommand.withExePath(path).let {
             when (host.type) {
                 LOCAL -> it.createLocalProcess()
-                WSL -> it.createWslProcess(host.backend as WSLDistribution)
-                SSH -> with(EP_NAME.extensions.first { it.KEY == "SSH" }) { it.createProcess(host) }
+                WSL -> it.createWslProcess(host.requireWslDistribution())
+                SSH -> ToolkitHostExtension.requireForHostType(SSH).startProcess(host, it)
             }
         }
         val (stdout, exitCode) = runProcess(process)
@@ -177,10 +171,7 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
                             Toolkit(name, host, path, versionString)
                         }
 
-                        SSH -> {
-                            EP_NAME.extensions.first { it.KEY == "SSH" }
-                                .createToolkit(host, path, versionString)
-                        }
+                        SSH -> Toolkit(name = host.displayName, host = host.toRuntimeHost(), path = path, version = versionString)
                     }.apply { this.isRegistered = true; this.isValid = true }
                 }
             }.flowOn(Dispatchers.Default).buffer()
@@ -316,7 +307,13 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
     }
 
     fun getRegisteredToolkits(): List<Toolkit> {
-        return state.registeredToolkits.toList()
+        val sshHostIds = ToolkitHostExtension.forHostType(SSH)
+            ?.getHosts(null)
+            .orEmpty()
+            .mapTo(mutableSetOf()) { host -> host.id }
+        return state.registeredToolkits.filter { toolkit ->
+            !toolkit.isOnRemote || toolkit.host.id in sshHostIds
+        }
 //            .filterNot { (it.host.type == SSH && PlatformUtils.isCommunityEdition()) }
     }
 

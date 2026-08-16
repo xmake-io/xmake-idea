@@ -22,11 +22,9 @@ package io.xmake.project.toolkit
 
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.execution.wsl.WslDistributionManager
-import com.intellij.openapi.extensions.ExtensionPointName
 import com.intellij.openapi.project.Project
 import com.intellij.ssh.config.unified.SshConfig
 import com.intellij.util.xmlb.annotations.Attribute
-import com.intellij.util.xmlb.annotations.Transient
 import com.intellij.util.xmlb.annotations.Tag
 import io.xmake.project.toolkit.ToolkitHostType.*
 import io.xmake.utils.extension.ToolkitHostExtension
@@ -38,6 +36,17 @@ data class ToolkitHost(
     @Attribute("backendId")
     val backendId: String? = null,
 ) {
+    /** The resolved platform object behind a persisted toolkit host. */
+    internal sealed interface Backend {
+        data class WSL(
+            val distribution: WSLDistribution,
+        ) : Backend
+
+        data class SSH(
+            val config: SshConfig,
+        ) : Backend
+    }
+
     /** Compatibility inputs for toolkit hosts persisted by versions before `backendId`. */
     @Attribute("id")
     var legacyId: String? = null
@@ -49,7 +58,41 @@ data class ToolkitHost(
     var legacyRuntimeId: String? = null
 
     @Transient
-    var backend: Any? = null
+    internal var backend: Backend? = null
+
+    internal val wslDistribution: WSLDistribution?
+        get() = (backend as? Backend.WSL)?.distribution
+
+    internal val sshConfig: SshConfig?
+        get() = (backend as? Backend.SSH)?.config
+
+    /** Presentable name derived from the resolved backend. */
+    internal val displayName: String
+        get() = when (type) {
+            LOCAL -> LOCAL_DISPLAY_NAME
+            WSL -> wslDistribution?.presentableName ?: type.name
+            SSH -> sshConfig?.presentableShortName ?: type.name
+        }
+
+    internal val hasBackend: Boolean
+        get() = backend != null
+
+    internal fun requireWslDistribution(): WSLDistribution =
+        wslDistribution ?: error("XMake WSL host backend is not available")
+
+    suspend fun loadBackend(project: Project? = null) {
+        when (type) {
+            LOCAL -> {}
+            WSL -> WslDistributionManager.getInstance().installedDistributions
+                .firstOrNull { distribution -> distribution.id == migratedBackendId }
+                ?.let { distribution -> backend = Backend.WSL(distribution) }
+
+            SSH -> ToolkitHostExtension.forHostType(SSH)
+                ?.getHosts(project)
+                ?.firstOrNull { host -> host.id == id }
+                ?.let { host -> backend = host.backend }
+        }
+    }
 
     /** Stable host ID across backend reloads. */
     internal val id: Id = Id(type, backendId)
@@ -57,24 +100,17 @@ data class ToolkitHost(
     internal val migratedBackendId: String?
         get() = backendId ?: legacyId ?: legacyTargetId ?: legacyRuntimeId
 
-    suspend fun loadBackend(project: Project? = null) {
-        when (type) {
-            LOCAL -> {}
-            WSL -> {
-                backend = WslDistributionManager.getInstance().installedDistributions
-                    .firstOrNull { distribution -> distribution.id == migratedBackendId }
-            }
-            SSH -> {
-                with(EP_NAME.extensions.firstOrNull { it.KEY == "SSH" } ?: return) {
-                    loadHostBackend(project)
-                }
-            }
-        }
+    /** The persistable host form without the resolved runtime backend. */
+    internal fun toPersistedHost(): ToolkitHost = ToolkitHost(type, backendId)
+
+    /** A normalized runtime copy carrying the resolved backend. */
+    internal fun toRuntimeHost(): ToolkitHost = toPersistedHost().apply {
+        backend = this@ToolkitHost.backend
     }
 
     override fun toString(): String = "ToolkitHost(type=$type, backendId=$backendId)"
 
-    /** Stable ID of a host: the host type and its backend ID. */
+    /** Stable identity of a host: the host type and its backend ID. */
     internal data class Id(
         val type: ToolkitHostType,
         val backendId: String?,
@@ -90,17 +126,16 @@ data class ToolkitHost(
     }
 
     companion object {
-        private val EP_NAME: ExtensionPointName<ToolkitHostExtension> =
-            ExtensionPointName("io.xmake.toolkitHostExtension")
+        private val LOCAL_DISPLAY_NAME = System.getProperty("os.name").orEmpty().ifBlank { "Local" }
 
         internal fun wsl(distribution: WSLDistribution): ToolkitHost =
             ToolkitHost(type = WSL, backendId = distribution.id).apply {
-                backend = distribution
+                backend = Backend.WSL(distribution)
             }
 
         internal fun ssh(config: SshConfig): ToolkitHost =
             ToolkitHost(type = SSH, backendId = config.id).apply {
-                backend = config
+                backend = Backend.SSH(config)
             }
     }
 }

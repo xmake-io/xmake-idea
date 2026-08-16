@@ -20,33 +20,21 @@
  */
 package io.xmake.utils.extension
 
-import com.intellij.execution.configurations.GeneralCommandLine
-import com.intellij.openapi.project.Project
-import io.xmake.project.directory.ui.DirectoryBrowser
-import io.xmake.project.toolkit.Toolkit
-import io.xmake.project.toolkit.ToolkitHost
-import io.xmake.utils.execute.SyncDirection
-import java.awt.event.ActionListener
+import com.intellij.openapi.extensions.ExtensionPointName
+import io.xmake.project.directory.ui.ToolkitHostBrowser
+import io.xmake.project.toolkit.ToolkitHostType
+import io.xmake.project.toolkit.ToolkitHostProvider
 
-interface ToolkitHostExtension {
-    val KEY: String
+interface ToolkitHostExtension : ToolkitHostProvider, ToolkitHostCapabilities, ToolkitHostBrowser {
 
-    fun getToolkitHosts(project: Project? = null): List<ToolkitHost>
+    companion object {
+        private val EP_NAME: ExtensionPointName<ToolkitHostExtension> =
+            ExtensionPointName.create("io.xmake.toolkitHostExtension")
 
-    fun createToolkit(host: ToolkitHost, path: String, version: String): Toolkit
+        fun forHostType(hostType: ToolkitHostType): ToolkitHostExtension? =
+            EP_NAME.extensionList.firstOrNull { extension -> extension.hostType == hostType }
 
-    suspend fun syncProject(
-        project: Project,
-        host: ToolkitHost,
-        direction: SyncDirection,
-        remoteDirectory: String,
-    )
-
-    suspend fun ToolkitHost.loadHostBackend(project: Project? = null)
-
-    fun DirectoryBrowser.createBrowseListener(host: ToolkitHost): ActionListener
-
-    suspend fun resolveDefaultWorkingDirectory(project: Project, host: ToolkitHost): String? = null
-
-    fun GeneralCommandLine.createProcess(host: ToolkitHost): Process
+        fun requireForHostType(hostType: ToolkitHostType): ToolkitHostExtension =
+            forHostType(hostType) ?: error("$hostType toolkit host extension is unavailable")
+    }
 }

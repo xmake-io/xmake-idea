@@ -25,7 +25,6 @@ import com.intellij.execution.processTools.getResultStdoutStr
 import com.intellij.execution.wsl.WSLCommandLineOptions
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.openapi.diagnostic.logger
-import com.intellij.openapi.extensions.ExtensionPointName
 import com.intellij.openapi.project.Project
 import com.intellij.util.io.awaitExit
 import io.xmake.project.toolkit.Toolkit
@@ -35,10 +34,7 @@ import java.io.File
 
 private val Log = logger<GeneralCommandLine>()
 
-private val EP_NAME: ExtensionPointName<ToolkitHostExtension> =
-    ExtensionPointName("io.xmake.toolkitHostExtension")
-
-fun GeneralCommandLine.createLocalProcess(): Process{
+fun GeneralCommandLine.createLocalProcess(): Process {
     return this
         .also { Log.info("commandOnLocal: ${this.commandLineString}") }
         .toProcessBuilder().start()
@@ -80,20 +76,18 @@ fun GeneralCommandLine.createProcess(
             }
 
             WSL -> {
-                val wslDistribution = host.backend as WSLDistribution
+                val wslDistribution = host.requireWslDistribution()
                 this@createProcess.createWslProcess(wslDistribution, project, workingDirectory)
             }
 
             SSH -> {
-                with(EP_NAME.extensions.first { it.KEY == "SSH" }) {
-                    createProcess(toolkit.host)
-                }
+                ToolkitHostExtension.requireForHostType(SSH).startProcess(host, this@createProcess)
             }
         }
     }
 }
 
-suspend fun runProcess(process: Process): Pair<Result<String>, Int>{
+suspend fun runProcess(process: Process): Pair<Result<String>, Int> {
     val result = process.getResultStdoutStr()
     val exitCode = process.awaitExit()
     return Pair(result, exitCode)

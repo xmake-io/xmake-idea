@@ -23,7 +23,6 @@ package io.xmake.utils.execute
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.runWriteAction
-import com.intellij.openapi.extensions.ExtensionPointName
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.project.Project
@@ -51,8 +50,6 @@ import java.nio.file.SimpleFileVisitor
 import java.nio.file.attribute.BasicFileAttributes
 import kotlin.io.path.Path
 
-private val EP_NAME: ExtensionPointName<ToolkitHostExtension> = ExtensionPointName("io.xmake.toolkitHostExtension")
-
 enum class SyncDirection { LOCAL_TO_UPSTREAM, UPSTREAM_TO_LOCAL }
 
 internal val defaultSyncExcludedEntryNames = setOf(".xmake", ".idea", "build", ".git", ".gitignore")
@@ -67,7 +64,8 @@ private suspend fun transferWslFolder(
     directoryPath: String,
     relativePath: String? = null,
 ) {
-    val wslDistribution = host.backend as? WSLDistribution ?: throw IllegalArgumentException()
+    val wslDistribution = host.wslDistribution
+        ?: throw IllegalArgumentException("XMake WSL host backend is not available")
     val cancellationContext = currentCoroutineContext()
     runInterruptible(Dispatchers.IO) {
         val localRoot = project.guessProjectDir()?.toNioPath()
@@ -280,7 +278,7 @@ suspend fun transferProjectFiles(
             )
             ToolkitHostType.SSH -> {
                 val path = resolveSshSyncPath(directoryPath, relativePath)
-                EP_NAME.extensions.first { it.KEY == "SSH" }
+                ToolkitHostExtension.requireForHostType(ToolkitHostType.SSH)
                     .syncProject(project, toolkit.host, direction, path)
             }
         }
