@@ -179,7 +179,7 @@ class XMakeRunConfigurationEditor(
     }
 
     private var toolkit: Toolkit? = runConfiguration.runToolkit
-    private val toolkitComboBox = ToolkitComboBox(::toolkit)
+    private val toolkitComboBox = ToolkitComboBox(project, ::toolkit)
 
     // the targets ui
     private val targetsModel = DefaultComboBoxModel<String>()
@@ -397,21 +397,18 @@ class XMakeRunConfigurationEditor(
         row("Xmake Toolkit:") {
             cell(toolkitComboBox).align(AlignX.FILL).applyToComponent {
                 // Todo: Store previously selected toolkit to restore it if not applied.
-                addToolkitChangedListener { toolkit ->
-                    workingDirectoryBrowser.removeBrowserAllListener()
-                    buildDirectoryBrowser.removeBrowserAllListener()
-                    androidNDKDirectoryBrowser.removeBrowserAllListener()
+                addSelectionListener { toolkit ->
+                    workingDirectoryBrowser.setToolkit(toolkit)
+                    buildDirectoryBrowser.setToolkit(toolkit)
+                    androidNDKDirectoryBrowser.setToolkit(toolkit)
                     toolkit?.let {
-                        workingDirectoryBrowser.addBrowserListenerByToolkit(it)
-                        buildDirectoryBrowser.addBrowserListenerByToolkit(it)
-                        androidNDKDirectoryBrowser.addBrowserListenerByToolkit(it)
                         XMakeInfoManager.getInstance(project).probeXMakeInfo(it)
                     }
                 }
-                activatedToolkit?.let {
-                    workingDirectoryBrowser.addBrowserListenerByToolkit(it)
-                    buildDirectoryBrowser.addBrowserListenerByToolkit(it)
-                    androidNDKDirectoryBrowser.addBrowserListenerByToolkit(it)
+                selectedToolkit?.let {
+                    workingDirectoryBrowser.setToolkit(it)
+                    buildDirectoryBrowser.setToolkit(it)
+                    androidNDKDirectoryBrowser.setToolkit(it)
                     XMakeInfoManager.getInstance(project).probeXMakeInfo(it)
                 }
             }
@@ -533,7 +530,7 @@ class XMakeRunConfigurationEditor(
 
         row("Sync Directory:") {
             button("Upload") {
-                toolkitComboBox.activatedToolkit?.let { toolkit ->
+                toolkitComboBox.selectedToolkit?.let { toolkit ->
                     val workingDirectoryPath = WorkingDirectoryResolver.resolve(
                         project,
                         workingDirectoryBrowser.text,
@@ -541,12 +538,12 @@ class XMakeRunConfigurationEditor(
                     )
 
                     scope.launch(Dispatchers.IO) {
-                        if (toolkit.isOnRemote) {
+                        if (toolkit.requiresBackend) {
                             withBackgroundProgress(project, "Sync directory", cancellable = true) {
                                 transferProjectFiles(
                                     project,
                                     toolkit,
-                                    SyncDirection.UPSTREAM_TO_LOCAL,
+                                    SyncDirection.REMOTE_TO_LOCAL,
                                     workingDirectoryPath,
                                 )
                             }
@@ -555,8 +552,8 @@ class XMakeRunConfigurationEditor(
                 }
             }
         }.visibleIf(ComboBoxPredicate<ToolkitListItem>(toolkitComboBox) {
-            val toolkit = (it as? ToolkitListItem.ToolkitItem)?.toolkit
-            toolkit?.isOnRemote ?: false
+            val toolkit = (it as? ToolkitListItem.Entry)?.toolkit
+            toolkit?.requiresBackend ?: false
         })
     }
 

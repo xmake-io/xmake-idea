@@ -29,76 +29,81 @@ import com.intellij.openapi.ui.TextComponentAccessor
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHost
-import io.xmake.project.toolkit.ToolkitHostType.*
+import io.xmake.project.toolkit.ToolkitHostType.LOCAL
+import io.xmake.project.toolkit.ToolkitHostType.SSH
+import io.xmake.project.toolkit.ToolkitHostType.WSL
 import io.xmake.utils.extension.ToolkitHostExtension
 import java.awt.event.ActionListener
 
-class DirectoryBrowser(val project: Project?) : TextFieldWithBrowseButton() {
+class DirectoryBrowser(
+    val project: Project?,
+    private val browseTitle: String = "Working Directory",
+    private val browseDescription: String = "Select the working directory",
+) : TextFieldWithBrowseButton() {
 
     private val listeners = mutableSetOf<ActionListener>()
 
+    fun setToolkit(toolkit: Toolkit?) {
+        removeBrowseListeners()
+        setButtonEnabled(false)
+        toolkit?.let { addBrowseListener(it.host) }
+    }
+
     private fun createLocalBrowseListener(): ActionListener {
         val fileChooserDescriptor = FileChooserDescriptorFactory.createSingleFolderDescriptor()
-        val browseFolderListener = BrowseFolderActionListener(
+        return BrowseFolderActionListener(
             this,
             project,
             fileChooserDescriptor
-                .withTitle("Working Directory")
-                .withDescription("Select the working directory"),
-            TextComponentAccessor.TEXT_FIELD_WHOLE_TEXT
+                .withTitle(browseTitle)
+                .withDescription(browseDescription),
+            TextComponentAccessor.TEXT_FIELD_WHOLE_TEXT,
         )
-        return browseFolderListener
     }
 
     private fun createWslBrowseListener(distribution: WSLDistribution): ActionListener {
         val fileChooserDescriptor = FileChooserDescriptorFactory.createSingleFolderDescriptor()
-        val wslBrowseFolderListener = ActionListener {
-            browseWslPath(this,
+            .withTitle(browseTitle)
+            .withDescription(browseDescription)
+        return ActionListener {
+            browseWslPath(
+                this,
                 distribution,
                 this,
                 true,
-                fileChooserDescriptor)
+                fileChooserDescriptor,
+            )
         }
-        return wslBrowseFolderListener
     }
 
-    fun addBrowserListenerByToolkit(toolkit: Toolkit){
-        addBrowserListenerByHostType(toolkit.host)
-    }
-
-    fun addBrowserListenerByHostType(host: ToolkitHost) {
-        when (host.type) {
-            LOCAL -> {
-                val localBrowseListener = createLocalBrowseListener()
-                addActionListener(localBrowseListener)
-                listeners.add(localBrowseListener)
-                Log.debug("addActionListener local: $localBrowseListener")
-            }
+    private fun addBrowseListener(host: ToolkitHost) {
+        val listener = when (host.type) {
+            LOCAL -> createLocalBrowseListener()
 
             WSL -> {
                 val distribution = host.wslDistribution ?: return
-                val wslBrowseListener = createWslBrowseListener(distribution)
-                addActionListener(wslBrowseListener)
-                listeners.add(wslBrowseListener)
-                Log.debug("addActionListener wsl: $wslBrowseListener")
+                createWslBrowseListener(distribution)
             }
 
             SSH -> {
-                val extension = ToolkitHostExtension.forHostType(SSH) ?: return
-                val browseListener = extension.createBrowseListener(this, host)
-                addActionListener(browseListener)
-                listeners.add(browseListener)
-                Log.debug("addActionListener SSH: $browseListener")
+                if (!host.hasBackend) return
+                val extension = ToolkitHostExtension.forHostType(host.type) ?: return
+                extension.createBrowseListener(this, host)
             }
         }
+
+        addActionListener(listener)
+        listeners += listener
+        setButtonEnabled(true)
+        Log.debug("Added directory browser listener for ${host.type}")
     }
 
-    fun removeBrowserAllListener() {
-        listeners.onEach {
-            removeActionListener(it)
-        }.clear()
+    private fun removeBrowseListeners() {
+        listeners.forEach(::removeActionListener)
+        listeners.clear()
     }
-    companion object{
+
+    private companion object {
         private val Log = logger<DirectoryBrowser>()
     }
 }
