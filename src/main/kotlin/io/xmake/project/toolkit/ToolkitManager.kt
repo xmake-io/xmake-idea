@@ -21,16 +21,10 @@
 package io.xmake.project.toolkit
 
 import com.intellij.execution.RunManager
-import com.intellij.execution.processTools.getBareExecutionResult
-import com.intellij.execution.wsl.WSLDistribution
-import com.intellij.execution.wsl.WSLUtil
-import com.intellij.execution.wsl.WslDistributionManager
-import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.*
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
-import com.intellij.util.system.OS
 import com.intellij.util.xmlb.annotations.XCollection
 import io.xmake.project.toolkit.ToolkitHostType.*
 import io.xmake.run.XMakeRunConfiguration
@@ -45,6 +39,7 @@ import java.util.*
 @State(name = "toolkits", storages = [Storage("xmakeToolkits.xml")])
 class ToolkitManager(private val scope: CoroutineScope) : PersistentStateComponent<ToolkitManager.State> {
 
+    private val scanner = ToolkitScanner()
     val fetchedToolkitsSet = mutableSetOf<Toolkit>()
     private lateinit var detectionJob: Job
     private lateinit var validateJob: Job
@@ -64,129 +59,29 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
 
     class ToolkitDetectEvent(source: Toolkit) : EventObject(source)
 
-    init {
-        scope.launch {
-            // Cache the list of installed distributions
-            getInstalledWslDistributions()
-        }
-    }
-
-    private fun toolkitHostFlow(project: Project? = null): Flow<ToolkitHost> = flow {
-        val wslDistributions = scope.async { getInstalledWslDistributions() }
-
-        emit(ToolkitHost(LOCAL).also { host -> Logger.i(TAG, "emit host: $host") })
-
-        wslDistributions.await().forEach {
-            emit(ToolkitHost.wsl(it).also { host -> Logger.i(TAG, "emit host: $host") })
-        }
-
-        ToolkitHostExtension.forHostType(SSH)?.getHosts(project)?.forEach { host ->
-            emit(host).also { Logger.i(TAG, "emit host: $host") }
-        }
-    }
-
-    private fun getInstalledWslDistributions(): List<WSLDistribution> {
-        if (ApplicationManager.getApplication() == null) {
-            return emptyList()
-        }
-
-        if (!WSLUtil.isSystemCompatible()) {
-            return emptyList()
-        }
-
-        return try {
-            WslDistributionManager.getInstance().installedDistributions
-        } catch (e: ProcessCanceledException) {
-            throw e
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            Logger.w(TAG, e.message ?: "Failed to read WSL distributions")
-            emptyList()
-        }
-    }
-
-    private fun detectToolkitLocation(host: ToolkitHost): Flow<String> = flow {
-        val process = probeXmakeLocCommand.let {
-            when (host.type) {
-                LOCAL -> (if (OS.CURRENT == OS.Windows) probeXmakeLocCommandOnWin else it).createLocalProcess()
-                WSL -> it.createWslProcess(host.requireWslDistribution())
-                SSH -> ToolkitHostExtension.requireForHostType(SSH).startProcess(host, it)
-            }
-        }
-
-        with(process.getBareExecutionResult()){
-            Logger.i(TAG, "Host: ${host.type} ExitCode: $exitCode Output: ${stdOut.toString(Charsets.UTF_8)}")
-            val paths = stdOut.toString(Charsets.UTF_8)
-                .split(Regex("\\r\\n|\\n|\\r"))
-                .filterNot { it.isBlank() || it.contains("not found") }
-                .distinct()
-            paths.forEach { emit(it); Logger.i(TAG, "emit path on ${host.type}: $it") }
-        }
-    }
-
-    private fun detectToolkitVersion(host: ToolkitHost, path: String): Flow<String> = flow {
-        val process = probeXmakeVersionCommand.withExePath(path).let {
-            when (host.type) {
-                LOCAL -> it.createLocalProcess()
-                WSL -> it.createWslProcess(host.requireWslDistribution())
-                SSH -> ToolkitHostExtension.requireForHostType(SSH).startProcess(host, it)
-            }
-        }
-        val (stdout, exitCode) = runProcess(process)
-        val versionString = stdout.getOrElse { "" }.split(Regex(",")).first().split(" ").last()
-        Logger.i(TAG, "ExitCode: $exitCode Version: $versionString")
-        emit(versionString)
-    }
-
-    @OptIn(ExperimentalCoroutinesApi::class)
     fun detectXMakeToolkits(project: Project?) {
         detectionJob = scope.launch {
-            val toolkitFlow = toolkitHostFlow(project)
-
-            val pathFlow = toolkitFlow.flatMapMerge { host ->
-                detectToolkitLocation(host).catch {
-                    Logger.w(TAG, it.message ?: "Unknown error")
-                }.flowOn(Dispatchers.IO).buffer()
-                    .distinctUntilChanged()
-                    .filterNot { it.isBlank() }
-                    .onEach { Logger.i(TAG, "output path: $it") }
-                    .map { path -> host to path }
-            }.flowOn(Dispatchers.Default).buffer()
-
-            val versionFlow = pathFlow.flatMapMerge { (host, path) ->
-                Logger.i(TAG, "detecting version: host: $host, path: $path")
-                detectToolkitVersion(host, path).catch {
-                    Logger.w(TAG, it.message ?: "Unknown error")
-                }.flowOn(Dispatchers.IO).buffer().filterNot { it.isBlank() }.map { versionString ->
-                    when (host.type) {
-                        LOCAL -> {
-                            val name = OS.CURRENT.name
-                            Toolkit(name, host, path, versionString)
+            try {
+                val hostsByType = scanner.getHostsByType(project)
+                scanner.scan(project, hostsByType.values.flatten()).collect { result ->
+                    result.toolkits.forEach { scannedToolkit ->
+                        val toolkit = refreshMatchingRegistration(scannedToolkit) ?: scannedToolkit
+                        fetchedToolkitsSet.removeIf { known -> known.location == toolkit.location }
+                        fetchedToolkitsSet.add(toolkit)
+                        listenerList.forEach { listener ->
+                            listener.onToolkitDetected(ToolkitDetectEvent(toolkit))
                         }
-
-                        WSL -> {
-                            val wslDistribution = host.backend as WSLDistribution
-                            val name = wslDistribution.presentableName
-                            Toolkit(name, host, path, versionString)
-                        }
-
-                        SSH -> Toolkit(name = host.displayName, host = host.toRuntimeHost(), path = path, version = versionString)
-                    }.apply { this.isRegistered = true; this.isValid = true }
+                        Logger.i(TAG, "toolkit added: $toolkit")
+                    }
                 }
-            }.flowOn(Dispatchers.Default).buffer()
-
-            versionFlow.collect { scannedToolkit ->
-                // Todo: Consider cache
-                val toolkit = refreshMatchingRegistration(scannedToolkit) ?: scannedToolkit
-                fetchedToolkitsSet.removeIf { known -> known.location == toolkit.location }
-                fetchedToolkitsSet.add(toolkit)
-                listenerList.forEach { listener ->
-                    listener.onToolkitDetected(ToolkitDetectEvent(toolkit))
-                }
-                Logger.i(TAG, "toolkit added: $toolkit")
+                listenerList.forEach { listener -> listener.onAllToolkitsDetected() }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: ProcessCanceledException) {
+                throw error
+            } catch (error: Exception) {
+                Logger.e(TAG, "Failed to scan for XMake toolkits", error)
             }
-            listenerList.forEach { it.onAllToolkitsDetected() }
         }
     }
 
@@ -241,9 +136,13 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
     }
 
     override fun loadState(state: State) {
-        storage = state
-        state.registeredToolkits.forEach { toolkit ->
-            toolkit.isRegistered = true
+        storage = State().apply {
+            lastSelectedToolkitId = state.lastSelectedToolkitId
+            state.registeredToolkits.mapTo(registeredToolkits) { toolkit ->
+                toolkit.copy(isRegistered = true)
+            }
+        }
+        storage.registeredToolkits.forEach { toolkit ->
             loadToolkit(toolkit)
             fetchedToolkitsSet.removeIf { known -> known.location == toolkit.location }
             fetchedToolkitsSet.add(toolkit)
@@ -259,11 +158,11 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
 
     fun registerToolkit(toolkit: Toolkit) {
         val existing = findRegisteredToolkit(toolkit)
-        val registeredToolkit = toolkit.copy(id = existing?.id ?: toolkit.id).apply {
-            isRegistered = true
-            isValid = toolkit.isValid
-        }
-        toolkit.isRegistered = true
+        val registeredToolkit = toolkit.copy(
+            id = existing?.id ?: toolkit.id,
+            isRegistered = true,
+            isAvailable = toolkit.isAvailable,
+        )
         existing?.let(storage.registeredToolkits::remove)
         storage.registeredToolkits.add(registeredToolkit)
         loadToolkit(registeredToolkit)
@@ -297,10 +196,11 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
 
     private fun refreshMatchingRegistration(toolkit: Toolkit): Toolkit? {
         val registeredToolkit = findRegisteredToolkit(toolkit) ?: return null
-        val refreshedToolkit = toolkit.copy(id = registeredToolkit.id).apply {
-            isRegistered = true
-            isValid = toolkit.isValid
-        }
+        val refreshedToolkit = toolkit.copy(
+            id = registeredToolkit.id,
+            isRegistered = true,
+            isAvailable = toolkit.isAvailable,
+        )
         storage.registeredToolkits.remove(registeredToolkit)
         storage.registeredToolkits.add(refreshedToolkit)
         return refreshedToolkit
@@ -311,8 +211,8 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
             ?.getHosts(null)
             .orEmpty()
             .mapTo(mutableSetOf()) { host -> host.id }
-        return state.registeredToolkits.filter { toolkit ->
-            !toolkit.isOnRemote || toolkit.host.id in sshHostIds
+        return storage.registeredToolkits.filter { toolkit ->
+            !toolkit.requiresBackend || toolkit.host.id in sshHostIds
         }
 //            .filterNot { (it.host.type == SSH && PlatformUtils.isCommunityEdition()) }
     }
