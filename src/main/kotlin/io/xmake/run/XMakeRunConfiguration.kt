@@ -128,7 +128,7 @@ class XMakeRunConfiguration(
         XmlSerializer.deserializeInto(this, element)
         runEnvironment = EnvironmentVariablesData.readExternal(element)
         runToolkit = runToolkit?.let { toolkit ->
-            ToolkitManager.getInstance().findRegisteredToolkitById(toolkit.id)
+            ToolkitManager.getInstance().registeredToolkit(toolkit.id, project)
         }
         // Todo: Optimize to avoid probing delay.
         XMakeInfoManager.getInstance(project).probeXMakeInfo(runToolkit)
@@ -137,7 +137,7 @@ class XMakeRunConfiguration(
     override fun checkConfiguration() {
         val toolkit = runToolkit ?: throw RuntimeConfigurationError("XMake toolkit is not set")
 
-        if (toolkit.isOnRemote && toolkit.host.backend == null) {
+        if (toolkit.requiresBackend && toolkit.host.backend == null) {
             throw RuntimeConfigurationError("XMake ${toolkit.host.type} toolkit host is not available")
         }
 
@@ -215,7 +215,7 @@ class XMakeRunConfiguration(
     }
 
     companion object {
-        
+
         fun getDefaultGdbLaunchConfigJson(): String {
             return """{
     "stopOnEntry": true,

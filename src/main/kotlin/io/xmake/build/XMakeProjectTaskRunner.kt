@@ -94,7 +94,7 @@ class XMakeProjectTaskRunner : ProjectTaskRunner() {
                         progress.output(text, ProcessOutputType.fromKey(outputType))
                     },
                     onProblems = { problems ->
-                        progress.reportProblems(problems, command.toolkit.isOnRemote)
+                        progress.reportProblems(problems, command.toolkit.requiresBackend)
                     },
                 ).awaitSuccessfulCompletion()
             }

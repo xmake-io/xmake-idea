@@ -46,7 +46,7 @@ internal class XMakeDebugState private constructor(
         fun create(configuration: XMakeRunConfiguration): XMakeDebugState {
             val commands = XMakeCommandFactory(configuration)
             val buildCommand = commands.createTargetBuild()
-            if (buildCommand.toolkit.isOnRemote) {
+            if (buildCommand.toolkit.requiresBackend) {
                 throw ExecutionException("Remote XMake toolkits are not supported for debugging")
             }
 
