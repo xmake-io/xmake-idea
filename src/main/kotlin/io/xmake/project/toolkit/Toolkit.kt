@@ -48,10 +48,6 @@ data class Toolkit(
     val isAvailable: Boolean = true,
 ) {
     @get:Transient
-    val isOnRemote: Boolean
-        get() = requiresBackend
-
-    @get:Transient
     val requiresBackend: Boolean
         get() = host.type == ToolkitHostType.WSL || host.type == ToolkitHostType.SSH
 

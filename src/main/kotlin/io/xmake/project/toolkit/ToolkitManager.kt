@@ -44,8 +44,6 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import java.util.EventListener
-import java.util.EventObject
 
 /** Application service coordinating toolkit persistence, scanning, registration, and change publication. */
 @Service
@@ -127,64 +125,6 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
         job.start()
     }
 
-    @Deprecated("Use registeredToolkits(project) instead")
-    fun getRegisteredToolkits(): List<Toolkit> = registeredToolkits(null)
-
-    @Deprecated("Use registeredToolkit(id, project) instead")
-    fun findRegisteredToolkitById(id: String): Toolkit? = registeredToolkit(id, null)
-
-    @Deprecated("Use register(installationId, project) instead")
-    fun registerToolkit(toolkit: Toolkit) {
-        register(toolkit.id, null)
-    }
-
-    @Deprecated("Use unregister(installationId) instead")
-    fun unregisterToolkit(toolkit: Toolkit) {
-        unregister(toolkit.id)
-    }
-
-    @Deprecated("Use requestScan(project) instead")
-    fun detectXMakeToolkits(project: Project?) {
-        requestScan(project)
-    }
-
-    @Deprecated("Scans complete independently of the legacy lifecycle")
-    fun cancelDetection() = Unit
-
-    @Deprecated("Use requestScan(project) instead")
-    fun validateXMakeToolkit() = requestScan(null)
-
-    @Deprecated("Use requestScan(project) instead")
-    fun validateToolkits() = requestScan(null)
-
-    @Deprecated("Scans complete independently of the legacy lifecycle")
-    fun cancelValidation() = Unit
-
-    @Deprecated("Use ToolkitListener.TOPIC instead")
-    val fetchedToolkitsSet = mutableSetOf<Toolkit>()
-
-    @Deprecated("Use ToolkitListener.TOPIC instead")
-    fun addToolkitDetectedListener(listener: ToolkitDetectedListener) {
-        legacyToolkitDetectedListeners.add(listener)
-    }
-
-    interface ToolkitDetectedListener : EventListener {
-        fun onToolkitDetected(e: ToolkitDetectEvent)
-        fun onAllToolkitsDetected()
-    }
-
-    class ToolkitDetectEvent(source: Toolkit) : EventObject(source)
-
-    private val legacyToolkitDetectedListeners = mutableListOf<ToolkitDetectedListener>()
-
-    @Deprecated("Use defaultToolkitId instead")
-    @get:JvmName("legacyState")
-    val state: State
-        get() = State().apply {
-            registeredToolkits.addAll(registeredToolkits(null).map(Toolkit::toPersistedToolkit))
-            lastSelectedToolkitId = defaultToolkitId
-        }
-
     fun register(id: String, project: Project? = null): Toolkit? {
         val sshHostsById = currentSshHostsById(project)
         val registrationResult = synchronized(lock) {
@@ -218,6 +158,8 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
         val unregistered = synchronized(lock) { registry.unregister(id) } ?: return
         publishToolkitChanges(listOf(unregistered))
     }
+
+    fun isRegistered(id: String): Boolean = synchronized(lock) { registry.find(id) != null }
 
     override fun getState(): State = synchronized(lock) { registry.toState() }
 
@@ -436,20 +378,9 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
         if (affectedToolkits.isEmpty()) return
         val application = ApplicationManager.getApplication() ?: return
         if (application.isDisposed) return
-        application.messageBus.syncPublisher(ToolkitListener.TOPIC).toolkitsChanged()
-        publishLegacyToolkitEvents(affectedToolkits)
-    }
+        val publisher = application.messageBus.syncPublisher(ToolkitListener.TOPIC)
 
-    private fun publishLegacyToolkitEvents(affectedToolkits: List<Toolkit>) {
-        if (legacyToolkitDetectedListeners.isEmpty()) return
-        affectedToolkits.forEach { toolkit ->
-            fetchedToolkitsSet.removeIf { known -> known.id == toolkit.id }
-            fetchedToolkitsSet.add(toolkit)
-            legacyToolkitDetectedListeners.forEach { listener ->
-                listener.onToolkitDetected(ToolkitDetectEvent(toolkit))
-            }
-        }
-        legacyToolkitDetectedListeners.forEach { listener -> listener.onAllToolkitsDetected() }
+        publisher.toolkitsChanged()
     }
 
     companion object {
