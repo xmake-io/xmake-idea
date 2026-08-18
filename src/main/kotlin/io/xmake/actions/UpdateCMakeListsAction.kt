@@ -15,7 +15,7 @@
  * Copyright (C) 2015-present, Xmake Open Source Community.
  *
  * @author      ruki
- * @file        UpdateCmakeListsAction.kt
+ * @file        UpdateCMakeListsAction.kt
  *
  */
 package io.xmake.actions
@@ -28,7 +28,7 @@ import io.xmake.run.command.xmakeExecutionService
 import io.xmake.utils.execute.fetchGeneratedFile
 import io.xmake.utils.execute.syncBeforeFetch
 
-class UpdateCmakeListsAction : XMakeCommandAction() {
+class UpdateCMakeListsAction : XMakeCommandAction() {
     override suspend fun execute(
         project: Project,
         console: XMakeConsole,

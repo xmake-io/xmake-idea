@@ -121,9 +121,9 @@
                     text="Quick Start"
                     icon="AllIcons.Actions.Lightning"
                     description="Quick start a new project."/>
-            <action id="XMake.UpdateCmakeLists"
-                    class="io.xmake.actions.UpdateCmakeListsAction"
-                    text="Update CmakeLists"
+            <action id="XMake.UpdateCMakeLists"
+                    class="io.xmake.actions.UpdateCMakeListsAction"
+                    text="Update CMakeLists"
                     icon="AllIcons.FileTypes.Csv"
                     description="Create or update the CMakeLists.txt.">
                 <keyboard-shortcut keymap="$default" first-keystroke="alt U" />
