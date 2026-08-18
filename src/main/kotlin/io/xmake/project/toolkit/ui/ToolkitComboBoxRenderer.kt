@@ -48,12 +48,8 @@ class ToolkitComboBoxRenderer(component: JComponent) : GroupedComboBoxRenderer<T
         return item?.secondaryText
     }
 
-    private fun getTertiaryText(item: ToolkitListItem?): String? {
-        return item?.tertiaryText
-    }
-
     override fun getIcon(item: ToolkitListItem?): Icon {
-        return item?.icon?: AllIcons.General.Error
+        return item?.icon ?: AllIcons.General.Error
     }
 
     override fun getCaption(list: JList<out ToolkitListItem?>?, value: ToolkitListItem?): String? {
@@ -68,9 +64,9 @@ class ToolkitComboBoxRenderer(component: JComponent) : GroupedComboBoxRenderer<T
         cellHasFocus: Boolean,
     ) {
         item.icon = getIcon(value)
-        val text = value?.let { getText(value) } ?: ""
+        val text = getText(value)
         val secondaryText = getSecondaryText(value)
-        val tertiaryText = getTertiaryText(value)
+        val tertiaryText = value?.tertiaryText
 
         item.append(text, SimpleTextAttributes.REGULAR_ATTRIBUTES)
         if (secondaryText != null)
@@ -79,4 +75,3 @@ class ToolkitComboBoxRenderer(component: JComponent) : GroupedComboBoxRenderer<T
             item.append(" $tertiaryText", SimpleTextAttributes.GRAYED_ATTRIBUTES)
     }
 }
-

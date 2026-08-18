@@ -21,247 +21,122 @@
 package io.xmake.project.toolkit.ui
 
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.diagnostic.logger
-import com.intellij.openapi.project.ProjectManager
-import com.intellij.openapi.ui.ComboBox
+import com.intellij.openapi.application.ModalityState
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.validation.DialogValidation
 import com.intellij.openapi.ui.validation.transformParameter
 import com.intellij.openapi.ui.validation.validationErrorIf
 import com.intellij.ui.PopupMenuListenerAdapter
-import com.intellij.ui.SortedComboBoxModel
 import io.xmake.project.toolkit.Toolkit
-import io.xmake.project.toolkit.ToolkitChangedNotifier
+import io.xmake.project.toolkit.ToolkitListener
 import io.xmake.project.toolkit.ToolkitManager
+import io.xmake.utils.ui.LiveModelComboBox
 import java.awt.event.ItemEvent
-import java.util.*
 import javax.swing.event.PopupMenuEvent
-import kotlin.concurrent.timerTask
 import kotlin.reflect.KMutableProperty0
 
-class ToolkitComboBox(toolkitProperty: KMutableProperty0<Toolkit?>) : ComboBox<ToolkitListItem>(
-    SortedComboBoxModel { o1, o2 -> o1 compareTo o2 }
-) {
+class ToolkitComboBox(
+    private val project: Project?,
+    selectedToolkitProperty: KMutableProperty0<Toolkit?>,
+) : LiveModelComboBox<ToolkitListItem>(ToolkitComboBoxModel()) {
 
-    private val service = ToolkitManager.getInstance()
+    private val toolkitManager = ToolkitManager.getInstance()
+    private val selectionListeners = mutableListOf<(Toolkit?) -> Unit>()
+    private var isDisposed = false
 
-    private var model: SortedComboBoxModel<ToolkitListItem>
-        get() = super.getModel() as SortedComboBoxModel<ToolkitListItem>
-        set(value) { super.setModel(value) }
-
-    var activatedToolkit: Toolkit? by toolkitProperty
+    var selectedToolkit: Toolkit? by selectedToolkitProperty
         private set
 
-    override fun getItem(): ToolkitListItem? {
-        return model.selectedItem ?: null
-    }
-
-    override fun setItem(anObject: ToolkitListItem?) {
-        model.selectedItem = anObject
-    }
-
-    private val timer = Timer()
-    private var timerTask: TimerTask? = null
-
-    private fun debounce(delayMillis: Long = 50L, action: TimerTask.() -> Unit) {
-        timerTask?.cancel()
-        timerTask = timerTask(action)
-        timer.schedule(timerTask, delayMillis)
-    }
+    private val toolkitModel: ToolkitComboBoxModel
+        get() = super.getModel() as ToolkitComboBoxModel
 
     init {
-        model.apply {
-            // init items
-            add(ToolkitListItem.NoneItem())
-            service.getRegisteredToolkits().forEach {
-                add(ToolkitListItem.ToolkitItem(it).asRegistered())
-            }
-
-            val initialToolkit = activatedToolkit
-            Log.debug("ComboBox initial activated Toolkit: $initialToolkit")
-
-            if (initialToolkit != null) {
-                // find it
-                val found = items.find { it.id == initialToolkit.id }
-                if (found != null) {
-                    selectedItem = found
-                } else {
-                    val invalid = ToolkitListItem.ToolkitItem(initialToolkit).asInvalid()
-                    add(invalid)
-                    selectedItem = invalid
-                }
-            } else {
-                // select first one
-                val first = items.filterIsInstance<ToolkitListItem.ToolkitItem>().firstOrNull()
-                if (first != null) {
-                    selectedItem = first
-                    // Force update activatedToolkit
-                    activatedToolkit = first.toolkit
-                } else {
-                    selectedItem = items.firstOrNull()
-                }
-            }
-        }
-
-        isSwingPopup = false
         maximumRowCount = 30
         renderer = ToolkitComboBoxRenderer(this)
-        putClientProperty("ComboBox.jbPopup.supportUpdateModel", true)
-        Log.debug("ComboBox Client Property: " + getClientProperty("ComboBox.jbPopup.supportUpdateModel"))
+        synchronizeWithToolkits()
 
-    }
+        (project?.messageBus ?: ApplicationManager.getApplication().messageBus).connect(this).subscribe(
+            ToolkitListener.TOPIC,
+            object : ToolkitListener {
+                override fun toolkitsChanged() {
+                    ApplicationManager.getApplication().invokeLater(
+                        { if (!isDisposed) synchronizeAndNotify() },
+                        ModalityState.any(),
+                    )
+                }
+            },
+        )
 
-    init {
         addPopupMenuListener(object : PopupMenuListenerAdapter() {
-            override fun popupMenuWillBecomeVisible(e: PopupMenuEvent?) {
-                super.popupMenuWillBecomeVisible(e)
-
-                // todo: check whether safe or not
-                val itemToolkit = (item as? ToolkitListItem.ToolkitItem)?.toolkit
-
-                with(model) {
-                    clear()
-                    add(ToolkitListItem.NoneItem())
-                    service.getRegisteredToolkits().forEach {
-                        add(ToolkitListItem.ToolkitItem(it).asRegistered())
-                    }
-                }
-
-                try {
-                    firePropertyChange("model", false, true)
-                } catch (e: ClassCastException){
-                    Log.info(e.message)
-                }
-
-                // to select configuration-level activated toolkit
-                item = if (service.getRegisteredToolkits().isEmpty() || itemToolkit == null) {
-                    model.items.first()
-                } else {
-                    model.items.find { it.id == itemToolkit.id }.let {
-                        if (it == null) {
-                            val invalidToolkitItem = ToolkitListItem.ToolkitItem(itemToolkit).asInvalid()
-                            model.items.add(0, invalidToolkitItem)
-                            invalidToolkitItem
-                        } else it
-                    }
-                }
-
-                val project = ProjectManager.getInstanceIfCreated()?.defaultProject
-                service.detectXMakeToolkits(project)
-            }
-
-            override fun popupMenuWillBecomeInvisible(e: PopupMenuEvent?) {
-                super.popupMenuWillBecomeInvisible(e)
-                service.cancelDetection()
+            override fun popupMenuWillBecomeVisible(event: PopupMenuEvent?) {
+                synchronizeAndNotify()
+                refreshPopupFromModel()
+                toolkitManager.requestScan(project)
             }
         })
 
-        service.addToolkitDetectedListener(object : ToolkitManager.ToolkitDetectedListener {
-            override fun onToolkitDetected(e: ToolkitManager.ToolkitDetectEvent) {
-                val toolkit = e.source as Toolkit
-                model.add(ToolkitListItem.ToolkitItem(toolkit))
-                debounce {
-                    try {
-                        firePropertyChange("model", false, true)
-                    } catch (e: ClassCastException){
-                        Log.info(e.message)
-                    }
-                }
-            }
+        addItemListener { event ->
+            if (event.stateChange != ItemEvent.SELECTED || isSelectionHandlingSuppressed) return@addItemListener
 
-            override fun onAllToolkitsDetected() {}
-        })
-
-        addItemListener { it ->
-            if (it.stateChange == ItemEvent.SELECTED) {
-                val toolkitListItem = it.item as ToolkitListItem
-                if (toolkitListItem is ToolkitListItem.ToolkitItem) {
-                    with(service) {
-                        val fetchedToolkit = fetchedToolkitsSet.find { it.id == toolkitListItem.id }
-
-                        if (fetchedToolkit != null) {
-                            // check whether registered or not
-                            getRegisteredToolkits().run {
-                                if (findRegisteredToolkitById(fetchedToolkit.id) == null) {
-                                    registerToolkit(fetchedToolkit)
-                                }
-                            }
-                            activatedToolkit = fetchedToolkit
-                        } else {
-                            // selectedItem toolkit is not in toolkitSet, use the one from the item directly
-                            // This happens when we select an already registered toolkit that wasn't "fetched" in this session
-                            activatedToolkit = toolkitListItem.toolkit
-                        }
-                    }
-                } else {
-                    activatedToolkit = null
-                }
-
-                toolkitChangedListeners.forEach { listener ->
-                    listener.onToolkitChanged(activatedToolkit)
-                }
-
-                Log.info("activeToolkit: $activatedToolkit")
-                Log.info("selected Item: " + (item?.text ?: ""))
-            }
+            val toolkitId = (event.item as? ToolkitListItem.Entry)
+                ?.id
+            val registeredToolkit = toolkitId?.let { id -> toolkitManager.register(id, project) }
+            if (synchronizeWithToolkits(registeredToolkit)) fireSelectionChanged()
         }
     }
 
-    private val toolkitChangedListeners = mutableListOf<ToolkitChangedListener>()
-
-    interface ToolkitChangedListener : EventListener {
-        fun onToolkitChanged(toolkit: Toolkit?)
+    override fun addNotify() {
+        super.addNotify()
+        synchronizeAndNotify()
+        toolkitManager.requestScan(project)
     }
 
-    fun addToolkitChangedListener(listener: ToolkitChangedListener) {
-        toolkitChangedListeners.add(listener)
+    fun addSelectionListener(listener: (Toolkit?) -> Unit) {
+        selectionListeners.add(listener)
     }
-
-    val publisher: ToolkitChangedNotifier = ApplicationManager.getApplication().messageBus
-        .syncPublisher(ToolkitChangedNotifier.TOOLKIT_CHANGED_TOPIC)
-
-    fun addToolkitChangedListener(action: (Toolkit?) -> Unit) {
-        toolkitChangedListeners.add(object : ToolkitChangedListener {
-            override fun onToolkitChanged(toolkit: Toolkit?) {
-                publisher.toolkitChanged(toolkit)
-                action(toolkit)
-            }
-        })
-    }
-
-    fun removeToolkitChangedListener(listener: ToolkitChangedListener) {
-        toolkitChangedListeners.remove(listener)
-    }
-
-    fun getToolkitChangedListeners(): List<ToolkitChangedListener> = toolkitChangedListeners
 
     fun selectToolkit(toolkit: Toolkit?) {
-        if (toolkit != null) {
-            val found = model.items.find { it.id == toolkit.id }
-            if (found != null) {
-                selectedItem = found
-            } else {
-                val invalid = ToolkitListItem.ToolkitItem(toolkit).asInvalid()
-                model.add(invalid)
-                selectedItem = invalid
-            }
-        } else {
-            val none = model.items.find { it is ToolkitListItem.NoneItem }
-            if (none != null) {
-                selectedItem = none
-            }
+        if (synchronizeWithToolkits(toolkit)) fireSelectionChanged()
+    }
+
+    private fun synchronizeWithToolkits(requestedToolkit: Toolkit? = selectedToolkit): Boolean {
+        val visibleToolkits = toolkitManager.visibleToolkits(project)
+        val previousToolkit = selectedToolkit
+        val resolvedToolkit = requestedToolkit?.id?.let { id ->
+            visibleToolkits.firstOrNull { toolkit -> toolkit.id == id }?.takeIf { it.isRegistered }
         }
+        selectedToolkit = resolvedToolkit
+        val selectionChanged = when {
+            previousToolkit === resolvedToolkit -> false
+            previousToolkit == null || resolvedToolkit == null -> true
+            else -> !previousToolkit.isSameSnapshotAs(resolvedToolkit)
+        }
+        val itemsChanged = withSelectionHandlingSuppressed {
+            toolkitModel.synchronizeWith(visibleToolkits, selectedToolkit?.id)
+        }
+        if (itemsChanged) schedulePopupRefresh()
+        return selectionChanged
+    }
+
+    private fun synchronizeAndNotify() {
+        if (synchronizeWithToolkits()) fireSelectionChanged()
+    }
+
+    private fun fireSelectionChanged() {
+        selectionListeners.toList().forEach { listener -> listener(selectedToolkit) }
+    }
+
+    override fun dispose() {
+        isDisposed = true
+        super.dispose()
+        selectionListeners.clear()
     }
 
     companion object {
-        private val Log = logger<ToolkitComboBox>()
-
         fun DialogValidation.WithParameter<() -> Toolkit?>.forToolkitComboBox(): DialogValidation.WithParameter<ToolkitComboBox> =
-            transformParameter { ::activatedToolkit }
+            transformParameter { ::selectedToolkit }
 
-        val CHECK_NON_EMPTY_TOOLKIT: DialogValidation.WithParameter<() -> Toolkit?> =
-            validationErrorIf<Toolkit?>("XMake toolkit is not set!") { it == null }
+        val REQUIRE_TOOLKIT_SELECTION: DialogValidation.WithParameter<() -> Toolkit?> =
+            validationErrorIf("XMake toolkit is not set!") { toolkit: Toolkit? -> toolkit == null }
     }
-
 }
-
-

@@ -85,7 +85,7 @@ internal class XMakeCommandBuilder private constructor(
             if (configuration.runWorkingDir.isBlank()) {
                 throw RuntimeConfigurationError("Working directory is not set")
             }
-            if (toolkit.isOnRemote && toolkit.host.backend == null) {
+            if (toolkit.requiresBackend && toolkit.host.backend == null) {
                 throw RuntimeConfigurationError("XMake ${toolkit.host.type} toolkit host is not available")
             }
             val workingDirectory = WorkingDirectoryResolver.resolve(

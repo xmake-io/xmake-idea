@@ -56,7 +56,13 @@ class QuickStartAction : XMakeProjectAction() {
         FileDocumentManager.getInstance().saveAllDocuments()
 
         if (!SystemUtils.isXMakeProject(project)) {
-            val toolkit = findLocalToolkit()
+            val manager = ToolkitManager.getInstance()
+            val registeredToolkits = manager.registeredToolkits(project)
+            val toolkit = manager.defaultToolkitId
+                ?.let { id -> registeredToolkits.firstOrNull { toolkit -> toolkit.id == id } }
+                ?.takeUnless(Toolkit::requiresBackend)
+                ?: registeredToolkits.firstOrNull { !it.requiresBackend }
+                ?: Toolkit(path = "xmake")
             val projectPath = project.basePath ?: return
             val workingDirectory = WorkingDirectoryResolver.resolve(project, projectPath, toolkit)
             val commandLine = GeneralCommandLine(toolkit.path, "create", "-P", ".")
@@ -115,15 +121,5 @@ class QuickStartAction : XMakeProjectAction() {
             .getNotificationGroup("XMake.NotificationGroup")
             .createNotification(message, NotificationType.ERROR)
             .notify(project)
-    }
-
-    private fun findLocalToolkit(): Toolkit {
-        val manager = ToolkitManager.getInstance()
-        val preferred = manager.state.lastSelectedToolkitId
-            ?.let(manager::findRegisteredToolkitById)
-            ?.takeUnless(Toolkit::isOnRemote)
-        return preferred
-            ?: manager.getRegisteredToolkits().firstOrNull { !it.isOnRemote }
-            ?: Toolkit(path = "xmake")
     }
 }

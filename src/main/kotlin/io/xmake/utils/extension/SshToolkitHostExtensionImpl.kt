@@ -81,7 +81,7 @@ class SshToolkitHostExtensionImpl : ToolkitHostExtension {
             runInterruptible(Dispatchers.IO) {
                 cancellationContext.ensureActive()
                 when (direction) {
-                    SyncDirection.LOCAL_TO_UPSTREAM -> {
+                    SyncDirection.LOCAL_TO_REMOTE -> {
                         sftpChannel.pruneMissingEntries(projectDirectoryFile, hostDirectory) {
                             cancellationContext.ensureActive()
                         }
@@ -104,7 +104,7 @@ class SshToolkitHostExtensionImpl : ToolkitHostExtension {
                         )
                     }
 
-                    SyncDirection.UPSTREAM_TO_LOCAL -> {
+                    SyncDirection.REMOTE_TO_LOCAL -> {
                         sftpChannel.downloadFileOrDir(hostDirectory, projectDirectory)
                     }
                 }

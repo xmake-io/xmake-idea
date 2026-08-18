@@ -27,6 +27,8 @@ import com.intellij.util.xmlb.annotations.Transient
 import java.nio.charset.StandardCharsets.UTF_8
 import java.util.UUID
 
+/** Persisted installation metadata, also resolved for consumers in a project.
+ * Resolution flags are transient; the XML shape matches both the state storage and legacy run configurations. */
 @Tag("toolkit")
 data class Toolkit(
     @Attribute
@@ -39,20 +41,26 @@ data class Toolkit(
     val version: String = "",
     @Attribute
     val id: String = createId(host, path),
+    @get:Transient
+    val isRegistered: Boolean = false,
+    /** Whether this installation can currently be used in the resolved project. */
+    @get:Transient
+    val isAvailable: Boolean = true,
 ) {
     @get:Transient
-    var isRegistered: Boolean = false
+    val requiresBackend: Boolean
+        get() = host.type == ToolkitHostType.WSL || host.type == ToolkitHostType.SSH
 
-    @get:Transient
-    var isValid: Boolean = true
-
-    @get:Transient
-    val isOnRemote: Boolean
-        get() = with(host) { type == ToolkitHostType.WSL || type == ToolkitHostType.SSH }
+    /** Equal persisted state backed by the same resolved runtime instance. */
+    internal fun isSameSnapshotAs(other: Toolkit): Boolean =
+        this == other &&
+                host.backend === other.host.backend
 
     /** Physical installation address: the host ID and the executable path. */
     internal val location: Location
         get() = Location(host.id, path)
+
+    internal fun toPersistedToolkit(): Toolkit = copy(host = host.toPersistedHost())
 
     /** A toolkit installation's physical address, independent of its persisted id. */
     internal data class Location(

@@ -20,73 +20,55 @@
  */
 package io.xmake.project.toolkit.ui
 
-import com.intellij.execution.configurations.RuntimeConfigurationError
-import com.intellij.openapi.actionSystem.AnAction
 import io.xmake.icons.XMakeIcons
 import io.xmake.project.toolkit.Toolkit
 import javax.swing.Icon
 
-open class ToolkitListItem(
+sealed class ToolkitListItem(
     val id: String,
-    var text: String?,
-    var secondaryText: String? = null,
-    var tertiaryText: String? = null,
-    var caption: String? = null,
-    var isCaptionVisible: Boolean = false,
-    var icon: Icon? = null,
-) {
+    val text: String?,
+    val secondaryText: String? = null,
+    val tertiaryText: String? = null,
+    val caption: String? = null,
+    val isCaptionVisible: Boolean = false,
+    val icon: Icon? = null,
+) : Comparable<ToolkitListItem> {
 
-    infix operator fun compareTo(other: ToolkitListItem): Int {
-        return if (this is ToolkitItem && other is ToolkitItem) {
-            return this compareTo other
-        } else if (this is NoneItem || other is NoneItem) {
-            compareValuesBy(this, other) { it.id }
-        } else {
-            return compareValuesBy(this, other) { it.text }
-        }
+    override fun compareTo(other: ToolkitListItem): Int = when {
+        this is None && other is None -> 0
+        this is None -> -1
+        other is None -> 1
+        else -> compareValuesBy(this, other, ToolkitListItem::id)
     }
 
-    class NoneItem : ToolkitListItem(id = "", text = "None")
+    data object None : ToolkitListItem(id = "", text = "None")
 
-    open class ToolkitItem(val toolkit: Toolkit) : ToolkitListItem(
-        toolkit.id,
-        toolkit.path,
-        toolkit.name,
-        toolkit.version,
-        toolkit.host.type.name,
-        true,
-        XMakeIcons.XMAKE
+    class Entry(
+        val toolkit: Toolkit,
+    ) : ToolkitListItem(
+        id = toolkit.id,
+        text = toolkit.path,
+        secondaryText = toolkit.name,
+        tertiaryText = if (!toolkit.isAvailable) {
+            "Unavailable"
+        } else {
+            toolkit.version
+        },
+        caption = if (toolkit.isRegistered) "Registered" else toolkit.host.type.name,
+        isCaptionVisible = true,
+        icon = XMakeIcons.XMAKE,
     ) {
-        infix operator fun compareTo(other: ToolkitItem): Int {
-            return compareValuesBy(this, other,
-                { if (it.caption == "Registered") -1 else it.toolkit.host.type.ordinal },
-                { it.toolkit.host.type.ordinal },
-                { it.toolkit.path }
+        override fun compareTo(other: ToolkitListItem): Int = when (other) {
+            is None -> 1
+            is Entry -> compareValuesBy(
+                this,
+                other,
+                { entry -> !entry.toolkit.isRegistered },
+                { entry -> entry.toolkit.host.type },
+                { entry -> entry.toolkit.host.id },
+                { entry -> entry.toolkit.path },
+                Entry::id,
             )
         }
-
-        fun asRegistered(): ToolkitItem {
-            if (this.toolkit.isRegistered)
-                return this.apply { caption = "Registered" }
-            else
-                throw RuntimeConfigurationError("Toolkit is not registered!")
-        }
-
-        fun asInvalid(): ToolkitItem {
-            return this.apply { tertiaryText = "Invalid" }
-        }
-
-        fun asCurrent(): ToolkitItem {
-            return this.apply { caption = "Current" }
-        }
     }
-
-    enum class ActionRole { DOWNLOAD, ADD }
-
-    class ActionItem(
-        id: String,
-        name: String,
-        private val role: ActionRole,
-        private val action: AnAction,
-    ) : ToolkitListItem(id, name,) {}
 }

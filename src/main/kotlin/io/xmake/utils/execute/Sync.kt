@@ -50,7 +50,7 @@ import java.nio.file.SimpleFileVisitor
 import java.nio.file.attribute.BasicFileAttributes
 import kotlin.io.path.Path
 
-enum class SyncDirection { LOCAL_TO_UPSTREAM, UPSTREAM_TO_LOCAL }
+enum class SyncDirection { LOCAL_TO_REMOTE, REMOTE_TO_LOCAL }
 
 internal val defaultSyncExcludedEntryNames = setOf(".xmake", ".idea", "build", ".git", ".gitignore")
 
@@ -71,21 +71,21 @@ private suspend fun transferWslFolder(
         val localRoot = project.guessProjectDir()?.toNioPath()
             ?: project.basePath?.let { Path(it) }
             ?: throw IllegalStateException("Cannot resolve project directory")
-        val upstreamRoot = Path(wslDistribution.toWindowsPath(directoryPath))
-        val syncPaths = resolveSyncPaths(localRoot, upstreamRoot, relativePath)
+        val remoteRoot = Path(wslDistribution.toWindowsPath(directoryPath))
+        val syncPaths = resolveSyncPaths(localRoot, remoteRoot, relativePath)
         val checkCanceled = { cancellationContext.ensureActive() }
 
         when (direction) {
-            SyncDirection.LOCAL_TO_UPSTREAM -> {
-                pruneMissingEntries(syncPaths.local, syncPaths.upstream, checkCanceled, ::isDefaultSyncExcluded)
+            SyncDirection.LOCAL_TO_REMOTE -> {
+                pruneMissingEntries(syncPaths.local, syncPaths.remote, checkCanceled, ::isDefaultSyncExcluded)
                 copyPath(
                     syncPaths.local,
-                    syncPaths.upstream,
+                    syncPaths.remote,
                     checkCanceled,
                     ::isDefaultSyncExcluded,
                 )
             }
-            SyncDirection.UPSTREAM_TO_LOCAL -> copyPath(syncPaths.upstream, syncPaths.local, checkCanceled)
+            SyncDirection.REMOTE_TO_LOCAL -> copyPath(syncPaths.remote, syncPaths.local, checkCanceled)
         }
     }
 }
@@ -94,15 +94,15 @@ private fun WSLDistribution.toWindowsPath(path: String): String {
     return if (path.startsWith("/")) getWindowsPath(path) else path
 }
 
-internal data class SyncPaths(val local: NioPath, val upstream: NioPath)
+internal data class SyncPaths(val local: NioPath, val remote: NioPath)
 
 internal fun resolveSyncPaths(
     localRoot: NioPath,
-    upstreamRoot: NioPath,
+    remoteRoot: NioPath,
     relativePath: String?
 ): SyncPaths {
     val normalizedLocalRoot = localRoot.normalize()
-    val normalizedUpstreamRoot = upstreamRoot.normalize()
+    val normalizedRemoteRoot = remoteRoot.normalize()
     val relativeValue = relativePath?.takeIf { it.isNotBlank() }
     require(relativeValue?.firstOrNull() !in setOf('/', '\\')) {
         "Sync path must be relative: $relativePath"
@@ -114,11 +114,11 @@ internal fun resolveSyncPaths(
     require(relative?.isAbsolute != true) { "Sync path must be relative: $relativePath" }
 
     val local = relative?.let(normalizedLocalRoot::resolve)?.normalize() ?: normalizedLocalRoot
-    val upstream = relative?.let(normalizedUpstreamRoot::resolve)?.normalize() ?: normalizedUpstreamRoot
-    require(local.startsWith(normalizedLocalRoot) && upstream.startsWith(normalizedUpstreamRoot)) {
+    val remote = relative?.let(normalizedRemoteRoot::resolve)?.normalize() ?: normalizedRemoteRoot
+    require(local.startsWith(normalizedLocalRoot) && remote.startsWith(normalizedRemoteRoot)) {
         "Sync path escapes its root: $relativePath"
     }
-    return SyncPaths(local, upstream)
+    return SyncPaths(local, remote)
 }
 
 private suspend fun refreshVirtualFileSystem() {
@@ -276,6 +276,7 @@ suspend fun transferProjectFiles(
                 directoryPath,
                 relativePath,
             )
+
             ToolkitHostType.SSH -> {
                 val path = resolveSshSyncPath(directoryPath, relativePath)
                 ToolkitHostExtension.requireForHostType(ToolkitHostType.SSH)
@@ -299,7 +300,7 @@ suspend fun syncBeforeFetch(project: Project, toolkit: Toolkit, directoryPath: S
         transferProjectFiles(
             project,
             toolkit,
-            SyncDirection.LOCAL_TO_UPSTREAM,
+            SyncDirection.LOCAL_TO_REMOTE,
             directoryPath,
         )
     }
@@ -315,7 +316,7 @@ suspend fun fetchGeneratedFile(
         transferProjectFiles(
             project,
             toolkit,
-            SyncDirection.UPSTREAM_TO_LOCAL,
+            SyncDirection.REMOTE_TO_LOCAL,
             directoryPath,
             fileRelatedPath,
         )

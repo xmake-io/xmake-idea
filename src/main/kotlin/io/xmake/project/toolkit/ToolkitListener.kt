@@ -13,24 +13,20 @@
  * limitations under the License.
  *
  * Copyright (C) 2015-present, Xmake Open Source Community.
- *
- * @author      ruki
- * @file        ToolkitChangedNotifier.kt
- *
  */
 package io.xmake.project.toolkit
 
 import com.intellij.util.messages.Topic
 
-interface ToolkitChangedNotifier {
-
-    fun toolkitChanged(toolkit: Toolkit?)
+interface ToolkitListener {
+    fun toolkitsChanged() {}
 
     companion object {
-        @Topic.ProjectLevel
-        val TOOLKIT_CHANGED_TOPIC: Topic<ToolkitChangedNotifier> = Topic.create(
-            "toolkit changed",
-            ToolkitChangedNotifier::class.java
+        @Topic.AppLevel
+        val TOPIC: Topic<ToolkitListener> = Topic.create(
+            "XMake toolkits changed",
+            ToolkitListener::class.java,
+            Topic.BroadcastDirection.TO_CHILDREN,
         )
     }
 }

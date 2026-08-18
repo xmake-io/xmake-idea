@@ -36,6 +36,7 @@ import com.intellij.openapi.observable.properties.ObservableProperty
 import com.intellij.openapi.observable.util.*
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ModuleRootModificationUtil
+import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.openapi.ui.getCanonicalPath
 import com.intellij.openapi.ui.shortenTextWithEllipsis
@@ -52,7 +53,7 @@ import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHostType.*
 import io.xmake.project.toolkit.ToolkitManager
 import io.xmake.project.toolkit.ui.ToolkitComboBox
-import io.xmake.project.toolkit.ui.ToolkitComboBox.Companion.CHECK_NON_EMPTY_TOOLKIT
+import io.xmake.project.toolkit.ui.ToolkitComboBox.Companion.REQUIRE_TOOLKIT_SELECTION
 import io.xmake.project.toolkit.ui.ToolkitComboBox.Companion.forToolkitComboBox
 import io.xmake.project.wizard.XMakeNewProjectWizardData.Companion.xmakeData
 import io.xmake.run.XMakeRunConfiguration
@@ -82,10 +83,13 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
     override val kindsProperty: GraphProperty<String> =
         propertyGraph.lazyProperty { kindsModel.selectedItem.toString() }
     override val toolkitProperty: GraphProperty<Toolkit?> = propertyGraph.lazyProperty {
-        toolkitManager.state.lastSelectedToolkitId?.let { toolkitManager.findRegisteredToolkitById(it) }
+        val registeredToolkits = toolkitManager.registeredToolkits(context.project)
+        toolkitManager.defaultToolkitId
+            ?.let { id -> registeredToolkits.firstOrNull { toolkit -> toolkit.id == id } }
+            ?: registeredToolkits.firstOrNull()
     }
-    private val isOnRemoteProperty: GraphProperty<Boolean> =
-        propertyGraph.lazyProperty { toolkit?.isOnRemote == true }
+    private val requiresBackendProperty: GraphProperty<Boolean> =
+        propertyGraph.lazyProperty { toolkit?.requiresBackend == true }
 
     override var name: String by nameProperty
     override var path: String by pathProperty
@@ -93,7 +97,7 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
     override var language: String by languagesProperty
     override var kind: String by kindsProperty
     override var toolkit: Toolkit? by toolkitProperty
-    private var isOnRemote by isOnRemoteProperty
+    private var requiresBackend by requiresBackendProperty
 
     private val kindOptions = listOf(
         "Console",
@@ -123,7 +127,7 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
     }
 
     private val browser = DirectoryBrowser(context.project)
-    private val toolkitComboBox = ToolkitComboBox(::toolkit)
+    private val toolkitComboBox = ToolkitComboBox(context.project, ::toolkit)
 
     override fun setupUI(builder: Panel) {
         val locationProperty = remotePathProperty.joinCanonicalPath(nameProperty)
@@ -133,24 +137,21 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
                 cell(browser)
                     .bindText(remotePathProperty.toUiPathProperty())
                     .align(AlignX.FILL)
-                    .trimmedTextValidation(*validationsIf(CHECK_NON_EMPTY, CHECK_DIRECTORY) { !isOnRemote })
+                    .trimmedTextValidation(*validationsIf(CHECK_NON_EMPTY, CHECK_DIRECTORY) { !requiresBackend })
                     .remoteLocationComment(context, locationProperty)
-            }.enabledIf(isOnRemoteProperty).visibleIf(isOnRemoteProperty).bottomGap(BottomGap.SMALL)
+            }.enabledIf(requiresBackendProperty).visibleIf(requiresBackendProperty).bottomGap(BottomGap.SMALL)
 
             row("XMake Toolkit") {
                 cell(toolkitComboBox).applyToComponent {
-                    addToolkitChangedListener { toolkit ->
-                        browser.removeBrowserAllListener()
-                        toolkit?.let {
-                            browser.addBrowserListenerByToolkit(it)
-                        }
-                        isOnRemote = toolkit?.isOnRemote == true
+                    addSelectionListener { toolkit ->
+                        browser.setToolkit(toolkit)
+                        requiresBackend = toolkit?.requiresBackend == true
                     }
-                    activatedToolkit?.let { browser.addBrowserListenerByToolkit(it) }
+                    browser.setToolkit(selectedToolkit)
                 }
                     .validationRequestor(WHEN_PROPERTY_CHANGED(toolkitProperty))
-                    .validationOnInput(CHECK_NON_EMPTY_TOOLKIT.forToolkitComboBox())
-                    .validationOnApply(CHECK_NON_EMPTY_TOOLKIT.forToolkitComboBox())
+                    .validationOnInput(REQUIRE_TOOLKIT_SELECTION.forToolkitComboBox())
+                    .validationOnApply(REQUIRE_TOOLKIT_SELECTION.forToolkitComboBox())
                     .align(AlignX.FILL)
 
             }.bottomGap(BottomGap.SMALL)
@@ -169,7 +170,7 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
             onApply {
                 context.projectName = name
                 context.setProjectFileDirectory(Path.of(path).resolve(name), false)
-                toolkitManager.state.lastSelectedToolkitId = toolkit?.id
+                toolkitManager.defaultToolkitId = toolkit?.id
 
                 Log.info("wizard apply base data: ${baseData?.name}, ${baseData?.path}")
                 Log.info(
@@ -186,11 +187,11 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
     override fun setupProject(project: Project) {
         if (context.isCreatingNewProject) {
             val workingDirectory =
-                if (!toolkit!!.isOnRemote) File(contentEntryPath).path
+                if (!toolkit!!.requiresBackend) File(contentEntryPath).path
                 else remoteContentEntryPath
 
             val generateDirectory =
-                if (!toolkit!!.isOnRemote) File("$contentEntryPath.tmpdir").path
+                if (!toolkit!!.requiresBackend) File("$contentEntryPath.tmpdir").path
                 else remoteContentEntryPath
 
 
@@ -239,7 +240,7 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
                             transferProjectFiles(
                                 project,
                                 this@with,
-                                SyncDirection.UPSTREAM_TO_LOCAL,
+                                SyncDirection.REMOTE_TO_LOCAL,
                                 workingDirectory,
                             )
                         }
@@ -279,6 +280,7 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
     }
 
     init {
+        Disposer.register(context.disposable, toolkitComboBox)
         data.putUserData(XMakeNewProjectWizardData.KEY, this)
     }
 
