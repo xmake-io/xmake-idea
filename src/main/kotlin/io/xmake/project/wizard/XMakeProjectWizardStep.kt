@@ -20,6 +20,7 @@
  */
 package io.xmake.project.wizard
 
+import com.intellij.execution.ExecutionTargetManager
 import com.intellij.execution.RunManager
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.process.ProcessNotCreatedException
@@ -49,6 +50,8 @@ import com.intellij.ui.dsl.builder.*
 import com.intellij.ui.util.getTextWidth
 import com.intellij.util.containers.map2Array
 import io.xmake.project.directory.ui.DirectoryBrowser
+import io.xmake.project.profile.XMakeBuildProfile
+import io.xmake.project.profile.xmakeBuildProfiles
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHostType.*
 import io.xmake.project.toolkit.ToolkitManager
@@ -56,8 +59,8 @@ import io.xmake.project.toolkit.ui.ToolkitComboBox
 import io.xmake.project.toolkit.ui.ToolkitComboBox.Companion.REQUIRE_TOOLKIT_SELECTION
 import io.xmake.project.toolkit.ui.ToolkitComboBox.Companion.forToolkitComboBox
 import io.xmake.project.wizard.XMakeNewProjectWizardData.Companion.xmakeData
-import io.xmake.run.XMakeRunConfiguration
 import io.xmake.run.XMakeRunConfigurationType
+import io.xmake.run.target.XMakeBuildProfileExecutionTarget
 import io.xmake.utils.execute.SyncDirection
 import io.xmake.utils.execute.createProcess
 import io.xmake.utils.execute.runProcess
@@ -79,9 +82,9 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
     override val pathProperty: GraphProperty<String> = baseData!!.pathProperty
     override val remotePathProperty: GraphProperty<String> = propertyGraph.lazyProperty { "" }
     override val languagesProperty: GraphProperty<String> =
-        propertyGraph.lazyProperty { languagesModel.selectedItem.toString() }
+        propertyGraph.lazyProperty { languagesModel.selectedItem?.toString().orEmpty() }
     override val kindsProperty: GraphProperty<String> =
-        propertyGraph.lazyProperty { kindsModel.selectedItem.toString() }
+        propertyGraph.lazyProperty { kindsModel.selectedItem?.toString().orEmpty() }
     override val toolkitProperty: GraphProperty<Toolkit?> = propertyGraph.lazyProperty {
         val registeredToolkits = toolkitManager.registeredToolkits(context.project)
         toolkitManager.defaultToolkitId
@@ -131,13 +134,16 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
 
     override fun setupUI(builder: Panel) {
         val locationProperty = remotePathProperty.joinCanonicalPath(nameProperty)
+        val remoteDirectoryValidations = arrayOf(CHECK_NON_EMPTY, CHECK_DIRECTORY).map2Array { validation ->
+            validation.transformResult { if (!requiresBackend) withOKEnabled() else this }
+        }
         with(builder) {
 
             row("Remote Directory") {
                 cell(browser)
                     .bindText(remotePathProperty.toUiPathProperty())
                     .align(AlignX.FILL)
-                    .trimmedTextValidation(*validationsIf(CHECK_NON_EMPTY, CHECK_DIRECTORY) { !requiresBackend })
+                    .trimmedTextValidation(*remoteDirectoryValidations)
                     .remoteLocationComment(context, locationProperty)
             }.enabledIf(requiresBackendProperty).visibleIf(requiresBackendProperty).bottomGap(BottomGap.SMALL)
 
@@ -213,17 +219,17 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
 //                .withWorkDirectory(workingDirectory)
                 .withCharset(Charsets.UTF_8)
 
-            val results = try {
-                val (result, exitCode) = runBlocking(Dispatchers.IO) {
+            val output = try {
+                val result = runBlocking(Dispatchers.IO) {
                     return@runBlocking runProcess(commandLine.createProcess(toolkit!!))
                 }
-                result.getOrDefault("").split(Regex("\\s+"))
+                result.first.getOrDefault("")
             } catch (e: ProcessNotCreatedException) {
-                println(e.message)
-                emptyList()
+                Log.warn("Failed to create the XMake project", e)
+                ""
             }
 
-            Log.info("results: $results")
+            Log.info("XMake project creation output: $output")
 
             with(toolkit!!) {
                 when (host.type) {
@@ -256,7 +262,7 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
                             ?: "NPW.XMakeProjectModuleBuilder"
                     )
                 }
-            }.also { println("module: $it") }
+            }.also { Log.info("Created XMake project module: $it") }
 
             ModuleRootModificationUtil.updateModel(module) { model ->
                 with(model.addContentEntry(VfsUtil.pathToUrl(contentEntryPath))) {
@@ -266,16 +272,24 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
                 }
             }
 
+            val profile = XMakeBuildProfile(
+                name = project.name,
+                toolkitId = toolkit?.id,
+                workingDirectory = workingDirectory,
+            )
+            project.xmakeBuildProfiles.replaceProfiles(listOf(profile))
             with(RunManager.getInstance(project)) {
-                val configSettings = createConfiguration(project.name, XMakeRunConfigurationType.getInstance().factory)
-                addConfiguration(configSettings.apply {
-                    (configuration as XMakeRunConfiguration).apply {
-                        runToolkit = toolkit
-                        runWorkingDir = workingDirectory
-                    }
-                })
-                selectedConfiguration = allSettings.first()
+                val configSettings = createConfiguration(
+                    project.name,
+                    XMakeRunConfigurationType.getInstance().factory,
+                )
+                addConfiguration(configSettings)
+                selectedConfiguration = configSettings
             }
+            ExecutionTargetManager.setActiveTarget(
+                project,
+                XMakeBuildProfileExecutionTarget(project, profile),
+            )
         }
     }
 
@@ -315,14 +329,6 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
             }
             comment.bind(commentProperty)
         }
-
-        private fun <T> validationsIf(
-            vararg validations: DialogValidation.WithParameter<T>,
-            predicate: () -> Boolean,
-        ): Array<DialogValidation.WithParameter<T>> {
-            return validations.map2Array { it.transformResult { if (predicate()) withOKEnabled() else this } }
-        }
-
         private val Log = logger<XMakeProjectWizardStep>()
     }
 

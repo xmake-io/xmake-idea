@@ -32,14 +32,14 @@ class UpdateCompileCommandsAction : XMakeCommandAction() {
     override suspend fun execute(
         project: Project,
         console: XMakeConsole,
-        commands: XMakeCommandFactory,
+        commandFactory: XMakeCommandFactory,
     ) {
         val execution = project.xmakeExecutionService
-        val updateCommand = commands.createUpdateCompileCommands()
+        val updateCommand = commandFactory.createUpdateCompileCommands()
         val toolkit = updateCommand.toolkit
         val workingDirectory = updateCommand.workingDirectory
         syncBeforeFetch(project, toolkit, workingDirectory)
-        execution.execute(console, commands.createConfigure())
+        execution.execute(console, commandFactory.createConfigure())
         execution.execute(
             console,
             updateCommand,

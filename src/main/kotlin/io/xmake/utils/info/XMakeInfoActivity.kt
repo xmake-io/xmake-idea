@@ -14,45 +14,13 @@
  *
  * Copyright (C) 2015-present, Xmake Open Source Community.
  *
- * @author      ruki
- * @file        XMakeInfoActivity.kt
- *
  */
 package io.xmake.utils.info
 
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity
-import io.xmake.project.toolkit.ToolkitListener
-import io.xmake.project.toolkit.ToolkitManager
-import io.xmake.project.toolkit.activatedToolkit
-import io.xmake.utils.SystemUtils
-
 class XMakeInfoActivity : ProjectActivity {
     override suspend fun execute(project: Project) {
-        // Probing and profile resolution only make sense once the project contains xmake.lua.
-        if (!SystemUtils.isXMakeProject(project)) return
-
-        // Initial probe
-        val manager = XMakeInfoManager.getInstance(project)
-        val toolkitManager = ToolkitManager.getInstance()
-        val toolkit = project.activatedToolkit ?: toolkitManager.registeredToolkits(project).firstOrNull()
-
-        toolkit?.let {
-            manager.probeXMakeInfo(it)
-            manager.probeXMakeApis(it)
-        }
-
-        project.messageBus.connect(project)
-            .subscribe(
-                ToolkitListener.TOPIC,
-                object : ToolkitListener {
-                    override fun toolkitsChanged() {
-                        toolkitManager.visibleToolkits(project).forEach { toolkit ->
-                            manager.probeXMakeInfo(toolkit)
-                            manager.probeXMakeApis(toolkit)
-                        }
-                }
-                }
-            )
+        XMakeInfoManager.getInstance(project).probeActiveBuildProfile()
     }
 }

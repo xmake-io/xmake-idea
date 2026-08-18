@@ -32,14 +32,14 @@ class UpdateCmakeListsAction : XMakeCommandAction() {
     override suspend fun execute(
         project: Project,
         console: XMakeConsole,
-        commands: XMakeCommandFactory,
+        commandFactory: XMakeCommandFactory,
     ) {
         val execution = project.xmakeExecutionService
-        val updateCommand = commands.createUpdateCmakeLists()
+        val updateCommand = commandFactory.createUpdateCMakeLists()
         val toolkit = updateCommand.toolkit
         val workingDirectory = updateCommand.workingDirectory
         syncBeforeFetch(project, toolkit, workingDirectory)
-        execution.execute(console, commands.createConfigure())
+        execution.execute(console, commandFactory.createConfigure())
         execution.execute(
             console,
             updateCommand,

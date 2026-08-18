@@ -13,13 +13,14 @@
  * limitations under the License.
  *
  * Copyright (C) 2015-present, Xmake Open Source Community.
- *
- * @author      ruki
- * @file        XMakeToolkitNotSetException.kt
- *
  */
-package io.xmake.utils.exception
+package io.xmake.project.profile
 
-import com.intellij.execution.ExecutionException
+import com.intellij.openapi.project.Project
+import io.xmake.project.toolkit.ToolkitListener
 
-class XMakeToolkitNotSetException : ExecutionException("Toolkit is not set!")
+class XMakeBuildProfileToolkitListener(private val project: Project) : ToolkitListener {
+    override fun toolkitsChanged() {
+        project.xmakeBuildProfiles.handleToolkitChanges()
+    }
+}

@@ -48,16 +48,3 @@ val probeXmakeVersionCommand
     get() = GeneralCommandLine()
         .withParameters("--version")
         .withCharset(Charsets.UTF_8)
-
-val probeXmakeTargetCommand = GeneralCommandLine()
-    .withParameters("l")
-    .withParameters("-c")
-    .withParameters("""
-        import('core.project.config'); 
-        import('core.project.project'); 
-        config.load(); 
-        for name, _ in pairs((project.targets())) 
-            do print(name) 
-        end
-    """.trimIndent())
-

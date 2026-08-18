@@ -13,26 +13,23 @@
  * limitations under the License.
  *
  * Copyright (C) 2015-present, Xmake Open Source Community.
- *
- * @author      ruki
- * @file        RebuildAction.kt
- *
  */
-package io.xmake.actions
+package io.xmake.project.target
 
 import com.intellij.openapi.project.Project
-import io.xmake.build.XMakeBuildTask
 import io.xmake.project.profile.XMakeBuildProfile
-import io.xmake.run.command.XMakeCommandFactory
+import io.xmake.run.command.configureBestEffort
+import io.xmake.run.command.executeInfoQuery
+import io.xmake.run.command.withProfileCommands
+import io.xmake.utils.info.XMakeInfo
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
-class RebuildAction : XMakeBuildAction() {
-
-    override fun createTask(
-        project: Project,
-        profile: XMakeBuildProfile,
-        commandFactory: XMakeCommandFactory,
-    ): XMakeBuildTask = XMakeBuildTask(
-        presentableName = "Rebuild '${profile.name}'",
-        commands = listOf(commandFactory.createConfigure(), commandFactory.createRebuild()),
-    )
-}
+/** Discovers the XMake build targets that are available for a build profile. */
+internal suspend fun Project.discoverXMakeBuildTargets(profile: XMakeBuildProfile): List<String> =
+    withContext(Dispatchers.IO) {
+        withProfileCommands(profile) { executionService ->
+            configureBestEffort(executionService)
+            XMakeInfo().parseTargets(executeInfoQuery("targets", executionService))
+        }
+    }
