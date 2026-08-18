@@ -72,6 +72,12 @@
          https://github.com/centic9/IntelliJ-Action-IDs
     -->
     <actions>
+        <action id="XMake.EditBuildProfiles"
+                class="io.xmake.actions.EditXMakeBuildProfilesAction"
+                text="Edit XMake Build Profiles..."
+                icon="AllIcons.General.Settings"
+                description="Edit XMake build profiles."/>
+
         <group id="XMake.Menu" class="io.xmake.actions.XMakeMenuGroup" text="Xmake" popup="true" description="XMake menu">
             <add-to-group group-id="MainMenu"
                           anchor="after"
@@ -103,6 +109,7 @@
                     description="Clean target and object files."/>
             <separator/>
             <reference ref="editRunConfigurations"/>
+            <reference ref="XMake.EditBuildProfiles"/>
             <action id="XMake.CleanConfiguration"
                     class="io.xmake.actions.CleanConfigurationAction"
                     text="Clean Configuration"
@@ -141,6 +148,22 @@
             <separator/>
             <reference ref="XMake.UpdateCompileCommands"/>
         </group>
+
+        <group id="XMake.ExecutionTargets.Additional">
+            <separator/>
+            <reference ref="XMake.EditBuildProfiles"/>
+            <add-to-group group-id="ExecutionTargets.Additional"/>
+        </group>
+
+        <action id="XMake.RunToolbar.Build"
+                class="io.xmake.actions.RunToolbarBuildAction"
+                text="Build XMake Profile"
+                icon="AllIcons.Actions.Compile"
+                description="Build the selected XMake build profile.">
+            <add-to-group group-id="RunToolbarMainActionGroup"
+                          anchor="before"
+                          relative-to-action="compositeResumeGroup"/>
+        </action>
     </actions>
 
     <projectListeners>

@@ -26,7 +26,7 @@ import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.project.xmakeSettings
 import io.xmake.run.command.XMakeCommandFactory
 
-class BuildAction : XMakeBuildAction() {
+open class BuildAction : XMakeBuildAction() {
 
     override fun createTask(
         project: Project,
