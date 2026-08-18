@@ -39,11 +39,11 @@ object WorkingDirectoryResolver {
         when (toolkit.host.type) {
             ToolkitHostType.LOCAL -> resolve(project, workingDirectory)
             ToolkitHostType.WSL -> {
-                val distribution = toolkit.host.target as? WSLDistribution
+                val distribution = toolkit.host.wslDistribution
                     ?: throw RuntimeConfigurationError("XMake WSL toolkit host is not available")
                 resolveForWsl(project, workingDirectory, distribution)
             }
-            ToolkitHostType.SSH -> workingDirectory
+            ToolkitHostType.SSH -> resolveForSsh(workingDirectory)
         }
 
     fun resolveForWsl(
@@ -68,5 +68,12 @@ object WorkingDirectoryResolver {
             return workingDirectory
         }
         return converter(path) ?: workingDirectory
+    }
+
+    private fun resolveForSsh(workingDirectory: String): String {
+        if (!workingDirectory.startsWith('/')) {
+            throw RuntimeConfigurationError("SSH working directory must be an absolute remote path")
+        }
+        return workingDirectory
     }
 }

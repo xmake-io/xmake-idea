@@ -24,7 +24,8 @@ import com.intellij.util.xmlb.annotations.Attribute
 import com.intellij.util.xmlb.annotations.Property
 import com.intellij.util.xmlb.annotations.Tag
 import com.intellij.util.xmlb.annotations.Transient
-import java.util.*
+import java.nio.charset.StandardCharsets.UTF_8
+import java.util.UUID
 
 @Tag("toolkit")
 data class Toolkit(
@@ -36,14 +37,33 @@ data class Toolkit(
     val path: String = "",
     @Attribute
     val version: String = "",
-) {
     @Attribute
-    val id: String = UUID.nameUUIDFromBytes((name+host.type.name+path+version).toByteArray()).toString()
+    val id: String = createId(host, path),
+) {
     @get:Transient
     var isRegistered: Boolean = false
+
     @get:Transient
     var isValid: Boolean = true
+
     @get:Transient
     val isOnRemote: Boolean
         get() = with(host) { type == ToolkitHostType.WSL || type == ToolkitHostType.SSH }
+
+    /** Physical installation address: the host ID and the executable path. */
+    internal val location: Location
+        get() = Location(host.id, path)
+
+    /** A toolkit installation's physical address, independent of its persisted id. */
+    internal data class Location(
+        val hostId: ToolkitHost.Id,
+        val path: String,
+    )
+
+    companion object {
+        internal fun createId(host: ToolkitHost, path: String): String {
+            val seed = "xmake-toolkit-v2\u0000${host.id.canonical}\u0000$path"
+            return UUID.nameUUIDFromBytes(seed.toByteArray(UTF_8)).toString()
+        }
+    }
 }

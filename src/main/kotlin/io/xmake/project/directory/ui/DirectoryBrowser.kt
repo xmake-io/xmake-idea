@@ -23,7 +23,6 @@ package io.xmake.project.directory.ui
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.execution.wsl.ui.browseWslPath
 import com.intellij.openapi.diagnostic.logger
-import com.intellij.openapi.extensions.ExtensionPointName
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.TextComponentAccessor
@@ -38,8 +37,6 @@ class DirectoryBrowser(val project: Project?) : TextFieldWithBrowseButton() {
 
     private val listeners = mutableSetOf<ActionListener>()
 
-    private val EP_NAME: ExtensionPointName<ToolkitHostExtension> = ExtensionPointName("io.xmake.toolkitHostExtension")
-
     private fun createLocalBrowseListener(): ActionListener {
         val fileChooserDescriptor = FileChooserDescriptorFactory.createSingleFolderDescriptor()
         val browseFolderListener = BrowseFolderActionListener(
@@ -53,11 +50,11 @@ class DirectoryBrowser(val project: Project?) : TextFieldWithBrowseButton() {
         return browseFolderListener
     }
 
-    private fun createWslBrowseListener(target: WSLDistribution): ActionListener {
+    private fun createWslBrowseListener(distribution: WSLDistribution): ActionListener {
         val fileChooserDescriptor = FileChooserDescriptorFactory.createSingleFolderDescriptor()
         val wslBrowseFolderListener = ActionListener {
             browseWslPath(this,
-                target,
+                distribution,
                 this,
                 true,
                 fileChooserDescriptor)
@@ -79,19 +76,19 @@ class DirectoryBrowser(val project: Project?) : TextFieldWithBrowseButton() {
             }
 
             WSL -> {
-                val wslBrowseListener = createWslBrowseListener(host.target as WSLDistribution)
+                val distribution = host.wslDistribution ?: return
+                val wslBrowseListener = createWslBrowseListener(distribution)
                 addActionListener(wslBrowseListener)
                 listeners.add(wslBrowseListener)
                 Log.debug("addActionListener wsl: $wslBrowseListener")
             }
 
             SSH -> {
-                EP_NAME.extensions.first { it.KEY == "SSH" }.let { extension ->
-                    val browseListener = with(extension) { createBrowseListener(host) }
-                    addActionListener(browseListener)
-                    listeners.add(browseListener)
-                    Log.debug("addActionListener ${extension.getHostType()}: $browseListener")
-                }
+                val extension = ToolkitHostExtension.forHostType(SSH) ?: return
+                val browseListener = extension.createBrowseListener(this, host)
+                addActionListener(browseListener)
+                listeners.add(browseListener)
+                Log.debug("addActionListener SSH: $browseListener")
             }
         }
     }
@@ -105,4 +102,3 @@ class DirectoryBrowser(val project: Project?) : TextFieldWithBrowseButton() {
         private val Log = logger<DirectoryBrowser>()
     }
 }
-

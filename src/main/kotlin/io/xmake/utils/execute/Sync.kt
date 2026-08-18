@@ -23,12 +23,10 @@ package io.xmake.utils.execute
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.runWriteAction
-import com.intellij.openapi.extensions.ExtensionPointName
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.guessProjectDir
-import com.intellij.openapi.util.io.toCanonicalPath
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.platform.ide.progress.withBackgroundProgress
 import io.xmake.project.toolkit.Toolkit
@@ -41,6 +39,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
+import java.io.IOException
 import java.nio.file.FileVisitResult
 import java.nio.file.Files
 import java.nio.file.NoSuchFileException
@@ -51,9 +50,12 @@ import java.nio.file.SimpleFileVisitor
 import java.nio.file.attribute.BasicFileAttributes
 import kotlin.io.path.Path
 
-private val EP_NAME: ExtensionPointName<ToolkitHostExtension> = ExtensionPointName("io.xmake.toolkitHostExtension")
-
 enum class SyncDirection { LOCAL_TO_UPSTREAM, UPSTREAM_TO_LOCAL }
+
+internal val defaultSyncExcludedEntryNames = setOf(".xmake", ".idea", "build", ".git", ".gitignore")
+
+private fun isDefaultSyncExcluded(path: NioPath): Boolean =
+    path.fileName?.toString() in defaultSyncExcludedEntryNames
 
 private suspend fun transferWslFolder(
     project: Project,
@@ -62,7 +64,8 @@ private suspend fun transferWslFolder(
     directoryPath: String,
     relativePath: String? = null,
 ) {
-    val wslDistribution = host.target as? WSLDistribution ?: throw IllegalArgumentException()
+    val wslDistribution = host.wslDistribution
+        ?: throw IllegalArgumentException("XMake WSL host backend is not available")
     val cancellationContext = currentCoroutineContext()
     runInterruptible(Dispatchers.IO) {
         val localRoot = project.guessProjectDir()?.toNioPath()
@@ -73,7 +76,15 @@ private suspend fun transferWslFolder(
         val checkCanceled = { cancellationContext.ensureActive() }
 
         when (direction) {
-            SyncDirection.LOCAL_TO_UPSTREAM -> copyPath(syncPaths.local, syncPaths.upstream, checkCanceled)
+            SyncDirection.LOCAL_TO_UPSTREAM -> {
+                pruneMissingEntries(syncPaths.local, syncPaths.upstream, checkCanceled, ::isDefaultSyncExcluded)
+                copyPath(
+                    syncPaths.local,
+                    syncPaths.upstream,
+                    checkCanceled,
+                    ::isDefaultSyncExcluded,
+                )
+            }
             SyncDirection.UPSTREAM_TO_LOCAL -> copyPath(syncPaths.upstream, syncPaths.local, checkCanceled)
         }
     }
@@ -118,7 +129,12 @@ private suspend fun refreshVirtualFileSystem() {
     }
 }
 
-internal fun copyPath(source: NioPath, target: NioPath, checkCanceled: () -> Unit) {
+internal fun copyPath(
+    source: NioPath,
+    target: NioPath,
+    checkCanceled: () -> Unit,
+    filesFilter: (NioPath) -> Boolean = { _ -> true },
+) {
     checkCanceled()
 
     val sourcePath = source.toAbsolutePath().normalize()
@@ -137,12 +153,13 @@ internal fun copyPath(source: NioPath, target: NioPath, checkCanceled: () -> Uni
     }
 
     if (Files.isDirectory(resolvedSource)) {
-        copyDirectoryContents(resolvedSource, targetPath, checkCanceled)
+        copyDirectoryContents(resolvedSource, targetPath, checkCanceled, filesFilter)
     } else {
         copyFile(resolvedSource, targetPath)
     }
 }
 
+/** Resolves symlinks for existing ancestors while preserving the not-yet-created tail. */
 private fun NioPath.toResolvedPath(): NioPath {
     val absolutePath = toAbsolutePath().normalize()
     val missingSegments = ArrayDeque<NioPath>()
@@ -158,7 +175,46 @@ private fun NioPath.toResolvedPath(): NioPath {
     return resolvedPath.normalize()
 }
 
-private fun copyDirectoryContents(sourceRoot: NioPath, targetRoot: NioPath, checkCanceled: () -> Unit) {
+/** Removes remote entries without a local counterpart so uploads mirror the local project. */
+private fun pruneMissingEntries(
+    localRoot: NioPath,
+    remoteRoot: NioPath,
+    checkCanceled: () -> Unit,
+    filesFilter: (NioPath) -> Boolean,
+) {
+    if (!Files.exists(remoteRoot)) return
+
+    Files.walkFileTree(remoteRoot, object : SimpleFileVisitor<NioPath>() {
+        override fun preVisitDirectory(dir: NioPath, attrs: BasicFileAttributes): FileVisitResult {
+            checkCanceled()
+            return if (dir != remoteRoot && filesFilter(dir)) FileVisitResult.SKIP_SUBTREE else FileVisitResult.CONTINUE
+        }
+
+        override fun visitFile(file: NioPath, attrs: BasicFileAttributes): FileVisitResult {
+            checkCanceled()
+            if (!filesFilter(file) && !Files.isRegularFile(localRoot.resolve(remoteRoot.relativize(file)))) {
+                Files.deleteIfExists(file)
+            }
+            return FileVisitResult.CONTINUE
+        }
+
+        override fun postVisitDirectory(dir: NioPath, error: IOException?): FileVisitResult {
+            if (dir != remoteRoot && !filesFilter(dir) && !Files.isDirectory(localRoot.resolve(remoteRoot.relativize(dir)))) {
+                runCatching { Files.deleteIfExists(dir) }
+            }
+            return FileVisitResult.CONTINUE
+        }
+
+        override fun visitFileFailed(file: NioPath, error: IOException): FileVisitResult = FileVisitResult.CONTINUE
+    })
+}
+
+private fun copyDirectoryContents(
+    sourceRoot: NioPath,
+    targetRoot: NioPath,
+    checkCanceled: () -> Unit,
+    filesFilter: (NioPath) -> Boolean,
+) {
     Files.createDirectories(targetRoot)
     Files.walkFileTree(sourceRoot, object : SimpleFileVisitor<NioPath>() {
         override fun preVisitDirectory(
@@ -166,6 +222,7 @@ private fun copyDirectoryContents(sourceRoot: NioPath, targetRoot: NioPath, chec
             attrs: BasicFileAttributes,
         ): FileVisitResult {
             checkCanceled()
+            if (!filesFilter(dir)) return FileVisitResult.SKIP_SUBTREE
             val target = targetRoot.resolve(sourceRoot.relativize(dir).toString())
             Files.createDirectories(target)
             return FileVisitResult.CONTINUE
@@ -173,6 +230,7 @@ private fun copyDirectoryContents(sourceRoot: NioPath, targetRoot: NioPath, chec
 
         override fun visitFile(file: NioPath, attrs: BasicFileAttributes): FileVisitResult {
             checkCanceled()
+            if (!filesFilter(file)) return FileVisitResult.CONTINUE
             val target = targetRoot.resolve(sourceRoot.relativize(file).toString())
             copyFile(file, target)
             return FileVisitResult.CONTINUE
@@ -220,7 +278,7 @@ suspend fun transferProjectFiles(
             )
             ToolkitHostType.SSH -> {
                 val path = resolveSshSyncPath(directoryPath, relativePath)
-                EP_NAME.extensions.first { it.KEY == "SSH" }
+                ToolkitHostExtension.requireForHostType(ToolkitHostType.SSH)
                     .syncProject(project, toolkit.host, direction, path)
             }
         }
@@ -231,7 +289,9 @@ suspend fun transferProjectFiles(
 
 internal fun resolveSshSyncPath(directoryPath: String, relativePath: String?): String {
     require(directoryPath.isNotBlank()) { "Sync directory must be explicit" }
-    return relativePath?.let { Path(directoryPath).resolve(it).toCanonicalPath() } ?: directoryPath
+    if (relativePath == null) return directoryPath
+    require(!relativePath.startsWith("/")) { "Sync path must be relative: $relativePath" }
+    return "${directoryPath.trimEnd('/')}/${relativePath.trimStart('/')}"
 }
 
 suspend fun syncBeforeFetch(project: Project, toolkit: Toolkit, directoryPath: String) {

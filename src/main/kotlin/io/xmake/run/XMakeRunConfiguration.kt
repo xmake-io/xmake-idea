@@ -137,7 +137,7 @@ class XMakeRunConfiguration(
     override fun checkConfiguration() {
         val toolkit = runToolkit ?: throw RuntimeConfigurationError("XMake toolkit is not set")
 
-        if (toolkit.isOnRemote && toolkit.host.target == null) {
+        if (toolkit.isOnRemote && toolkit.host.backend == null) {
             throw RuntimeConfigurationError("XMake ${toolkit.host.type} toolkit host is not available")
         }
 

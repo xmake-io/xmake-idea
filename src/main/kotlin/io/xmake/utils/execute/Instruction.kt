@@ -34,10 +34,6 @@ val predefinedPath = mapOf(
     )
 )
 
-val probeEnvCommand = GeneralCommandLine("uname")
-    .withParameters("-a")
-    .withCharset(Charsets.UTF_8)
-
 val probeXmakeLocCommandOnWin = GeneralCommandLine("where.exe")
     .withParameters("xmake")
     .withCharset(Charsets.UTF_8)
