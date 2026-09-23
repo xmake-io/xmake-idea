@@ -36,9 +36,10 @@
         <!-- directory-based IDE-->
         <directoryProjectGenerator implementation="io.xmake.project.wizard.XMakeProjectDirectoryGenerator"/>
 
-        <!-- xmake toolkit configurations -->
+        <!-- XMake project settings -->
         <projectConfigurable instance="io.xmake.project.XMakeSettingsConfigurable"
-                             displayName="Xmake" groupId="build"/>
+                             id="XMakeSettings"
+                             displayName="XMake" groupId="build" groupWeight="1089"/>
 
         <toolWindow id="XMake" anchor="bottom" factoryClass="io.xmake.project.console.XMakeToolWindowFactory"
                     icon="/icons/xmake-dark.svg"/>
