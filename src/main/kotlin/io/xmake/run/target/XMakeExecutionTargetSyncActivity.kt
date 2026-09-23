@@ -121,10 +121,10 @@ private class TargetSynchronizer(
         val targetProfileId = configuration.preferredBuildProfileId ?: activeProfileId
         val targetToActivate = targetProfileId
             ?.let { profileId -> profileTargets.firstOrNull { candidate -> candidate.profileId == profileId } }
-            ?: profileTargets.singleOrNull()
+            ?: profileTargets.firstOrNull()
         if (targetToActivate == null) {
             configuration.preferredBuildProfileId = null
-            if (activeTarget is XMakeBuildProfileExecutionTarget) {
+            if (activeTarget !is DefaultExecutionTarget) {
                 switchActiveTarget(DefaultExecutionTarget.INSTANCE)
             }
             return
