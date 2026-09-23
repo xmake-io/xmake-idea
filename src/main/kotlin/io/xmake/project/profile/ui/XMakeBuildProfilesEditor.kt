@@ -19,6 +19,8 @@ package io.xmake.project.profile.ui
 import com.intellij.icons.AllIcons
 import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.ActionUpdateThread
+import com.intellij.openapi.actionSystem.CustomShortcutSet
 import com.intellij.openapi.options.ConfigurationException
 import com.intellij.openapi.project.DumbAwareAction
 import com.intellij.openapi.project.Project
@@ -26,26 +28,28 @@ import com.intellij.openapi.ui.MasterDetailsComponent
 import com.intellij.openapi.ui.ValidationInfo
 import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.project.profile.xmakeBuildProfiles
+import java.awt.event.InputEvent
+import java.awt.event.KeyEvent
+import java.util.UUID
 import javax.swing.JComponent
+import javax.swing.KeyStroke
 import javax.swing.tree.DefaultTreeModel
 
 internal class XMakeBuildProfilesEditor(
     private val project: Project,
     private val preselectedProfileId: String?,
 ) : MasterDetailsComponent() {
+    val component: JComponent
+
     init {
         initTree()
-    }
-
-    val component: JComponent = createComponent()
-
-    init {
+        component = createComponent()
         reset()
     }
 
-    override fun getDisplayName(): String = "Build Profiles"
+    override fun getDisplayName(): String = "XMake Profiles"
 
-    override fun getEmptySelectionString(): String = "Select an XMake build profile"
+    override fun getEmptySelectionString(): String = "Select an XMake profile"
 
     override fun isModified(): Boolean =
         super.isModified() || project.xmakeBuildProfiles.profiles != profileEditors().map { it.profile }
@@ -54,11 +58,16 @@ internal class XMakeBuildProfilesEditor(
         disposeCurrentEditors()
         clearChildren()
         project.xmakeBuildProfiles.profiles.forEach { profile ->
-            val editor = XMakeBuildProfileEditor(project, profile, TREE_UPDATER)
-            myRoot.add(MyNode(editor))
+            val profileEditor = XMakeBuildProfileEditor(project, profile, TREE_UPDATER)
+            myRoot.add(MyNode(profileEditor))
         }
         super.reset()
         preselectProfile(preselectedProfileId)
+    }
+
+    override fun disposeUIResources() {
+        disposeCurrentEditors()
+        super.disposeUIResources()
     }
 
     private fun disposeCurrentEditors() {
@@ -68,14 +77,10 @@ internal class XMakeBuildProfilesEditor(
     }
 
     fun validateProfiles(): ValidationInfo? {
-        val names = profileEditors().map { editor -> editor.displayName.trim() }
+        val names = profileEditors().map { profileEditor -> profileEditor.displayName.trim() }
         return when {
-            names.any(String::isBlank) ->
-                ValidationInfo("XMake build profile names must not be blank", tree)
-
-            names.distinct().size != names.size ->
-                ValidationInfo("XMake build profile names must be unique", tree)
-
+            names.any(String::isBlank) -> ValidationInfo("XMake build profile names must not be blank", tree)
+            names.distinct().size != names.size -> ValidationInfo("XMake build profile names must be unique", tree)
             else -> null
         }
     }
@@ -85,7 +90,7 @@ internal class XMakeBuildProfilesEditor(
         validateProfiles()?.let { validation -> throw ConfigurationException(validation.message) }
         super.apply()
         try {
-            project.xmakeBuildProfiles.replaceProfiles(profileEditors().map { editor -> editor.profile })
+            project.xmakeBuildProfiles.replaceProfiles(profileEditors().map { profileEditor -> profileEditor.profile })
         } catch (error: IllegalArgumentException) {
             throw ConfigurationException(error.message.orEmpty())
         }
@@ -94,28 +99,33 @@ internal class XMakeBuildProfilesEditor(
     override fun createActions(fromPopup: Boolean): List<AnAction> = listOf(
         AddProfileAction(),
         MyDeleteAction { selected -> myRoot.childCount > selected.size },
+        CopyProfileAction(),
+        MoveUpProfileAction(),
+        MoveDownProfileAction(),
     )
 
     private fun preselectProfile(profileId: String?) {
-        val node = (0 until myRoot.childCount)
+        val selectedNode = (0 until myRoot.childCount)
             .asSequence()
             .map { index -> myRoot.getChildAt(index) as MyNode }
             .firstOrNull { node -> (node.configurable as XMakeBuildProfileEditor).profile.id == profileId }
             ?: myRoot.getChildAt(0) as? MyNode
-        node?.let(::selectNodeInTree)
+        selectedNode?.let(::selectNodeInTree)
     }
 
     private fun profileEditors(): List<XMakeBuildProfileEditor> =
         (0 until myRoot.childCount).map { index ->
-            val node = myRoot.getChildAt(index) as MyNode
-            node.configurable as XMakeBuildProfileEditor
+            val profileNode = myRoot.getChildAt(index) as MyNode
+            profileNode.configurable as XMakeBuildProfileEditor
         }
 
     private inner class AddProfileAction : DumbAwareAction(
         "Add",
-        "Add XMake build profile",
+        "Add XMake profile",
         AllIcons.General.Add,
     ) {
+        override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
+
         override fun actionPerformed(event: AnActionEvent) {
             val names = profileEditors().mapTo(mutableSetOf()) { profileEditor -> profileEditor.displayName.trim() }
             val profileName = XMakeBuildProfile.uniqueName(XMakeBuildProfile.DEFAULT_PROFILE_NAME, names)
@@ -126,4 +136,95 @@ internal class XMakeBuildProfilesEditor(
             selectNodeInTree(profileNode)
         }
     }
+
+    private inner class CopyProfileAction : DumbAwareAction(
+        "Copy",
+        "Copy XMake profile",
+        AllIcons.Actions.Copy,
+    ) {
+        init {
+            registerCustomShortcutSet(
+                CustomShortcutSet(KeyStroke.getKeyStroke(KeyEvent.VK_D, InputEvent.CTRL_DOWN_MASK)),
+                tree,
+            )
+        }
+
+        override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
+
+        override fun update(event: AnActionEvent) {
+            event.presentation.isEnabled = selectedProfileNode() != null
+        }
+
+        override fun actionPerformed(event: AnActionEvent) {
+            val sourceNode = selectedProfileNode() ?: return
+            val sourceEditor = sourceNode.configurable as XMakeBuildProfileEditor
+            sourceEditor.apply()
+
+            val usedNames = profileEditors().mapTo(mutableSetOf()) { profileEditor -> profileEditor.displayName.trim() }
+            val copiedProfile = sourceEditor.profile.copy(
+                id = UUID.randomUUID().toString(),
+                name = XMakeBuildProfile.uniqueName(sourceEditor.displayName.trim(), usedNames),
+            )
+            val copiedEditor = XMakeBuildProfileEditor(project, copiedProfile, TREE_UPDATER)
+            val copiedNode = MyNode(copiedEditor)
+            (tree.model as DefaultTreeModel).insertNodeInto(
+                copiedNode,
+                myRoot,
+                myRoot.getIndex(sourceNode) + 1,
+            )
+            selectNodeInTree(copiedNode)
+        }
+
+    }
+
+    private inner class MoveUpProfileAction : DumbAwareAction(
+        "Move Up",
+        "Move XMake profile up",
+        AllIcons.Actions.MoveUp,
+    ) {
+        override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
+
+        override fun update(event: AnActionEvent) {
+            event.presentation.isEnabled = selectedProfileIndex() > 0
+        }
+
+        override fun actionPerformed(event: AnActionEvent) {
+            moveSelectedProfile(-1)
+        }
+    }
+
+    private inner class MoveDownProfileAction : DumbAwareAction(
+        "Move Down",
+        "Move XMake profile down",
+        AllIcons.Actions.MoveDown,
+    ) {
+        override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
+
+        override fun update(event: AnActionEvent) {
+            event.presentation.isEnabled = selectedProfileIndex() in 0 until myRoot.childCount - 1
+        }
+
+        override fun actionPerformed(event: AnActionEvent) {
+            moveSelectedProfile(1)
+        }
+    }
+
+    private fun selectedProfileIndex(): Int =
+        selectedProfileNode()?.let(myRoot::getIndex) ?: -1
+
+    private fun selectedProfileNode(): MyNode? =
+        tree.selectionPath?.lastPathComponent as? MyNode
+
+    private fun moveSelectedProfile(direction: Int) {
+        val selectedNode = selectedProfileNode() ?: return
+        val index = myRoot.getIndex(selectedNode)
+        val targetIndex = index + direction
+        if (index !in 0 until myRoot.childCount || targetIndex !in 0 until myRoot.childCount) return
+
+        val treeModel = tree.model as DefaultTreeModel
+        treeModel.removeNodeFromParent(selectedNode)
+        treeModel.insertNodeInto(selectedNode, myRoot, targetIndex)
+        selectNodeInTree(selectedNode)
+    }
+
 }
