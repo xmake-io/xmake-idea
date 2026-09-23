@@ -53,6 +53,7 @@
         <!-- notifications -->
         <notificationGroup id="XMake.NotificationGroup" displayType="BALLOON"/>
 
+        <postStartupActivity implementation="io.xmake.project.directory.XMakeProjectDirectoryResolutionActivity"/>
         <postStartupActivity implementation="io.xmake.utils.info.XMakeInfoActivity"/>
         <postStartupActivity implementation="io.xmake.run.target.XMakeExecutionTargetSyncActivity"/>
 
