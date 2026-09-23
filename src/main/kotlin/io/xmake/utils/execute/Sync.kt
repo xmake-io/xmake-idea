@@ -26,12 +26,12 @@ import com.intellij.openapi.application.runWriteAction
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.project.guessProjectDir
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.platform.ide.progress.withBackgroundProgress
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHost
 import io.xmake.project.toolkit.ToolkitHostType
+import io.xmake.project.directory.xmakeProjectDirectories
 import io.xmake.utils.extension.ToolkitHostExtension
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -58,20 +58,18 @@ private fun isDefaultSyncExcluded(path: NioPath): Boolean =
     path.fileName?.toString() in defaultSyncExcludedEntryNames
 
 private suspend fun transferWslFolder(
-    project: Project,
     host: ToolkitHost,
     direction: SyncDirection,
-    directoryPath: String,
+    localDirectoryPath: String,
+    hostDirectoryPath: String,
     relativePath: String? = null,
 ) {
     val wslDistribution = host.wslDistribution
         ?: throw IllegalArgumentException("XMake WSL host backend is not available")
     val cancellationContext = currentCoroutineContext()
     runInterruptible(Dispatchers.IO) {
-        val localRoot = project.guessProjectDir()?.toNioPath()
-            ?: project.basePath?.let { Path(it) }
-            ?: throw IllegalStateException("Cannot resolve project directory")
-        val remoteRoot = Path(wslDistribution.toWindowsPath(directoryPath))
+        val localRoot = Path(localDirectoryPath)
+        val remoteRoot = Path(wslDistribution.toWindowsPath(hostDirectoryPath))
         val syncPaths = resolveSyncPaths(localRoot, remoteRoot, relativePath)
         val checkCanceled = { cancellationContext.ensureActive() }
 
@@ -85,6 +83,7 @@ private suspend fun transferWslFolder(
                     ::isDefaultSyncExcluded,
                 )
             }
+
             SyncDirection.REMOTE_TO_LOCAL -> copyPath(syncPaths.remote, syncPaths.local, checkCanceled)
         }
     }
@@ -253,13 +252,13 @@ suspend fun transferProjectFiles(
     project: Project,
     toolkit: Toolkit,
     direction: SyncDirection,
-    directoryPath: String,
+    hostDirectoryPath: String,
     relativePath: String? = null,
 ) {
     if (project.isDisposed) {
         throw ProcessCanceledException()
     }
-    require(directoryPath.isNotBlank()) { "Sync directory must be explicit" }
+    require(hostDirectoryPath.isNotBlank()) { "Sync directory must be explicit" }
 
     if (toolkit.host.type == ToolkitHostType.LOCAL) {
         refreshVirtualFileSystem()
@@ -267,20 +266,21 @@ suspend fun transferProjectFiles(
     }
 
     try {
+        val localDirectoryPath = project.xmakeProjectDirectories.resolveLocalSyncDirectory()
         when (toolkit.host.type) {
             ToolkitHostType.LOCAL -> Unit
             ToolkitHostType.WSL -> transferWslFolder(
-                project,
                 toolkit.host,
                 direction,
-                directoryPath,
+                localDirectoryPath,
+                hostDirectoryPath,
                 relativePath,
             )
 
             ToolkitHostType.SSH -> {
-                val path = resolveSshSyncPath(directoryPath, relativePath)
+                val hostSyncPath = resolveSshSyncPath(hostDirectoryPath, relativePath)
                 ToolkitHostExtension.requireForHostType(ToolkitHostType.SSH)
-                    .syncProject(project, toolkit.host, direction, path)
+                    .syncProject(toolkit.host, direction, hostSyncPath, localDirectoryPath)
             }
         }
     } finally {
@@ -288,20 +288,20 @@ suspend fun transferProjectFiles(
     }
 }
 
-internal fun resolveSshSyncPath(directoryPath: String, relativePath: String?): String {
-    require(directoryPath.isNotBlank()) { "Sync directory must be explicit" }
-    if (relativePath == null) return directoryPath
+internal fun resolveSshSyncPath(hostDirectoryPath: String, relativePath: String?): String {
+    require(hostDirectoryPath.isNotBlank()) { "Sync directory must be explicit" }
+    if (relativePath == null) return hostDirectoryPath
     require(!relativePath.startsWith("/")) { "Sync path must be relative: $relativePath" }
-    return "${directoryPath.trimEnd('/')}/${relativePath.trimStart('/')}"
+    return "${hostDirectoryPath.trimEnd('/')}/${relativePath.trimStart('/')}"
 }
 
-suspend fun syncBeforeFetch(project: Project, toolkit: Toolkit, directoryPath: String) {
+suspend fun syncBeforeFetch(project: Project, toolkit: Toolkit, hostDirectoryPath: String) {
     withBackgroundProgress(project, "Sync directory", cancellable = true) {
         transferProjectFiles(
             project,
             toolkit,
             SyncDirection.LOCAL_TO_REMOTE,
-            directoryPath,
+            hostDirectoryPath,
         )
     }
 }
@@ -309,16 +309,16 @@ suspend fun syncBeforeFetch(project: Project, toolkit: Toolkit, directoryPath: S
 suspend fun fetchGeneratedFile(
     project: Project,
     toolkit: Toolkit,
-    directoryPath: String,
-    fileRelatedPath: String,
+    hostDirectoryPath: String,
+    generatedFileRelativePath: String,
 ) {
     withBackgroundProgress(project, "Sync directory", cancellable = true) {
         transferProjectFiles(
             project,
             toolkit,
             SyncDirection.REMOTE_TO_LOCAL,
-            directoryPath,
-            fileRelatedPath,
+            hostDirectoryPath,
+            generatedFileRelativePath,
         )
     }
 }

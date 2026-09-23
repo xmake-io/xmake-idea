@@ -4,7 +4,7 @@ import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.actionSystem.ActionUpdateThread
 import com.intellij.openapi.project.Project
-import io.xmake.utils.SystemUtils
+import io.xmake.project.directory.hasXMakeProjectDirectorySource
 
 abstract class XMakeProjectAction : AnAction() {
 
@@ -26,6 +26,6 @@ abstract class XMakeProjectAction : AnAction() {
             return
         }
 
-        presentation.isEnabledAndVisible = SystemUtils.isXMakeProject(project)
+        presentation.isEnabledAndVisible = project.hasXMakeProjectDirectorySource
     }
 }

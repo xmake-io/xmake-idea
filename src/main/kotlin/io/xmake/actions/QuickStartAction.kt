@@ -34,9 +34,10 @@ import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.wm.ToolWindowManager
 import io.xmake.project.console.xmakeConsoleService
+import io.xmake.project.directory.hasRootXMakeLua
+import io.xmake.project.directory.hasXMakeProjectDirectorySource
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitManager
-import io.xmake.utils.SystemUtils
 import io.xmake.utils.execute.createProcess
 import io.xmake.utils.path.WorkingDirectoryResolver
 
@@ -48,15 +49,15 @@ class QuickStartAction : XMakeProjectAction() {
             e.presentation.isEnabledAndVisible = false
             return
         }
-        e.presentation.isVisible = true
-        e.presentation.isEnabled = !SystemUtils.isXMakeProject(project)
+        e.presentation.isVisible = !project.hasXMakeProjectDirectorySource
+        e.presentation.isEnabled = !project.hasRootXMakeLua
     }
 
     override fun execute(project: Project) {
 
         FileDocumentManager.getInstance().saveAllDocuments()
 
-        if (!SystemUtils.isXMakeProject(project)) {
+        if (!project.hasRootXMakeLua) {
             val manager = ToolkitManager.getInstance()
             val registeredToolkits = manager.registeredToolkits(project)
             val toolkit = manager.defaultToolkitId
@@ -64,10 +65,10 @@ class QuickStartAction : XMakeProjectAction() {
                 ?.takeUnless(Toolkit::requiresBackend)
                 ?: registeredToolkits.firstOrNull { !it.requiresBackend }
                 ?: Toolkit(path = "xmake")
-            val projectPath = project.basePath ?: return
-            val workingDirectory = WorkingDirectoryResolver.resolve(project, projectPath, toolkit)
+            val projectDirectoryPath = project.basePath ?: return
+            val resolvedProjectDirectoryPath = WorkingDirectoryResolver.resolve(project, projectDirectoryPath, toolkit)
             val commandLine = GeneralCommandLine(toolkit.path, "create", "-P", ".")
-                .withWorkDirectory(workingDirectory)
+                .withWorkDirectory(resolvedProjectDirectoryPath)
 
             ApplicationManager.getApplication().executeOnPooledThread {
                 try {

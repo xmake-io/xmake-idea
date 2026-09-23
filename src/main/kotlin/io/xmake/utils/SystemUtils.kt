@@ -20,7 +20,6 @@
  */
 package io.xmake.utils
 
-import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.vfs.VirtualFile
 import io.xmake.shared.XMakeProblem
@@ -184,10 +183,6 @@ object SystemUtils {
         return getResourceFilePath(scriptName, "scripts")
     }
     
-    // check if xmake project
-    fun isXMakeProject(project: Project): Boolean {
-        return project.basePath?.let { File(it, "xmake.lua").exists() } == true
-    }
 }
 
 val VirtualFile.pathAsPath: Path get() = Paths.get(path)

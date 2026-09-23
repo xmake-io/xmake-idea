@@ -31,6 +31,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity
 import com.intellij.util.messages.MessageBusConnection
 import io.xmake.project.profile.XMakeBuildProfileManager
+import io.xmake.project.directory.XMakeProjectDirectoryManager
 import io.xmake.run.XMakeRunConfiguration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -56,6 +57,12 @@ class XMakeExecutionTargetSyncService(
                 if (project.isDisposed) return@withContext
 
                 val synchronizer = TargetSynchronizer(project, runManager)
+
+                fun refreshTargets() {
+                    ExecutionTargetManager.update(project)
+                    synchronizer.syncTargetFromConfiguration(runManager.selectedConfiguration)
+                }
+
                 val connection = project.messageBus.connect(this@XMakeExecutionTargetSyncService).also {
                     this@XMakeExecutionTargetSyncService.connection = it
                 }
@@ -71,10 +78,14 @@ class XMakeExecutionTargetSyncService(
                     ExecutionTargetManager.TOPIC,
                     ExecutionTargetListener(synchronizer::syncConfigurationFromTarget),
                 )
-                connection.subscribe(XMakeBuildProfileManager.TOPIC, XMakeBuildProfileManager.Listener {
-                    ExecutionTargetManager.update(project)
-                    synchronizer.syncTargetFromConfiguration(runManager.selectedConfiguration)
-                })
+                connection.subscribe(
+                    XMakeBuildProfileManager.TOPIC,
+                    XMakeBuildProfileManager.Listener { refreshTargets() },
+                )
+                connection.subscribe(
+                    XMakeProjectDirectoryManager.TOPIC,
+                    XMakeProjectDirectoryManager.Listener { refreshTargets() },
+                )
                 synchronizer.syncTargetFromConfiguration(runManager.selectedConfiguration)
             }
         }

@@ -35,6 +35,7 @@ import com.intellij.ui.dsl.builder.panel
 import com.intellij.ui.dsl.gridLayout.toJBEmptyBorder
 import com.intellij.ui.layout.ComboBoxPredicate
 import io.xmake.project.directory.ui.DirectoryBrowser
+import io.xmake.project.directory.XMakeProjectDirectoryManager
 import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.project.profile.XMakeBuildProfileOptions
 import io.xmake.project.profile.queryXMakeBuildProfileOptions
@@ -73,6 +74,7 @@ internal class XMakeBuildProfileForm(
     private val optionRequests = Channel<XMakeBuildProfile>(Channel.CONFLATED)
     private var isResetting = false
     private var isUpdatingOptions = false
+    private val projectDirectoryConnection = project.messageBus.connect(this)
 
     private val toolkitComboBox = ToolkitComboBox(project, ::selectedToolkit)
     private val platformComboBox = XMakeBuildProfileOptionComboBox()
@@ -176,6 +178,15 @@ internal class XMakeBuildProfileForm(
                 }
         }
         Disposer.register(this, toolkitComboBox)
+        projectDirectoryConnection.subscribe(
+            XMakeProjectDirectoryManager.TOPIC,
+            XMakeProjectDirectoryManager.Listener {
+                loadedOptionsProfile = null
+                profileOptions = XMakeBuildProfileOptions()
+                updateOptionModels()
+                requestProfileOptions()
+            },
+        )
         toolkitComboBox.addSelectionListener { selectedToolkit ->
             if (!isResetting) onToolkitSelected(selectedToolkit)
         }
