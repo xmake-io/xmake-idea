@@ -25,7 +25,6 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.util.Disposer
 import com.intellij.platform.ide.progress.withBackgroundProgress
-import com.intellij.ui.DocumentAdapter
 import com.intellij.ui.RawCommandLineEditor
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.dsl.builder.AlignX
@@ -35,28 +34,24 @@ import com.intellij.ui.dsl.builder.RowLayout
 import com.intellij.ui.dsl.builder.panel
 import com.intellij.ui.dsl.gridLayout.toJBEmptyBorder
 import com.intellij.ui.layout.ComboBoxPredicate
-import io.xmake.project.directory.resolveDefaultWorkingDirectory
 import io.xmake.project.directory.ui.DirectoryBrowser
 import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.project.profile.XMakeBuildProfileOptions
 import io.xmake.project.profile.queryXMakeBuildProfileOptions
-import io.xmake.project.toolkit.ToolkitHost.Id
+import io.xmake.project.directory.xmakeProjectDirectories
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ui.ToolkitComboBox
 import io.xmake.project.toolkit.ui.ToolkitListItem
 import io.xmake.utils.execute.SyncDirection
 import io.xmake.utils.execute.transferProjectFiles
-import io.xmake.utils.path.WorkingDirectoryResolver
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.consumeAsFlow
-import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -64,27 +59,18 @@ import java.awt.event.HierarchyEvent
 import java.awt.event.HierarchyListener
 import java.awt.event.ItemEvent
 import javax.swing.JComponent
-import javax.swing.event.DocumentEvent
 
-private data class OptionRequest(
-    val profile: XMakeBuildProfile,
-    val debounceMillis: Long,
-)
-
-@OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
+@OptIn(ExperimentalCoroutinesApi::class)
 internal class XMakeBuildProfileForm(
     private val project: Project,
 ) : Disposable {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var baselineProfile = XMakeBuildProfile()
     private var selectedToolkit: Toolkit? = null
-    private var workingDirectoryHostId: Id? = null
-    private var isDefaultWorkingDirectoryPending = false
     private var profileOptions = XMakeBuildProfileOptions()
     private var loadedOptionsProfile: XMakeBuildProfile? = null
-    private var optionToolkitId: String? = null
-    private val optionRequests = Channel<OptionRequest>(Channel.CONFLATED)
-    private val workingDirectoryRequests = Channel<Toolkit>(Channel.CONFLATED)
+    private var loadedOptionsToolkitId: String? = null
+    private val optionRequests = Channel<XMakeBuildProfile>(Channel.CONFLATED)
     private var isResetting = false
     private var isUpdatingOptions = false
 
@@ -93,11 +79,6 @@ internal class XMakeBuildProfileForm(
     private val architectureComboBox = XMakeBuildProfileOptionComboBox()
     private val toolchainComboBox = XMakeBuildProfileOptionComboBox()
     private val buildModeComboBox = XMakeBuildProfileOptionComboBox()
-    private val workingDirectory = DirectoryBrowser(
-        project,
-        browseTitle = "Working Directory",
-        browseDescription = "Select the working directory",
-    )
     private val buildDirectory = DirectoryBrowser(
         project,
         browseTitle = "Build Directory",
@@ -139,9 +120,6 @@ internal class XMakeBuildProfileForm(
         }
 
         collapsibleGroup("Additional Configuration") {
-            row("Working directory:") {
-                cell(workingDirectory).align(AlignX.FILL)
-            }
             row("Build directory:") {
                 cell(buildDirectory).align(AlignX.FILL)
             }
@@ -174,46 +152,26 @@ internal class XMakeBuildProfileForm(
         if ((event.changeFlags and HierarchyEvent.SHOWING_CHANGED.toLong()) == 0L) {
             return@HierarchyListener
         }
-        if (component.isShowing) onFormShown()
+        if (component.isShowing) requestProfileOptions()
     }
 
     init {
         scope.launch {
             optionRequests.consumeAsFlow()
-                .debounce { request -> request.debounceMillis }
-                .transformLatest { request ->
+                .transformLatest { requestedProfile ->
                     val options = try {
-                        project.queryXMakeBuildProfileOptions(request.profile)
+                        project.queryXMakeBuildProfileOptions(requestedProfile)
                     } catch (error: CancellationException) {
                         throw error
                     } catch (error: Exception) {
                         Log.debug("Unable to load XMake build profile options", error)
                         null
                     }
-                    emit(request to options)
+                    emit(requestedProfile to options)
                 }
-                .collect { (request, options) ->
+                .collect { (requestedProfile, options) ->
                     withContext(Dispatchers.EDT + ModalityState.any().asContextElement()) {
-                        options?.let { applyProfileOptions(request, it) }
-                    }
-                }
-        }
-        scope.launch {
-            workingDirectoryRequests.consumeAsFlow()
-                .transformLatest { toolkit ->
-                    val directory = try {
-                        toolkit.resolveDefaultWorkingDirectory(project)
-                    } catch (error: CancellationException) {
-                        throw error
-                    } catch (error: Exception) {
-                        Log.debug("Unable to load the default XMake working directory", error)
-                        null
-                    }
-                    emit(toolkit to directory)
-                }
-                .collect { (toolkit, directory) ->
-                    withContext(Dispatchers.EDT + ModalityState.any().asContextElement()) {
-                        applyDefaultWorkingDirectory(toolkit, directory)
+                        options?.let { applyProfileOptions(requestedProfile, it) }
                     }
                 }
         }
@@ -230,11 +188,6 @@ internal class XMakeBuildProfileForm(
                 updateArchitectureOptions()
             }
         }
-        workingDirectory.textField.document.addDocumentListener(object : DocumentAdapter() {
-            override fun textChanged(event: DocumentEvent) {
-                if (!isResetting) requestProfileOptions(PROFILE_OPTIONS_RELOAD_DELAY_MS)
-            }
-        })
         component.addHierarchyListener(profileOptionsVisibilityListener)
     }
 
@@ -245,9 +198,7 @@ internal class XMakeBuildProfileForm(
         isResetting = true
         try {
             selectedToolkit = profile.resolveToolkit(project)
-            optionToolkitId = selectedToolkit?.id
-            workingDirectoryHostId = selectedToolkit?.host?.id
-            workingDirectory.text = profile.workingDirectory
+            loadedOptionsToolkitId = selectedToolkit?.id
             buildDirectory.text = profile.buildDirectory
             androidNdkDirectory.text = profile.androidNdkDirectory
             verbose.isSelected = profile.verbose
@@ -263,11 +214,10 @@ internal class XMakeBuildProfileForm(
             )
             toolkitComboBox.selectToolkit(selectedToolkit)
             rebindDirectoryBrowsers()
-            isDefaultWorkingDirectoryPending = selectedToolkit != null && workingDirectory.text.isBlank()
         } finally {
             isResetting = false
         }
-        if (component.isShowing) onFormShown()
+        if (component.isShowing) requestProfileOptions()
     }
 
     fun createProfileSnapshot(name: String): XMakeBuildProfile = baselineProfile.copy(
@@ -277,7 +227,6 @@ internal class XMakeBuildProfileForm(
         architecture = architectureComboBox.selectedItem?.toString() ?: XMakeBuildProfile.USE_XMAKE_DEFAULT,
         toolchain = toolchainComboBox.selectedItem?.toString() ?: XMakeBuildProfile.USE_XMAKE_DEFAULT,
         buildMode = buildModeComboBox.selectedItem?.toString() ?: XMakeBuildProfile.DEFAULT_BUILD_MODE,
-        workingDirectory = workingDirectory.text,
         buildDirectory = buildDirectory.text,
         androidNdkDirectory = androidNdkDirectory.text,
         verbose = verbose.isSelected,
@@ -292,51 +241,21 @@ internal class XMakeBuildProfileForm(
     private fun onToolkitSelected(selectedToolkit: Toolkit?) {
         rebindDirectoryBrowsers()
         val toolkitId = selectedToolkit?.id
-        if (toolkitId == optionToolkitId) {
-            if (selectedToolkit != null && workingDirectory.text.isBlank()) {
-                requestDefaultWorkingDirectory(selectedToolkit)
-            }
-            return
-        }
-        optionToolkitId = toolkitId
+        if (toolkitId == loadedOptionsToolkitId) return
+
+        loadedOptionsToolkitId = toolkitId
         profileOptions = XMakeBuildProfileOptions()
         updateOptionModels()
-
-        if (selectedToolkit == null) {
-            workingDirectoryHostId = null
-            isDefaultWorkingDirectoryPending = false
-            return
-        }
-
-        val hostId = selectedToolkit.host.id
-        if (workingDirectoryHostId != hostId) {
-            workingDirectoryHostId = hostId
-            workingDirectory.text = ""
-        }
-
-        if (workingDirectory.text.isBlank()) {
-            requestDefaultWorkingDirectory(selectedToolkit)
-        } else {
-            requestProfileOptions()
-        }
+        requestProfileOptions()
     }
 
     private fun rebindDirectoryBrowsers() {
-        listOf(workingDirectory, buildDirectory, androidNdkDirectory).forEach { browser ->
+        listOf(buildDirectory, androidNdkDirectory).forEach { browser ->
             browser.setToolkit(selectedToolkit)
         }
     }
 
-    private fun onFormShown() {
-        val toolkit = selectedToolkit
-        if (isDefaultWorkingDirectoryPending && toolkit != null) {
-            isDefaultWorkingDirectoryPending = false
-            requestDefaultWorkingDirectory(toolkit)
-        }
-        requestProfileOptions()
-    }
-
-    private fun requestProfileOptions(debounceMillis: Long = 0) {
+    private fun requestProfileOptions() {
         if (!component.isShowing) return
 
         val toolkit = selectedToolkit
@@ -348,14 +267,14 @@ internal class XMakeBuildProfileForm(
         }
         if (loadedOptionsProfile == requestedProfile) return
 
-        optionRequests.trySend(OptionRequest(requestedProfile, debounceMillis))
+        optionRequests.trySend(requestedProfile)
     }
 
-    private fun applyProfileOptions(request: OptionRequest, options: XMakeBuildProfileOptions) {
+    private fun applyProfileOptions(requestedProfile: XMakeBuildProfile, options: XMakeBuildProfileOptions) {
         if (project.isDisposed || !component.isShowing) return
-        if (profileForOptionQuery(selectedToolkit ?: return) != request.profile) return
+        if (profileForOptionQuery(selectedToolkit ?: return) != requestedProfile) return
         profileOptions = options
-        loadedOptionsProfile = request.profile
+        loadedOptionsProfile = requestedProfile
         updateOptionModels()
     }
 
@@ -364,7 +283,7 @@ internal class XMakeBuildProfileForm(
             !selectedToolkit.isAvailable ||
             selectedToolkit.path.isBlank() ||
             selectedToolkit.requiresBackend && !selectedToolkit.host.hasBackend ||
-            workingDirectory.text.isBlank()
+            !project.xmakeProjectDirectories.canResolve(selectedToolkit)
         ) {
             return null
         }
@@ -412,34 +331,13 @@ internal class XMakeBuildProfileForm(
         architectureComboBox.updateOptions(architectures, selectedArchitecture)
     }
 
-    private fun requestDefaultWorkingDirectory(toolkit: Toolkit) {
-        if (component.isShowing) {
-            workingDirectoryRequests.trySend(toolkit)
-        } else {
-            isDefaultWorkingDirectoryPending = true
-        }
-    }
-
-    private fun applyDefaultWorkingDirectory(toolkit: Toolkit, directory: String?) {
-        if (project.isDisposed || !component.isShowing) return
-        if (selectedToolkit?.host?.id != toolkit.host.id) return
-        if (workingDirectory.text.isNotBlank()) return
-        if (directory.isNullOrBlank()) {
-            isDefaultWorkingDirectoryPending = true
-        } else {
-            isDefaultWorkingDirectoryPending = false
-            workingDirectory.text = directory
-        }
-    }
-
     private fun startFileTransfer(direction: SyncDirection) {
         val toolkit = selectedToolkit ?: return
-        val directory = workingDirectory.text
         scope.launch {
             try {
                 withBackgroundProgress(project, "Transfer XMake project files", cancellable = true) {
-                    val resolvedDirectory = WorkingDirectoryResolver.resolve(project, directory, toolkit)
-                    transferProjectFiles(project, toolkit, direction, resolvedDirectory)
+                    val projectDirectory = project.xmakeProjectDirectories.resolveProjectDirectory(toolkit)
+                    transferProjectFiles(project, toolkit, direction, projectDirectory)
                 }
             } catch (error: CancellationException) {
                 throw error
@@ -459,7 +357,6 @@ internal class XMakeBuildProfileForm(
     }
 
     private companion object {
-        const val PROFILE_OPTIONS_RELOAD_DELAY_MS = 300L
         val Log = logger<XMakeBuildProfileForm>()
     }
 }

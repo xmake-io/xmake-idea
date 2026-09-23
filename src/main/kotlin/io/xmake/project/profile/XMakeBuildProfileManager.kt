@@ -23,53 +23,65 @@ import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.intellij.openapi.project.Project
 import com.intellij.util.messages.Topic
+import io.xmake.project.directory.xmakeProjectDirectories
 import io.xmake.project.toolkit.ToolkitManager
 import io.xmake.utils.Logger
+import org.jdom.Element
 
 @Service(Service.Level.PROJECT)
 @State(name = "XMakeBuildProfiles", storages = [Storage("xmake.xml")])
 class XMakeBuildProfileManager(private val project: Project) :
-    PersistentStateComponent<XMakeBuildProfileManager.State> {
-    data class State(
-        var profiles: MutableList<XMakeBuildProfile> = mutableListOf(),
-    )
+    PersistentStateComponent<Element> {
 
     private val stateLock = Any()
-    private var profileState = State()
+    private var currentProfiles = listOf<XMakeBuildProfile>()
 
-    override fun getState(): State = synchronized(stateLock) {
-        profileState.detachedCopy()
-    }
-
-    override fun noStateLoaded() {
-        val initialState = createDefaultState()
-        synchronized(stateLock) {
-            profileState = initialState
+    override fun getState(): Element = synchronized(stateLock) {
+        Element("XMakeBuildProfiles").also { element ->
+            XMakeBuildProfileXml.writeProfiles(element, currentProfiles)
         }
     }
 
-    override fun loadState(state: State) {
+    override fun noStateLoaded() {
+        val initialState = listOf(XMakeBuildProfile.createDefault(project))
+        synchronized(stateLock) {
+            currentProfiles = initialState
+        }
+    }
+
+    override fun loadState(state: Element) {
         // A malformed ID cannot be remapped safely because run configurations may still refer to it.
         // Isolate that record and let the next state write remove it from the persisted snapshot.
-        val loadedProfiles = XMakeBuildProfile.normalize(state.profiles).toMutableList()
-        val discardedIds = state.profiles.map(XMakeBuildProfile::id).toSet() -
+        val rawProfiles = XMakeBuildProfileXml.readProfiles(state)
+        val loadedProfiles = XMakeBuildProfile.normalize(rawProfiles)
+        val discardedIds = rawProfiles.map(XMakeBuildProfile::id).toSet() -
                 loadedProfiles.map(XMakeBuildProfile::id).toSet()
         if (discardedIds.isNotEmpty()) {
             Logger.w(TAG, "Discarding ${discardedIds.size} malformed or duplicate build profiles: IDs $discardedIds")
         }
-        val loadedState = if (loadedProfiles.isEmpty()) createDefaultState() else State(loadedProfiles)
+        val loadedState = loadedProfiles.ifEmpty {
+            listOf(XMakeBuildProfile.createDefault(project))
+        }
         synchronized(stateLock) {
-            profileState = loadedState
+            currentProfiles = loadedState
+        }
+        migrateLegacyProjectDirectories(state)
+    }
+
+    private fun migrateLegacyProjectDirectories(element: Element) {
+        val legacyDirectories = XMakeBuildProfileXml.legacyProjectDirectories(element) { toolkitId ->
+            ToolkitManager.getInstance().registeredToolkit(toolkitId, project)
+        }
+        if (legacyDirectories.isNotEmpty()) {
+            project.xmakeProjectDirectories.migrateLegacyProjectDirectories(legacyDirectories)
         }
     }
 
     val profiles: List<XMakeBuildProfile>
-        get() = synchronized(stateLock) {
-            profileState.profiles.map(XMakeBuildProfile::copy)
-        }
+        get() = synchronized(stateLock) { currentProfiles.map(XMakeBuildProfile::copy) }
 
     fun findProfile(id: String): XMakeBuildProfile? = synchronized(stateLock) {
-        profileState.profiles.firstOrNull { it.id == id }?.copy()
+        currentProfiles.firstOrNull { it.id == id }?.copy()
     }
 
     fun replaceProfiles(profiles: List<XMakeBuildProfile>) {
@@ -83,12 +95,11 @@ class XMakeBuildProfileManager(private val project: Project) :
 
         val replacement = profiles
             .map { it.copy(name = it.name.trim()) }
-            .toMutableList()
         val changed = synchronized(stateLock) {
-            if (profileState.profiles == replacement) {
+            if (currentProfiles == replacement) {
                 false
             } else {
-                profileState = State(replacement)
+                currentProfiles = replacement
                 true
             }
         }
@@ -100,12 +111,12 @@ class XMakeBuildProfileManager(private val project: Project) :
     internal fun importMigratedProfile(profile: XMakeBuildProfile): XMakeBuildProfile {
         require(XMakeBuildProfile.isValidId(profile.id)) { "Invalid XMake build profile ID: ${profile.id}" }
         val (importedProfile, changed) = synchronized(stateLock) {
-            profileState.profiles.firstOrNull { existing -> existing.id == profile.id }?.let { existing ->
+            currentProfiles.firstOrNull { existing -> existing.id == profile.id }?.let { existing ->
                 return@synchronized existing.copy() to false
             }
-            val existingNames = profileState.profiles.mapTo(mutableSetOf()) { existing -> existing.name.trim() }
+            val existingNames = currentProfiles.mapTo(mutableSetOf()) { existing -> existing.name.trim() }
             val imported = profile.copy(name = XMakeBuildProfile.uniqueName(profile.name, existingNames))
-            profileState = State((profileState.profiles + imported).toMutableList())
+            currentProfiles = currentProfiles + imported
             imported.copy() to true
         }
         if (changed) publishProfilesChanged()
@@ -115,7 +126,7 @@ class XMakeBuildProfileManager(private val project: Project) :
     internal fun handleToolkitChanges() {
         val toolkitManager = ToolkitManager.getInstance()
         val shouldPublish = synchronized(stateLock) {
-            val updatedProfiles = profileState.profiles.map { profile ->
+            val updatedProfiles = currentProfiles.map { profile ->
                 val toolkitId = profile.toolkitId
                 if (toolkitId != null && !toolkitManager.isRegistered(toolkitId)) {
                     profile.copy(toolkitId = null)
@@ -123,10 +134,10 @@ class XMakeBuildProfileManager(private val project: Project) :
                     profile
                 }
             }
-            if (updatedProfiles == profileState.profiles) {
+            if (updatedProfiles == currentProfiles) {
                 false
             } else {
-                profileState = State(updatedProfiles.toMutableList())
+                currentProfiles = updatedProfiles
                 true
             }
         }
@@ -147,9 +158,6 @@ class XMakeBuildProfileManager(private val project: Project) :
         }
     }
 
-    private fun createDefaultState(): State =
-        State(mutableListOf(XMakeBuildProfile.createDefault(project)))
-
     fun interface Listener {
         fun profilesChanged()
     }
@@ -161,9 +169,6 @@ class XMakeBuildProfileManager(private val project: Project) :
         val TOPIC: Topic<Listener> = Topic.create("XMake build profiles changed", Listener::class.java)
     }
 }
-
-private fun XMakeBuildProfileManager.State.detachedCopy(): XMakeBuildProfileManager.State =
-    XMakeBuildProfileManager.State(profiles.map(XMakeBuildProfile::copy).toMutableList())
 
 val Project.xmakeBuildProfiles: XMakeBuildProfileManager
     get() = getService(XMakeBuildProfileManager::class.java)

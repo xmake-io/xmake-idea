@@ -22,11 +22,16 @@ import com.intellij.execution.configurations.RuntimeConfigurationError
 import com.intellij.openapi.project.Project
 import com.intellij.util.execution.ParametersListUtil
 import io.xmake.project.profile.XMakeBuildProfile
+import io.xmake.project.directory.xmakeProjectDirectories
+import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.xmakeSettings
 import io.xmake.utils.SystemUtils
 
 /** Builds commands from one project-owned build profile captured at construction time. */
-internal class XMakeCommandFactory(project: Project, profile: XMakeBuildProfile) {
+internal class XMakeCommandFactory(
+    private val project: Project,
+    profile: XMakeBuildProfile,
+) {
     private val profileSnapshot = profile.copy()
     private val compileCommandsPath = project.xmakeSettings.state.compileCommandsPath
     private val configureArguments = buildList {
@@ -44,16 +49,17 @@ internal class XMakeCommandFactory(project: Project, profile: XMakeBuildProfile)
             parsedArgs(profileSnapshot.configureArguments)
         }
     }
+    private val toolkit: Toolkit = profileSnapshot.resolveToolkit(project)
+        ?: throw RuntimeConfigurationError(
+            "XMake toolkit is not set, is unavailable in this project, or is no longer registered",
+        )
+
     private val commandBuilder = run {
-        val toolkit = profileSnapshot.resolveToolkit(project)
-            ?: throw RuntimeConfigurationError(
-                "XMake toolkit is not set, is unavailable in this project, or is no longer registered",
-            )
         if (!toolkit.isAvailable) {
             throw RuntimeConfigurationError("XMake toolkit is unavailable in this project")
         }
-        val workingDirectory = profileSnapshot.resolveWorkingDirectory(project, toolkit)
-        XMakeCommandBuilder.forBuildProfile(profileSnapshot.id, toolkit, workingDirectory, configureArguments)
+        val projectDirectory = project.xmakeProjectDirectories.resolveProjectDirectory(toolkit)
+        XMakeCommandBuilder.forBuildProfile(profileSnapshot.id, toolkit, projectDirectory, configureArguments)
     }
 
     fun createBuild(): XMakeCommand = createTargetBuild(DEFAULT_BUILD_TARGET)
@@ -108,7 +114,7 @@ internal class XMakeCommandFactory(project: Project, profile: XMakeBuildProfile)
         appendTarget(targetName)
         if (arguments.isNotEmpty()) {
             parsedArgs(arguments)
-        }
+            }
     }
 
     fun createTargetPathQuery(targetName: String): XMakeCommand {

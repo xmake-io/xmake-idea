@@ -40,6 +40,7 @@ import com.intellij.util.xmlb.annotations.Transient
 import io.xmake.migration.readLegacyBuildSettingsAsProfile
 import io.xmake.migration.removeLegacyBuildSettings
 import io.xmake.project.profile.xmakeBuildProfiles
+import io.xmake.project.directory.xmakeProjectDirectories
 import io.xmake.run.state.XMakeDebugState
 import io.xmake.run.state.XMakeRunState
 import io.xmake.run.command.DEFAULT_BUILD_TARGET
@@ -88,10 +89,15 @@ class XMakeRunConfiguration(
 
         XmlSerializer.deserializeInto(this, element)
         runEnvironment = EnvironmentVariablesData.readExternal(element)
-        val legacyProfile = readLegacyBuildSettingsAsProfile(element, name)
+        val legacySettings = readLegacyBuildSettingsAsProfile(element, name)
         val hasResolvableProfile = preferredBuildProfileId?.let(project.xmakeBuildProfiles::findProfile) != null
-        if (legacyProfile != null && !hasResolvableProfile) {
-            preferredBuildProfileId = project.xmakeBuildProfiles.importMigratedProfile(legacyProfile).id
+        if (legacySettings != null) {
+            legacySettings.legacyProjectDirectory?.let { directory ->
+                project.xmakeProjectDirectories.migrateLegacyProjectDirectories(listOf(directory))
+            }
+            if (!hasResolvableProfile) {
+                preferredBuildProfileId = project.xmakeBuildProfiles.importMigratedProfile(legacySettings.profile).id
+            }
         }
     }
 

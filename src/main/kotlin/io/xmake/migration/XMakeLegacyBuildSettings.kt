@@ -20,23 +20,29 @@ import com.intellij.openapi.util.JDOMUtil
 import com.intellij.util.xmlb.XmlSerializer
 import com.intellij.util.xmlb.annotations.OptionTag
 import io.xmake.project.profile.XMakeBuildProfile
+import io.xmake.project.directory.LegacyProjectDirectory
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHost
 import io.xmake.project.toolkit.ToolkitHostType
 import org.jdom.Element
 import java.util.UUID
 
-/** Maps build settings stored in an old run configuration to a project build profile. */
-internal fun readLegacyBuildSettingsAsProfile(
+/** Maps build settings stored in an old run configuration to project-owned state. */
+internal data class MigratedBuildSettings(
+    val profile: XMakeBuildProfile,
+    val legacyProjectDirectory: LegacyProjectDirectory?,
+)
+
+internal fun readLegacyBuildSettings(
     element: Element,
     configurationName: String,
-): XMakeBuildProfile? {
+): MigratedBuildSettings? {
     if (!hasLegacyBuildSettings(element)) return null
 
     val legacySettings = LegacyBuildSettings().also { state ->
         XmlSerializer.deserializeInto(state, element)
     }
-    return XMakeBuildProfile(
+    val migratedProfile = XMakeBuildProfile(
         id = profileIdForConfiguration(configurationName, element),
         name = configurationName,
         toolkitId = legacySettings.toolkit?.let(::migratedToolkitId),
@@ -44,11 +50,16 @@ internal fun readLegacyBuildSettingsAsProfile(
         architecture = legacySettings.architecture,
         toolchain = legacySettings.toolchain,
         buildMode = legacySettings.buildMode,
-        workingDirectory = legacySettings.workingDirectory,
         buildDirectory = legacySettings.buildDirectory,
         androidNdkDirectory = legacySettings.androidNdkDirectory,
         verbose = legacySettings.verbose,
         configureArguments = legacySettings.configureArguments,
+    )
+    return MigratedBuildSettings(
+        profile = migratedProfile,
+        legacyProjectDirectory = legacySettings.workingDirectory
+            .takeUnless(String::isBlank)
+            ?.let { LegacyProjectDirectory(legacySettings.toolkit, it) },
     )
 }
 
@@ -78,7 +89,7 @@ private fun profileIdForConfiguration(
     ).toString()
 
 private fun settingsFingerprint(element: Element): String =
-        element.children
+    element.children
         .filter { child -> child.name in LEGACY_BUILD_SETTING_TAGS }
         .joinToString(separator = "\u0000") { child -> JDOMUtil.write(child, "") }
 
