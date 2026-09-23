@@ -106,15 +106,26 @@ internal class XMakeCommandFactory(
     fun createRun(
         targetName: String,
         arguments: String,
+        launchWorkingDirectory: String,
         environment: EnvironmentVariablesData,
-    ): XMakeCommand = createCommand(
-        environmentVariables = environment,
-    ) {
-        args("run")
-        appendTarget(targetName)
-        if (arguments.isNotEmpty()) {
-            parsedArgs(arguments)
+    ): XMakeCommand {
+        val resolvedLaunchWorkingDirectory = resolveLaunchWorkingDirectory(
+            project,
+            toolkit,
+            launchWorkingDirectory,
+        )
+        return createCommand(
+            environmentVariables = environment,
+        ) {
+            args("run")
+            resolvedLaunchWorkingDirectory?.let { launchDirectory ->
+                args("-w", launchDirectory)
             }
+            appendTarget(targetName)
+            if (arguments.isNotEmpty()) {
+                parsedArgs(arguments)
+            }
+        }
     }
 
     fun createTargetPathQuery(targetName: String): XMakeCommand {
