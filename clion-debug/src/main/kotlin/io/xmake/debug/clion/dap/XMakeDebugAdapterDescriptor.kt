@@ -64,10 +64,8 @@ internal class XMakeDebugAdapterDescriptor(
         return CommandLineDebugAdapterHandle(commandLine)
     }
 
-    override val breakpointsDescription: DapBreakpointsDescription = DapBreakpointsDescription(
-        CidrLineBreakpointType::class.java,
-        CidrExceptionBreakpointType::class.java,
-    )
+    @Suppress("DEPRECATION")
+    override val breakpointsDescription: DapBreakpointsDescription = createBreakpointsDescription()
 
     private fun createDriverCommandLine(launch: XMakeDebugLaunch): GeneralCommandLine =
         baseDriverCommandLine(launch).apply {
@@ -86,6 +84,25 @@ internal class XMakeDebugAdapterDescriptor(
         return GeneralCommandLine(driverPath)
             .withWorkDirectory(launch.workingDirectory.ifBlank { project.basePath })
             .withEnvironment(environment)
+    }
+
+    /**
+     * IntelliJ 2026.3 added a nullable function-breakpoint type to this constructor while removing
+     * the old two-argument overload. Resolve the available constructor at runtime so one plugin
+     * distribution can run on both 2026.2 and 2026.3.
+     */
+    private fun createBreakpointsDescription(): DapBreakpointsDescription {
+        val lineBreakpointType = CidrLineBreakpointType::class.java
+        val exceptionBreakpointType = CidrExceptionBreakpointType::class.java
+        val constructor = DapBreakpointsDescription::class.java.constructors.single {
+            it.parameterCount in 2..3
+        }
+
+        return if (constructor.parameterCount == 3) {
+            constructor.newInstance(lineBreakpointType, exceptionBreakpointType, null)
+        } else {
+            constructor.newInstance(lineBreakpointType, exceptionBreakpointType)
+        } as DapBreakpointsDescription
     }
 
     private fun MutableMap<String, String>.prependPath(directory: String?) {
