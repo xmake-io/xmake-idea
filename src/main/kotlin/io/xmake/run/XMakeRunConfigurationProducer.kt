@@ -25,7 +25,7 @@ import com.intellij.execution.actions.LazyRunConfigurationProducer
 import com.intellij.execution.configurations.ConfigurationFactory
 import com.intellij.openapi.util.Ref
 import com.intellij.psi.PsiElement
-import io.xmake.utils.SystemUtils
+import io.xmake.project.directory.hasXMakeProjectDirectorySource
 
 class XMakeRunConfigurationProducer : LazyRunConfigurationProducer<XMakeRunConfiguration>() {
     override fun getConfigurationFactory(): ConfigurationFactory {
@@ -33,24 +33,19 @@ class XMakeRunConfigurationProducer : LazyRunConfigurationProducer<XMakeRunConfi
     }
 
     override fun isConfigurationFromContext(
-            configuration: XMakeRunConfiguration,
-            context: ConfigurationContext
+        configuration: XMakeRunConfiguration,
+        context: ConfigurationContext
     ): Boolean {
 
         return false
     }
 
     override fun setupConfigurationFromContext(
-            configuration: XMakeRunConfiguration,
-            context: ConfigurationContext,
-            sourceElement: Ref<PsiElement>
+        configuration: XMakeRunConfiguration,
+        context: ConfigurationContext,
+        sourceElement: Ref<PsiElement>
     ): Boolean {
-
-        // check xmake project
-        if (!SystemUtils.isXMakeProject(context.project)) {
-            return false
-        }
-
-        return true
+        // A configured nested root is as valid as an xmake.lua at the IDE project root.
+        return context.project.hasXMakeProjectDirectorySource
     }
 }

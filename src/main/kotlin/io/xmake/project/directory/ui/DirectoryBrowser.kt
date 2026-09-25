@@ -43,6 +43,12 @@ class DirectoryBrowser(
 
     private val listeners = mutableSetOf<ActionListener>()
 
+    fun setLocal() {
+        removeBrowseListeners()
+        setButtonEnabled(false)
+        addBrowseListener(ToolkitHost(LOCAL))
+    }
+
     fun setToolkit(toolkit: Toolkit?) {
         removeBrowseListeners()
         setButtonEnabled(false)

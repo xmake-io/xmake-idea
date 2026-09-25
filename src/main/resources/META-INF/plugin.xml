@@ -26,7 +26,7 @@
 
     <extensions defaultExtensionNs="com.intellij">
 
-        <project.converterProvider implementation="io.xmake.migration.XMakeBuildProfilesConverterProvider"/>
+        <project.converterProvider implementation="io.xmake.migration.XMakeProjectSettingsConverterProvider"/>
 
         <!-- icons -->
         <iconProvider implementation="io.xmake.icons.XMakeIconProvider"/>
@@ -36,9 +36,10 @@
         <!-- directory-based IDE-->
         <directoryProjectGenerator implementation="io.xmake.project.wizard.XMakeProjectDirectoryGenerator"/>
 
-        <!-- xmake toolkit configurations -->
+        <!-- XMake project settings -->
         <projectConfigurable instance="io.xmake.project.XMakeSettingsConfigurable"
-                             displayName="Xmake" groupId="build"/>
+                             id="XMakeSettings"
+                             displayName="XMake" groupId="build" groupWeight="1089"/>
 
         <toolWindow id="XMake" anchor="bottom" factoryClass="io.xmake.project.console.XMakeToolWindowFactory"
                     icon="/icons/xmake-dark.svg"/>
@@ -53,6 +54,7 @@
         <!-- notifications -->
         <notificationGroup id="XMake.NotificationGroup" displayType="BALLOON"/>
 
+        <postStartupActivity implementation="io.xmake.project.directory.XMakeProjectDirectoryResolutionActivity"/>
         <postStartupActivity implementation="io.xmake.utils.info.XMakeInfoActivity"/>
         <postStartupActivity implementation="io.xmake.run.target.XMakeExecutionTargetSyncActivity"/>
 

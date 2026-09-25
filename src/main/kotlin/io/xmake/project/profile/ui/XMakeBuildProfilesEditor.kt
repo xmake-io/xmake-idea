@@ -117,12 +117,13 @@ internal class XMakeBuildProfilesEditor(
         AllIcons.General.Add,
     ) {
         override fun actionPerformed(event: AnActionEvent) {
-            val names = profileEditors().mapTo(mutableSetOf()) { editor -> editor.displayName.trim() }
-            val profile = XMakeBuildProfile.createDefault(project, XMakeBuildProfile.uniqueDefaultName(names))
-            val editor = XMakeBuildProfileEditor(project, profile, TREE_UPDATER)
-            val node = MyNode(editor)
-            (tree.model as DefaultTreeModel).insertNodeInto(node, myRoot, myRoot.childCount)
-            selectNodeInTree(node)
+            val names = profileEditors().mapTo(mutableSetOf()) { profileEditor -> profileEditor.displayName.trim() }
+            val profileName = XMakeBuildProfile.uniqueName(XMakeBuildProfile.DEFAULT_PROFILE_NAME, names)
+            val newProfile = XMakeBuildProfile.createDefault(project, profileName)
+            val profileEditor = XMakeBuildProfileEditor(project, newProfile, TREE_UPDATER)
+            val profileNode = MyNode(profileEditor)
+            (tree.model as DefaultTreeModel).insertNodeInto(profileNode, myRoot, myRoot.childCount)
+            selectNodeInTree(profileNode)
         }
     }
 }

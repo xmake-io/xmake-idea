@@ -25,7 +25,6 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.project.guessProjectDir
 import com.intellij.openapi.ui.Messages
 import com.intellij.ssh.ConnectionBuilder
 import com.intellij.ssh.SftpProgressTracker
@@ -61,16 +60,13 @@ class SshToolkitHostExtensionImpl : ToolkitHostExtension {
         SshConfigManager.getInstance(project).configs.map { ToolkitHost.ssh(it) }
 
     override suspend fun syncProject(
-        project: Project,
         host: ToolkitHost,
         direction: SyncDirection,
-        hostDirectory: String,
+        hostDirectoryPath: String,
+        localDirectoryPath: String,
     ) {
         val sshConfig = host.requireSshConfig()
-        val projectDirectory = project.guessProjectDir()?.path
-            ?: project.basePath
-            ?: throw IllegalStateException("Cannot resolve project directory")
-        val projectDirectoryFile = File(projectDirectory)
+        val localDirectoryFile = File(localDirectoryPath)
         val builder = connectionBuilder(sshConfig)
         val cancellationContext = currentCoroutineContext()
         val sftpChannel = runInterruptible(Dispatchers.IO) {
@@ -82,12 +78,12 @@ class SshToolkitHostExtensionImpl : ToolkitHostExtension {
                 cancellationContext.ensureActive()
                 when (direction) {
                     SyncDirection.LOCAL_TO_REMOTE -> {
-                        sftpChannel.pruneMissingEntries(projectDirectoryFile, hostDirectory) {
+                        sftpChannel.pruneMissingEntries(localDirectoryFile, hostDirectoryPath) {
                             cancellationContext.ensureActive()
                         }
                         sftpChannel.uploadFileOrDir(
-                            projectDirectoryFile,
-                            remoteDir = hostDirectory,
+                            localDirectoryFile,
+                            remoteDir = hostDirectoryPath,
                             relativePath = "/",
                             progressTracker = object : SftpProgressTracker {
                                 override val isCanceled: Boolean
@@ -105,7 +101,7 @@ class SshToolkitHostExtensionImpl : ToolkitHostExtension {
                     }
 
                     SyncDirection.REMOTE_TO_LOCAL -> {
-                        sftpChannel.downloadFileOrDir(hostDirectory, projectDirectory)
+                        sftpChannel.downloadFileOrDir(hostDirectoryPath, localDirectoryPath)
                     }
                 }
             }
@@ -155,18 +151,6 @@ class SshToolkitHostExtensionImpl : ToolkitHostExtension {
                     ModalityState.any(),
                 )
             }
-        }
-    }
-
-    override suspend fun resolveDefaultWorkingDirectory(project: Project, host: ToolkitHost): String {
-        val sshConfig = host.requireSshConfig()
-        return runInterruptible(Dispatchers.IO) {
-            connectionBuilder(sshConfig)
-                .openFailSafeSftpChannel()
-                .use { channel ->
-                    val workspaceRoot = joinRemotePath(channel.home, ".xmake")
-                    joinRemotePath(workspaceRoot, project.locationHash)
-                }
         }
     }
 

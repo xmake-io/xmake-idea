@@ -17,7 +17,6 @@
 package io.xmake.utils.extension
 
 import com.intellij.execution.configurations.GeneralCommandLine
-import com.intellij.openapi.project.Project
 import io.xmake.project.toolkit.ToolkitHost
 import io.xmake.utils.execute.SyncDirection
 
@@ -30,13 +29,11 @@ import io.xmake.utils.execute.SyncDirection
  */
 interface ToolkitHostCapabilities {
     suspend fun syncProject(
-        project: Project,
         host: ToolkitHost,
         direction: SyncDirection,
-        hostDirectory: String,
+        hostDirectoryPath: String,
+        localDirectoryPath: String,
     )
-
-    suspend fun resolveDefaultWorkingDirectory(project: Project, host: ToolkitHost): String? = null
 
     fun startProcess(host: ToolkitHost, command: GeneralCommandLine): Process
 }

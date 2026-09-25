@@ -16,21 +16,15 @@
  */
 package io.xmake.project.profile
 
-import com.intellij.execution.configurations.RuntimeConfigurationError
 import com.intellij.openapi.project.Project
-import com.intellij.util.IncorrectOperationException
+import io.xmake.project.directory.xmakeProjectDirectories
 import io.xmake.project.toolkit.Toolkit
-import io.xmake.project.toolkit.ToolkitHostType
 import io.xmake.project.toolkit.ToolkitManager
-import io.xmake.utils.path.WorkingDirectoryResolver
-import java.nio.file.Files
-import java.nio.file.InvalidPathException
-import java.nio.file.Path
 import java.util.UUID
 
 /** Persisted project build inputs shared by Build, Run, and Debug. */
 data class XMakeBuildProfile(
-    // Serialized by XMLB; profile editors never change this identity.
+    // Profile editors never change this stable identity.
     var id: String = UUID.randomUUID().toString(),
     var name: String = DEFAULT_PROFILE_NAME,
     var toolkitId: String? = null,
@@ -38,7 +32,6 @@ data class XMakeBuildProfile(
     var architecture: String = USE_XMAKE_DEFAULT,
     var toolchain: String = USE_XMAKE_DEFAULT,
     var buildMode: String = DEFAULT_BUILD_MODE,
-    var workingDirectory: String = "",
     var buildDirectory: String = "",
     var androidNdkDirectory: String = "",
     var verbose: Boolean = false,
@@ -51,49 +44,7 @@ data class XMakeBuildProfile(
         if (!isValidId(id)) return false
         val toolkit = resolveToolkit(project) ?: return false
         return toolkit.isAvailable &&
-                toolkit.path.isNotBlank() &&
-                workingDirectory.isNotBlank() &&
-                (!toolkit.requiresBackend || toolkit.host.hasBackend)
-    }
-
-    internal fun resolveWorkingDirectory(project: Project, toolkit: Toolkit): String {
-        if (toolkit.path.isBlank()) {
-            throw RuntimeConfigurationError("XMake toolkit path is not set")
-        }
-        if (toolkit.requiresBackend && !toolkit.host.hasBackend) {
-            throw RuntimeConfigurationError("XMake ${toolkit.host.type} toolkit host is not available")
-        }
-        if (workingDirectory.isBlank()) {
-            throw RuntimeConfigurationError("Working directory is not set")
-        }
-        val resolvedWorkingDirectory = try {
-            when (toolkit.host.type) {
-                ToolkitHostType.LOCAL ->
-                    WorkingDirectoryResolver.resolve(project, workingDirectory, validation = true)
-
-                else -> WorkingDirectoryResolver.resolve(project, workingDirectory, toolkit)
-            }
-        } catch (error: IncorrectOperationException) {
-            throw RuntimeConfigurationError(error.message ?: "Working directory contains invalid macros")
-        }
-        if (toolkit.host.type != ToolkitHostType.LOCAL) {
-            if (!resolvedWorkingDirectory.startsWith('/')) {
-                throw RuntimeConfigurationError(
-                    "XMake ${toolkit.host.type} working directory must be an absolute host path",
-                )
-            }
-            return resolvedWorkingDirectory
-        }
-
-        val path = try {
-            Path.of(resolvedWorkingDirectory)
-        } catch (_: InvalidPathException) {
-            throw RuntimeConfigurationError("Working directory is invalid: $resolvedWorkingDirectory")
-        }
-        if (!Files.isDirectory(path)) {
-            throw RuntimeConfigurationError("Working directory does not exist: $resolvedWorkingDirectory")
-        }
-        return resolvedWorkingDirectory
+                project.xmakeProjectDirectories.canResolve(toolkit)
     }
 
     companion object {
@@ -112,10 +63,6 @@ data class XMakeBuildProfile(
                 .first { candidate -> candidate !in existingNames }
         }
 
-        /** The default profile name ("Default"), made unique among [existingNames]. */
-        internal fun uniqueDefaultName(existingNames: Collection<String>): String =
-            uniqueName(DEFAULT_PROFILE_NAME, existingNames)
-
         internal fun createDefault(project: Project, name: String = DEFAULT_PROFILE_NAME): XMakeBuildProfile {
             val manager = ToolkitManager.getInstance()
             val registeredToolkits = manager.registeredToolkits(project)
@@ -125,11 +72,6 @@ data class XMakeBuildProfile(
             return XMakeBuildProfile(
                 name = name,
                 toolkitId = toolkit?.id,
-                workingDirectory = if (toolkit?.host?.type == ToolkitHostType.SSH) {
-                    ""
-                } else {
-                    project.basePath.orEmpty()
-                },
             )
         }
 

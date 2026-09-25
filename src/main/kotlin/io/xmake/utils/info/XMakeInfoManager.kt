@@ -32,6 +32,8 @@ import com.intellij.openapi.vfs.newvfs.events.VFileCreateEvent
 import com.intellij.openapi.vfs.newvfs.events.VFilePropertyChangeEvent
 import com.intellij.util.messages.Topic
 import io.xmake.file.highlight.XMakeLuaLexer
+import io.xmake.project.directory.XMakeProjectDirectoryManager
+import io.xmake.project.directory.hasXMakeProjectDirectorySource
 import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.project.profile.XMakeBuildProfileManager
 import io.xmake.project.profile.XMakeBuildProfileOptions
@@ -41,7 +43,6 @@ import io.xmake.run.command.configureBestEffort
 import io.xmake.run.command.executeInfoQuery
 import io.xmake.run.command.withProfileCommands
 import io.xmake.run.target.activeOrSingleXMakeBuildProfile
-import io.xmake.utils.SystemUtils
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -70,30 +71,32 @@ class XMakeInfoManager(
             ToolkitListener.TOPIC,
             object : ToolkitListener {
                 override fun toolkitsChanged() {
-                    project.xmakeBuildProfileOptionsCache.clear()
-                    probeActiveBuildProfile()
+                    refreshProfileInfo()
                 }
             },
         )
         messageBusConnection.subscribe(
             XMakeBuildProfileManager.TOPIC,
-            XMakeBuildProfileManager.Listener {
-                project.xmakeBuildProfileOptionsCache.clear()
-                probeActiveBuildProfile()
-            },
+            XMakeBuildProfileManager.Listener { refreshProfileInfo() },
+        )
+        messageBusConnection.subscribe(
+            XMakeProjectDirectoryManager.TOPIC,
+            XMakeProjectDirectoryManager.Listener { refreshProfileInfo() },
         )
         messageBusConnection.subscribe(
             VirtualFileManager.VFS_CHANGES,
             object : BulkFileListener {
                 override fun after(events: MutableList<out VFileEvent>) {
-                    val xmakeProjectAppearedOrChanged = events.any { event ->
+                    val xmakeProjectFileAppearedOrChanged = events.any { event ->
                         (event is VFileCreateEvent ||
                                 event is VFileContentChangeEvent ||
                                 event is VFilePropertyChangeEvent) &&
                                 event.file?.name?.equals("xmake.lua", ignoreCase = true) == true
                     }
-                    if (xmakeProjectAppearedOrChanged) probeActiveBuildProfile()
-                    if (xmakeProjectAppearedOrChanged) project.xmakeBuildProfileOptionsCache.clear()
+                    if (xmakeProjectFileAppearedOrChanged) {
+                        project.xmakeBuildProfileOptionsCache.clear()
+                        enqueueActiveProfileProbe()
+                    }
                 }
             },
         )
@@ -104,8 +107,21 @@ class XMakeInfoManager(
         }
     }
 
+    /** Recomputes everything derived from the active profile. No-op while unresolved; xmakeInfo
+     *  then keeps its last values until the next successful resolve. */
+    private fun refreshProfileInfo() {
+        project.xmakeBuildProfileOptionsCache.clear()
+        // Directory changes can arrive before cached action awareness is refreshed.
+        enqueueActiveProfileProbe()
+    }
+
     fun probeActiveBuildProfile() {
-        if (project.isDisposed || !SystemUtils.isXMakeProject(project)) return
+        if (project.isDisposed || !project.hasXMakeProjectDirectorySource) return
+        enqueueActiveProfileProbe()
+    }
+
+    private fun enqueueActiveProfileProbe() {
+        if (project.isDisposed) return
         val profile = project.activeOrSingleXMakeBuildProfile ?: return
         probeRequests.trySend(profile)
     }
@@ -113,32 +129,32 @@ class XMakeInfoManager(
     private suspend fun probeBuildProfile(profile: XMakeBuildProfile) {
         try {
             withContext(Dispatchers.IO) {
-                    project.withProfileCommands(profile) {
-                        configureBestEffort(it)
-                        val parser = XMakeInfo()
-                        val architectures = parser.parseArchitectures(executeInfoQuery("architectures", it))
-                        val buildModes = parser.parseBuildModes(executeInfoQuery("buildmodes", it))
-                        val platforms = parser.parsePlatforms(executeInfoQuery("platforms", it))
-                        val targets = parser.parseTargets(executeInfoQuery("targets", it))
-                        val toolchains = parser.parseToolchains(executeInfoQuery("toolchains", it))
-                        val apis = parser.parseApis(executeInfoQuery("apis", it))
-                        xmakeInfo.apply {
-                            this.architectures = architectures
-                            this.buildModes = buildModes
-                            this.platforms = platforms
-                            this.targets = targets
-                            this.toolchains = toolchains
-                            this.apis = apis
-                        }
-                        project.xmakeBuildProfileOptionsCache.put(
-                            profile,
-                            XMakeBuildProfileOptions(
-                                architectures = architectures,
-                                buildModes = buildModes,
-                                platforms = platforms,
-                                toolchains = toolchains,
-                            ),
-                        )
+                project.withProfileCommands(profile) {
+                    configureBestEffort(it)
+                    val parser = XMakeInfo()
+                    val architectures = parser.parseArchitectures(executeInfoQuery("architectures", it))
+                    val buildModes = parser.parseBuildModes(executeInfoQuery("buildmodes", it))
+                    val platforms = parser.parsePlatforms(executeInfoQuery("platforms", it))
+                    val targets = parser.parseTargets(executeInfoQuery("targets", it))
+                    val toolchains = parser.parseToolchains(executeInfoQuery("toolchains", it))
+                    val apis = parser.parseApis(executeInfoQuery("apis", it))
+                    xmakeInfo.apply {
+                        this.architectures = architectures
+                        this.buildModes = buildModes
+                        this.platforms = platforms
+                        this.targets = targets
+                        this.toolchains = toolchains
+                        this.apis = apis
+                    }
+                    project.xmakeBuildProfileOptionsCache.put(
+                        profile,
+                        XMakeBuildProfileOptions(
+                            architectures = architectures,
+                            buildModes = buildModes,
+                            platforms = platforms,
+                            toolchains = toolchains,
+                        ),
+                    )
 
                     if (xmakeInfo.apis.isNotEmpty()) {
                         XMakeLuaLexer.updateApis(xmakeInfo.apis)
