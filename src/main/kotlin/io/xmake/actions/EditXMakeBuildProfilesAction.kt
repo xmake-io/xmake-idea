@@ -18,16 +18,52 @@ package io.xmake.actions
 
 import com.intellij.execution.actions.EXECUTION_TARGETS_COMBO_ACTION_PLACE
 import com.intellij.icons.AllIcons
+import com.intellij.openapi.actionSystem.ActionUpdateThread
+import com.intellij.openapi.actionSystem.AnAction
 import com.intellij.openapi.actionSystem.AnActionEvent
-import com.intellij.openapi.project.Project
-import io.xmake.project.profile.ui.XMakeBuildProfilesDialog
-import io.xmake.run.target.activeOrSingleXMakeBuildProfile
+import com.intellij.openapi.options.ShowSettingsUtil
+import com.intellij.execution.RunManager
+import io.xmake.project.profile.ui.XMakeBuildProfilesConfigurable
+import io.xmake.project.directory.hasXMakeProjectDirectorySource
+import io.xmake.project.XMakeSettingsConfigurable
+import io.xmake.run.XMakeRunConfiguration
 
-class EditXMakeBuildProfilesAction : XMakeProjectAction() {
+class EditXMakeBuildProfilesAction : AnAction() {
+    override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
+
+    override fun actionPerformed(event: AnActionEvent) {
+        val project = event.project ?: return
+        if (!project.hasXMakeProjectDirectorySource) {
+            ShowSettingsUtil.getInstance().showSettingsDialog(project, XMakeSettingsConfigurable::class.java)
+            return
+        }
+        ShowSettingsUtil.getInstance().showSettingsDialog(project, XMakeBuildProfilesConfigurable::class.java)
+    }
+
     override fun update(e: AnActionEvent) {
-        super.update(e)
-        if (!e.presentation.isVisible) return
+        val project = e.project
+        if (project == null) {
+            e.presentation.isEnabledAndVisible = false
+            return
+        }
 
+        val hasDirectorySource = project.hasXMakeProjectDirectorySource
+        e.presentation.isVisible = true
+        if (e.place == EXECUTION_TARGETS_COMBO_ACTION_PLACE) {
+            e.presentation.isVisible =
+                RunManager.getInstance(project).selectedConfiguration?.configuration is XMakeRunConfiguration
+        }
+        e.presentation.isEnabled = true
+        e.presentation.text = if (hasDirectorySource) {
+            EDIT_TEXT
+        } else {
+            CONFIGURE_TEXT
+        }
+        e.presentation.description = if (hasDirectorySource) {
+            "Edit XMake profiles in Settings."
+        } else {
+            "Select the directory containing the project root xmake.lua."
+        }
         e.presentation.icon = if (e.place == EXECUTION_TARGETS_COMBO_ACTION_PLACE) {
             null
         } else {
@@ -35,7 +71,8 @@ class EditXMakeBuildProfilesAction : XMakeProjectAction() {
         }
     }
 
-    override fun execute(project: Project) {
-        XMakeBuildProfilesDialog(project, project.activeOrSingleXMakeBuildProfile?.id).show()
+    private companion object {
+        const val EDIT_TEXT = "Edit XMake Profiles..."
+        const val CONFIGURE_TEXT = "Configure XMake Project..."
     }
 }

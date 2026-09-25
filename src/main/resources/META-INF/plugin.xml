@@ -40,6 +40,10 @@
         <projectConfigurable instance="io.xmake.project.XMakeSettingsConfigurable"
                              id="XMakeSettings"
                              displayName="XMake" groupId="build" groupWeight="1089"/>
+        <projectConfigurable instance="io.xmake.project.profile.ui.XMakeBuildProfilesConfigurable"
+                             id="XMakeBuildProfilesSettings"
+                             parentId="XMakeSettings"
+                             displayName="XMake Profiles"/>
 
         <toolWindow id="XMake" anchor="bottom" factoryClass="io.xmake.project.console.XMakeToolWindowFactory"
                     icon="/icons/xmake-dark.svg"/>
@@ -76,11 +80,11 @@
     <actions>
         <action id="XMake.EditBuildProfiles"
                 class="io.xmake.actions.EditXMakeBuildProfilesAction"
-                text="Edit XMake Build Profiles..."
+                text="Edit XMake Profiles..."
                 icon="AllIcons.General.Settings"
-                description="Edit XMake build profiles."/>
+                description="Edit XMake profiles."/>
 
-        <group id="XMake.Menu" class="io.xmake.actions.XMakeMenuGroup" text="Xmake" popup="true" description="XMake menu">
+        <group id="XMake.Menu" class="io.xmake.actions.XMakeMenuGroup" text="XMake" popup="true" description="XMake menu">
             <add-to-group group-id="MainMenu"
                           anchor="after"
                           relative-to-action="RunMenu"/>
@@ -138,7 +142,7 @@
             </action>
         </group>
 
-        <group id="XMake.ToolBar" text="Xmake Toolbar" description="XMake toolbar">
+        <group id="XMake.ToolBar" text="XMake Toolbar" description="XMake toolbar">
             <reference ref="XMake.Run"/>
             <reference ref="XMake.Debug"/>
             <reference ref="XMake.Build"/>

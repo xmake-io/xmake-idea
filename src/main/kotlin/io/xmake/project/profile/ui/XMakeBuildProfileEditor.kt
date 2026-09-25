@@ -52,7 +52,7 @@ internal class XMakeBuildProfileEditor(
         treeUpdater.run()
     }
 
-    override fun getBannerSlogan(): String = "XMake build profile: $displayName"
+    override fun getBannerSlogan(): String = "XMake profile: $displayName"
 
     override fun getEditableObject(): XMakeBuildProfile = profile
 
