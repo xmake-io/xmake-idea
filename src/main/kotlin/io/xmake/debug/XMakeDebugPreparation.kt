@@ -110,6 +110,30 @@ private fun resolveDebugTarget(state: XMakeDebugState, output: String): DebugTar
     return DebugTarget(executableFile.absoluteFile, effectiveRunDirectory)
 }
 
+/**
+ * Parses the `targetpath.lua` query output (`__begin__<path>__end__`) into an existing executable.
+ * Used by the CLion-only run configuration (`:clion-run`), which has no notion of an "effective run
+ * directory" separate from the executable's own directory.
+ */
+internal fun resolveXMakeTargetExecutable(targetName: String, output: String, workingDirectory: String): File {
+    val path = "__begin__([\\s\\S]*?)__end__".toRegex()
+        .find(output.trim())
+        ?.groupValues
+        ?.get(1)
+        ?.trim()
+        ?.takeIf { it.isNotBlank() }
+        ?: throw ExecutionException("Could not determine the executable path for $targetName")
+
+    val resolvedPath = if (File(path).isAbsolute) {
+        path
+    } else {
+        File(workingDirectory, path).absolutePath
+    }
+    val executableFile = File(resolvedPath)
+    if (!executableFile.isFile) throw ExecutionException("Target executable not found: $resolvedPath")
+    return executableFile.absoluteFile
+}
+
 private fun resolveDriver(state: XMakeDebugState): DapDriverDetector.DapDriverInfo {
     val driverPath = if (!state.autoDetectDapDriver && state.configuredDapDriverPath.isNotBlank()) {
         state.configuredDapDriverPath
