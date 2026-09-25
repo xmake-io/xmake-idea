@@ -75,6 +75,10 @@ class XMakeRunConfiguration(
     @get:Transient
     var runEnvironment: EnvironmentVariablesData = EnvironmentVariablesData.DEFAULT
 
+    /** false (default): debug via CLion's own native GDB/LLDB driver. true: spawn an external DAP driver process. */
+    @OptionTag(tag = "useDapDriver")
+    var useDapDriver: Boolean = false
+
     @OptionTag(tag = "dapDriverPath")
     var dapDriverPath: String = ""
 

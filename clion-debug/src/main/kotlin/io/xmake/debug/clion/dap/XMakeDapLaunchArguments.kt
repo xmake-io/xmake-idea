@@ -18,6 +18,7 @@ package io.xmake.debug.clion.dap
 
 import com.intellij.openapi.project.Project
 import io.xmake.debug.DapDriverDetector
+import io.xmake.debug.XMakeDebugDriver
 import io.xmake.debug.XMakeDebugLaunch
 import io.xmake.debug.clion.utils.Logger
 import kotlinx.serialization.json.Json
@@ -34,15 +35,15 @@ internal object XMakeDapLaunchArguments {
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    fun create(launch: XMakeDebugLaunch, project: Project): Map<String, Any?> = buildMap {
-        putAll(defaults(launch.driver.type))
-        putAll(parseUserConfiguration(launch.launchConfiguration))
+    fun create(launch: XMakeDebugLaunch, driver: XMakeDebugDriver.Dap, project: Project): Map<String, Any?> = buildMap {
+        putAll(defaults(driver.info.type))
+        putAll(parseUserConfiguration(driver.launchConfiguration))
         // program/cwd/env/args are owned by the XMake run configuration and cannot be overridden here.
         put("program", launch.executablePath)
         put("cwd", launch.workingDirectory)
         put("env", launch.environment)
         put("args", launch.arguments)
-        if (launch.driver.type == DapDriverDetector.DapDriverType.GDB_DAP) {
+        if (driver.info.type == DapDriverDetector.DapDriverType.GDB_DAP) {
             addGdbSourceMappings(project)
         }
     }
