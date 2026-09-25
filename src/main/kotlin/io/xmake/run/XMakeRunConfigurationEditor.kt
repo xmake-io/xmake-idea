@@ -19,10 +19,6 @@ package io.xmake.run
 import com.intellij.execution.ExecutionTargetListener
 import com.intellij.execution.ExecutionTargetManager
 import com.intellij.execution.configuration.EnvironmentVariablesComponent
-import com.intellij.openapi.application.EDT
-import com.intellij.openapi.application.ModalityState
-import com.intellij.openapi.application.asContextElement
-import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.project.Project
@@ -35,39 +31,20 @@ import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.panel
 import io.xmake.debug.DapDriverDetector
+import io.xmake.project.directory.XMakeProjectDirectoryManager
 import io.xmake.project.directory.ui.DirectoryBrowser
-import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.project.profile.XMakeBuildProfileManager
 import io.xmake.project.profile.xmakeBuildProfiles
-import io.xmake.project.directory.XMakeProjectDirectoryManager
-import io.xmake.project.target.discoverXMakeBuildTargets
-import io.xmake.run.command.DEFAULT_BUILD_TARGET
-import io.xmake.utils.ui.LiveModelComboBox
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.consumeAsFlow
-import kotlinx.coroutines.flow.transformLatest
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.awt.Dimension
 import java.awt.event.ItemEvent
-import javax.swing.DefaultComboBoxModel
 import javax.swing.JComponent
 import javax.swing.ScrollPaneConstants
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class XMakeRunConfigurationEditor(
     private val project: Project,
 ) : SettingsEditor<XMakeRunConfiguration>() {
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private val buildTargetModel = DefaultComboBoxModel<String>()
-    private val buildTargetComboBox = LiveModelComboBox(buildTargetModel)
+    private val targetSelector = XMakeBuildTargetSelector(project, this)
     private val runArguments = RawCommandLineEditor()
     private val environmentVariables = EnvironmentVariablesComponent(project)
     private val launchWorkingDirectory = DirectoryBrowser(
@@ -104,46 +81,19 @@ class XMakeRunConfigurationEditor(
         horizontalScrollBarPolicy = ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED
     }
 
-    private var buildTargetProfileSnapshot: XMakeBuildProfile? = null
-    private val targetRequests = Channel<XMakeBuildProfile>(Channel.CONFLATED)
     private var editedConfiguration: XMakeRunConfiguration? = null
     private var isResetting = false
     private val profileSelectionConnection = project.messageBus.connect(this)
 
     init {
-        scope.launch {
-            targetRequests.consumeAsFlow()
-                .transformLatest { profile ->
-                    try {
-                        emit(profile to project.discoverXMakeBuildTargets(profile))
-                    } catch (error: CancellationException) {
-                        throw error
-                    } catch (error: Exception) {
-                        // Keep the persisted target when profile discovery is unavailable.
-                        Log.warn("Failed to load XMake targets for profile ${profile.id}", error)
-                    }
-                }
-                .collect { (requestedProfile, buildTargets) ->
-                    withContext(Dispatchers.EDT + ModalityState.any().asContextElement()) {
-                        if (project.isDisposed || buildTargetProfileSnapshot != requestedProfile) {
-                            return@withContext
-                        }
-                        replaceBuildTargetChoices(
-                            buildTargetModel.selectedItem?.toString() ?: DEFAULT_BUILD_TARGET,
-                            buildTargets,
-                        )
-                    }
-                }
-        }
-        replaceBuildTargetChoices(DEFAULT_BUILD_TARGET, emptyList())
         profileSelectionConnection.subscribe(ExecutionTargetManager.TOPIC, ExecutionTargetListener {
-            editedConfiguration?.let(::refreshBuildTargets)
+            editedConfiguration?.let(::refreshWorkingDirectoryToolkit)
         })
         profileSelectionConnection.subscribe(XMakeBuildProfileManager.TOPIC, XMakeBuildProfileManager.Listener {
-            editedConfiguration?.let(::refreshBuildTargets)
+            editedConfiguration?.let(::refreshWorkingDirectoryToolkit)
         })
         profileSelectionConnection.subscribe(XMakeProjectDirectoryManager.TOPIC, XMakeProjectDirectoryManager.Listener {
-            editedConfiguration?.let(::refreshBuildTargets)
+            editedConfiguration?.let(::refreshWorkingDirectoryToolkit)
         })
         dapDriverAutoDetect.addItemListener { event ->
             if (event.stateChange != ItemEvent.SELECTED && event.stateChange != ItemEvent.DESELECTED) {
@@ -162,11 +112,6 @@ class XMakeRunConfigurationEditor(
         editedConfiguration = configuration
         isResetting = true
         try {
-            val selectedBuildTarget = configuration.runTarget.ifBlank { DEFAULT_BUILD_TARGET }
-            if (buildTargetModel.getIndexOf(selectedBuildTarget) < 0) {
-                buildTargetModel.addElement(selectedBuildTarget)
-            }
-            buildTargetModel.selectedItem = selectedBuildTarget
             runArguments.text = configuration.runArguments
             launchWorkingDirectory.text = configuration.launchWorkingDirectory
             environmentVariables.envData = configuration.runEnvironment
@@ -179,11 +124,12 @@ class XMakeRunConfigurationEditor(
         } finally {
             isResetting = false
         }
-        refreshBuildTargets(configuration)
+        targetSelector.reset(configuration)
+        refreshWorkingDirectoryToolkit(configuration)
     }
 
     override fun applyEditorTo(configuration: XMakeRunConfiguration) {
-        configuration.runTarget = buildTargetModel.selectedItem?.toString() ?: DEFAULT_BUILD_TARGET
+        configuration.runTarget = targetSelector.selectedTarget
         configuration.runArguments = runArguments.text
         configuration.launchWorkingDirectory = launchWorkingDirectory.text
         configuration.runEnvironment = environmentVariables.envData
@@ -194,7 +140,7 @@ class XMakeRunConfigurationEditor(
 
     override fun createEditor(): JComponent = panel {
         row("Target:") {
-            cell(buildTargetComboBox).align(AlignX.FILL)
+            cell(targetSelector.component).align(AlignX.FILL)
         }
 
         row("Program arguments:") {
@@ -222,48 +168,11 @@ class XMakeRunConfigurationEditor(
         }
     }
 
-    override fun disposeEditor() {
-        scope.cancel()
-        super.disposeEditor()
-    }
-
-    private fun refreshBuildTargets(configuration: XMakeRunConfiguration) {
+    private fun refreshWorkingDirectoryToolkit(configuration: XMakeRunConfiguration) {
         val profile = configuration.preferredBuildProfileId
             ?.let(project.xmakeBuildProfiles::findProfile)
             ?: project.xmakeBuildProfiles.profiles.singleOrNull()
-        if (profile == null) {
-            buildTargetProfileSnapshot = null
-            replaceBuildTargetChoices(configuration.runTarget, emptyList())
-            launchWorkingDirectory.setToolkit(null)
-        } else {
-            launchWorkingDirectory.setToolkit(profile.resolveToolkit(project))
-            requestBuildTargets(profile)
-        }
-    }
-
-    private fun requestBuildTargets(profile: XMakeBuildProfile) {
-        val requestedProfileSnapshot = profile.copy()
-        val selectedBuildTarget = buildTargetModel.selectedItem?.toString() ?: DEFAULT_BUILD_TARGET
-        if (buildTargetProfileSnapshot != requestedProfileSnapshot) {
-            buildTargetProfileSnapshot = requestedProfileSnapshot
-            replaceBuildTargetChoices(selectedBuildTarget, emptyList())
-        }
-        targetRequests.trySend(requestedProfileSnapshot)
-    }
-
-    private fun replaceBuildTargetChoices(selectedTarget: String, buildTargets: Iterable<String>) {
-        val selectedBuildTarget = selectedTarget.ifBlank { DEFAULT_BUILD_TARGET }
-        val buildTargetChoices = buildList {
-            add(DEFAULT_BUILD_TARGET)
-            addAll(buildTargets.filter(String::isNotBlank))
-            // Keep the persisted/custom target even when discovery does not return it.
-            add(selectedBuildTarget)
-        }.distinct()
-
-        buildTargetModel.removeAllElements()
-        buildTargetModel.addAll(buildTargetChoices)
-        buildTargetModel.selectedItem = selectedBuildTarget
-        buildTargetComboBox.refreshPopupFromModel()
+        launchWorkingDirectory.setToolkit(profile?.resolveToolkit(project))
     }
 
     private fun replaceDefaultLaunchConfiguration(driverName: String) {
@@ -281,9 +190,5 @@ class XMakeRunConfigurationEditor(
         } else {
             lldbDefault
         }
-    }
-
-    private companion object {
-        val Log = logger<XMakeRunConfigurationEditor>()
     }
 }

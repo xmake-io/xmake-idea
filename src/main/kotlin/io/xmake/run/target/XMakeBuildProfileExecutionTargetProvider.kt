@@ -21,11 +21,11 @@ import com.intellij.execution.ExecutionTargetProvider
 import com.intellij.execution.configurations.RunConfiguration
 import com.intellij.openapi.project.Project
 import io.xmake.project.profile.xmakeBuildProfiles
-import io.xmake.run.XMakeRunConfiguration
+import io.xmake.run.XMakeProfileRunConfiguration
 
 class XMakeBuildProfileExecutionTargetProvider : ExecutionTargetProvider() {
     override fun getTargets(project: Project, configuration: RunConfiguration): List<ExecutionTarget> {
-        if (configuration !is XMakeRunConfiguration) return emptyList()
+        if (configuration !is XMakeProfileRunConfiguration) return emptyList()
         val preferredProfileId = configuration.preferredBuildProfileId
         return project.xmakeBuildProfiles.profiles
             .sortedBy { profile -> profile.id != preferredProfileId }

@@ -21,7 +21,7 @@ import com.intellij.execution.configurations.RunConfiguration
 import com.intellij.openapi.project.Project
 import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.project.profile.xmakeBuildProfiles
-import io.xmake.run.XMakeRunConfiguration
+import io.xmake.run.XMakeProfileRunConfiguration
 import javax.swing.Icon
 
 internal class XMakeBuildProfileExecutionTarget(
@@ -40,7 +40,7 @@ internal class XMakeBuildProfileExecutionTarget(
 
     override fun getIcon(): Icon? = null
 
-    override fun canRun(configuration: RunConfiguration): Boolean = configuration is XMakeRunConfiguration
+    override fun canRun(configuration: RunConfiguration): Boolean = configuration is XMakeProfileRunConfiguration
 
     override fun isReady(): Boolean {
         return resolveProfile()?.canExecute(project) == true
