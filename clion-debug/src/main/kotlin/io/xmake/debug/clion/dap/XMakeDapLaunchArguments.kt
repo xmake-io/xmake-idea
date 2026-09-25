@@ -17,6 +17,7 @@
 package io.xmake.debug.clion.dap
 
 import com.intellij.openapi.diagnostic.logger
+import io.xmake.debug.XMakeDebugDriver
 import io.xmake.debug.XMakeDebugLaunch
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -32,9 +33,9 @@ internal object XMakeDapLaunchArguments {
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    fun create(launch: XMakeDebugLaunch): Map<String, Any?> = buildMap {
+    fun create(launch: XMakeDebugLaunch, driver: XMakeDebugDriver.Dap): Map<String, Any?> = buildMap {
         putAll(defaults())
-        putAll(parseUserConfiguration(launch.launchConfiguration))
+        putAll(parseUserConfiguration(driver.launchConfiguration))
         // program/cwd/env/args are owned by the XMake run configuration and cannot be overridden here.
         put("program", launch.executablePath)
         put("cwd", launch.workingDirectory)
