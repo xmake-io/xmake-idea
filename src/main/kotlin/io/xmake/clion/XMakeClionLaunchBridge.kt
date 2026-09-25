@@ -26,11 +26,8 @@ import com.intellij.util.concurrency.annotations.RequiresBackgroundThread
 import io.xmake.build.XMakeBuildTask
 import io.xmake.build.runXMakeBuildTask
 import io.xmake.debug.resolveXMakeTargetExecutable
-import io.xmake.project.profile.xmakeBuildProfiles
-import io.xmake.project.target.discoverXMakeBuildTargets
 import io.xmake.run.command.XMakeCommandFactory
 import io.xmake.run.command.xmakeExecutionService
-import io.xmake.run.target.activeOrSingleXMakeBuildProfile
 import io.xmake.run.target.findXMakeBuildProfileFor
 import io.xmake.run.target.requireXMakeBuildProfileFor
 import java.io.File
@@ -87,14 +84,6 @@ object XMakeClionLaunchBridge {
             ?.takeIf { it.executable.isFile }
             ?.let { return it }
         return runBlockingMaybeCancellable { resolve(project, XMakeCommandFactory(project, profile), targetName) }
-    }
-
-    /** Targets of [preferredProfileId] (or the active/single profile), for the configuration editor. */
-    suspend fun discoverTargets(project: Project, preferredProfileId: String?): List<String> {
-        val profile = preferredProfileId?.let(project.xmakeBuildProfiles::findProfile)
-            ?: project.activeOrSingleXMakeBuildProfile
-            ?: return emptyList()
-        return project.discoverXMakeBuildTargets(profile)
     }
 
     private suspend fun resolve(project: Project, factory: XMakeCommandFactory, targetName: String): XMakeBuiltTarget {

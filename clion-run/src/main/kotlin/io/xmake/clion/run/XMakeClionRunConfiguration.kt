@@ -35,6 +35,7 @@ import com.jetbrains.cidr.execution.ExecutableData
 import com.jetbrains.cidr.lang.workspace.OCResolveConfiguration
 import io.xmake.clion.XMakeClionLaunchBridge
 import io.xmake.run.XMakeProfileRunConfiguration
+import io.xmake.run.command.DEFAULT_BUILD_TARGET
 import org.jdom.Element
 
 private typealias NoBuildTarget = CidrBuildTarget<CidrBuildConfiguration>
@@ -50,7 +51,7 @@ class XMakeClionRunConfiguration(
 ) : CLionRunConfiguration<CidrBuildConfiguration, NoBuildTarget>(project, factory, name),
     XMakeProfileRunConfiguration {
 
-    var runTarget: String = ""
+    override var runTarget: String = DEFAULT_BUILD_TARGET
 
     override var preferredBuildProfileId: String? = null
 
@@ -81,7 +82,7 @@ class XMakeClionRunConfiguration(
 
     override fun readExternal(element: Element) {
         super.readExternal(element)
-        runTarget = JDOMExternalizerUtil.readField(element, TARGET_FIELD).orEmpty()
+        runTarget = JDOMExternalizerUtil.readField(element, TARGET_FIELD) ?: DEFAULT_BUILD_TARGET
         preferredBuildProfileId = JDOMExternalizerUtil.readField(element, PROFILE_FIELD)
     }
 
