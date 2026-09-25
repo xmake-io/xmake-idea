@@ -17,6 +17,8 @@
 package io.xmake.clion.run
 
 import com.intellij.execution.ExecutionException
+import com.intellij.execution.configurations.CommandLineState
+import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.jetbrains.cidr.cpp.execution.CLionLauncher
 import com.jetbrains.cidr.cpp.toolchains.CPPEnvironment
@@ -24,7 +26,6 @@ import com.jetbrains.cidr.cpp.toolchains.CPPToolchains
 import io.xmake.clion.XMakeBuiltTarget
 import io.xmake.clion.XMakeClionLaunchBridge
 import java.io.File
-import java.nio.file.Path
 
 /**
  * Supplies CLion with the binary xmake built. Everything else — process creation, and which
@@ -45,8 +46,33 @@ internal class XMakeClionLauncher(
         return built.executable to CPPEnvironment(toolchain)
     }
 
-    // Match the other XMake launch paths: run from the xmake working directory, not the binary's folder.
-    override fun getDefaultWorkingDir(executable: Path): String = builtTarget().workingDirectory
+    // Match the other XMake launch paths: without an explicit working directory, run from xmake's
+    // effective run directory (set_rundir(), else the binary's folder under the profile's build
+    // directory). Overriding getDefaultWorkingDir isn't enough: CLion only consults it when the
+    // executable has no absolute parent directory. Run and Debug both build their command line here.
+    override fun createCommandLine(
+        state: CommandLineState,
+        runFile: File,
+        environment: CPPEnvironment,
+        usePty: Boolean,
+        emulateTerminal: Boolean,
+    ): GeneralCommandLine {
+        val commandLine = super.createCommandLine(state, runFile, environment, usePty, emulateTerminal)
+        val built = builtTarget()
+        if (xmakeConfiguration.workingDirectory.isNullOrBlank()) {
+            commandLine.withWorkDirectory(built.workingDirectory)
+        }
+        // CLion only checks this for Run; under Debug, LLDB silently fails to start the program instead.
+        val workingDirectory = commandLine.workDirectory
+        if (workingDirectory != null && !workingDirectory.isDirectory) {
+            throw ExecutionException(
+                "Working directory '${workingDirectory.path}' does not exist. " +
+                    "The '${xmakeConfiguration.runTarget}' target was built to '${built.executable.path}'; " +
+                    "clear the configuration's working directory to run from '${built.workingDirectory}'.",
+            )
+        }
+        return commandLine
+    }
 
     // Built by XMakeClionBuildBeforeRunTaskProvider; CLion's profile runner hands us a different
     // ExecutionEnvironment than that step saw, so the bridge looks it up by profile + target.

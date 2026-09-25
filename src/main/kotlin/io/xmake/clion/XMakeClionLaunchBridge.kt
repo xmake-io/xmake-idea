@@ -25,7 +25,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.util.concurrency.annotations.RequiresBackgroundThread
 import io.xmake.build.XMakeBuildTask
 import io.xmake.build.runXMakeBuildTask
-import io.xmake.debug.resolveXMakeTargetExecutable
+import io.xmake.debug.resolveXMakeTargetLocation
 import io.xmake.run.command.XMakeCommandFactory
 import io.xmake.run.command.xmakeExecutionService
 import io.xmake.run.target.findXMakeBuildProfileFor
@@ -90,9 +90,10 @@ object XMakeClionLaunchBridge {
         val query = factory.createTargetPathQuery(targetName)
         val execution = project.xmakeExecutionService
         val output = execution.runExclusive { execution.captureStandardOutput(query) }
+        val location = resolveXMakeTargetLocation(targetName, output, query.workingDirectory)
         return XMakeBuiltTarget(
-            executable = resolveXMakeTargetExecutable(targetName, output, query.workingDirectory),
-            workingDirectory = query.workingDirectory,
+            executable = location.executableFile,
+            workingDirectory = location.effectiveRunDirectory.path,
         )
     }
 }
