@@ -35,6 +35,7 @@ import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.panel
 import io.xmake.debug.DapDriverDetector
+import io.xmake.project.directory.ui.DirectoryBrowser
 import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.project.profile.XMakeBuildProfileManager
 import io.xmake.project.profile.xmakeBuildProfiles
@@ -69,6 +70,12 @@ class XMakeRunConfigurationEditor(
     private val buildTargetComboBox = LiveModelComboBox(buildTargetModel)
     private val runArguments = RawCommandLineEditor()
     private val environmentVariables = EnvironmentVariablesComponent(project)
+    private val launchWorkingDirectory = DirectoryBrowser(
+        project,
+        browseTitle = "Working Directory",
+        browseDescription = "Select the target process working directory",
+    )
+
     private val dapDriverAutoDetect = JBCheckBox("Auto-detect DAP driver")
     private val dapDriverPath = TextFieldWithBrowseButton().apply {
         val descriptor = FileChooserDescriptorFactory.singleFile().apply {
@@ -161,6 +168,7 @@ class XMakeRunConfigurationEditor(
             }
             buildTargetModel.selectedItem = selectedBuildTarget
             runArguments.text = configuration.runArguments
+            launchWorkingDirectory.text = configuration.launchWorkingDirectory
             environmentVariables.envData = configuration.runEnvironment
             dapDriverAutoDetect.isSelected = configuration.dapDriverAutoDetect
             dapDriverPath.text = configuration.dapDriverPath
@@ -177,6 +185,7 @@ class XMakeRunConfigurationEditor(
     override fun applyEditorTo(configuration: XMakeRunConfiguration) {
         configuration.runTarget = buildTargetModel.selectedItem?.toString() ?: DEFAULT_BUILD_TARGET
         configuration.runArguments = runArguments.text
+        configuration.launchWorkingDirectory = launchWorkingDirectory.text
         configuration.runEnvironment = environmentVariables.envData
         configuration.dapDriverAutoDetect = dapDriverAutoDetect.isSelected
         configuration.dapDriverPath = dapDriverPath.text
@@ -190,6 +199,10 @@ class XMakeRunConfigurationEditor(
 
         row("Program arguments:") {
             cell(runArguments).align(AlignX.FILL)
+        }
+
+        row("Working directory:") {
+            cell(launchWorkingDirectory).align(AlignX.FILL)
         }
 
         row("Environment variables:") {
@@ -219,8 +232,11 @@ class XMakeRunConfigurationEditor(
             ?.let(project.xmakeBuildProfiles::findProfile)
             ?: project.xmakeBuildProfiles.profiles.singleOrNull()
         if (profile == null) {
-            resetBuildTargetChoices(configuration.runTarget)
+            buildTargetProfileSnapshot = null
+            replaceBuildTargetChoices(configuration.runTarget, emptyList())
+            launchWorkingDirectory.setToolkit(null)
         } else {
+            launchWorkingDirectory.setToolkit(profile.resolveToolkit(project))
             requestBuildTargets(profile)
         }
     }
@@ -233,11 +249,6 @@ class XMakeRunConfigurationEditor(
             replaceBuildTargetChoices(selectedBuildTarget, emptyList())
         }
         targetRequests.trySend(requestedProfileSnapshot)
-    }
-
-    private fun resetBuildTargetChoices(selectedTarget: String) {
-        buildTargetProfileSnapshot = null
-        replaceBuildTargetChoices(selectedTarget, emptyList())
     }
 
     private fun replaceBuildTargetChoices(selectedTarget: String, buildTargets: Iterable<String>) {
@@ -256,10 +267,14 @@ class XMakeRunConfigurationEditor(
     }
 
     private fun replaceDefaultLaunchConfiguration(driverName: String) {
-        val current = launchConfiguration.text.trim()
+        val currentLaunchConfiguration = launchConfiguration.text.trim()
         val gdbDefault = XMakeRunConfiguration.getDefaultGdbLaunchConfigJson()
         val lldbDefault = XMakeRunConfiguration.getDefaultLldbLaunchConfigJson()
-        if (current.isNotEmpty() && current != gdbDefault.trim() && current != lldbDefault.trim()) return
+        if (
+            currentLaunchConfiguration.isNotEmpty() &&
+            currentLaunchConfiguration != gdbDefault.trim() &&
+            currentLaunchConfiguration != lldbDefault.trim()
+        ) return
 
         launchConfiguration.text = if (driverName.contains("gdb", ignoreCase = true)) {
             gdbDefault

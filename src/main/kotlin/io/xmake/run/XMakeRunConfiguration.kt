@@ -60,6 +60,13 @@ class XMakeRunConfiguration(
     @OptionTag(tag = "arguments")
     var runArguments: String = ""
 
+    /**
+     * Optional cwd for the launched target. Empty means use xmake's effective run directory
+     * (`set_rundir()` or the target file directory).
+     */
+    @OptionTag(tag = "launchWorkingDirectory")
+    var launchWorkingDirectory: String = ""
+
     /** Preferred profile reference; the execution target remains the runtime authority. */
     @OptionTag(tag = "buildProfile")
     var preferredBuildProfileId: String? = null

@@ -25,6 +25,7 @@ import com.intellij.util.execution.ParametersListUtil
 import io.xmake.run.XMakeRunConfiguration
 import io.xmake.run.command.XMakeCommand
 import io.xmake.run.command.XMakeCommandFactory
+import io.xmake.run.command.resolveLaunchWorkingDirectory
 import io.xmake.run.target.requireXMakeBuildProfileFor
 
 internal class XMakeDebugState private constructor(
@@ -36,6 +37,7 @@ internal class XMakeDebugState private constructor(
     val configuredDapDriverPath: String,
     val autoDetectDapDriver: Boolean,
     val launchConfiguration: String,
+    val launchWorkingDirectory: String?,
     val arguments: List<String>,
     val environment: Map<String, String>,
 ) : RunProfileState {
@@ -55,6 +57,11 @@ internal class XMakeDebugState private constructor(
             if (buildCommand.toolkit.requiresBackend) {
                 throw ExecutionException("XMake debugging is supported only for local toolkits")
             }
+            val launchWorkingDirectory = resolveLaunchWorkingDirectory(
+                configuration.project,
+                buildCommand.toolkit,
+                configuration.launchWorkingDirectory,
+            )
 
             return XMakeDebugState(
                 configureCommand = commandFactory.createConfigure(),
@@ -65,6 +72,7 @@ internal class XMakeDebugState private constructor(
                 configuredDapDriverPath = configuration.dapDriverPath,
                 autoDetectDapDriver = configuration.dapDriverAutoDetect,
                 launchConfiguration = configuration.launchConfiguration,
+                launchWorkingDirectory = launchWorkingDirectory,
                 arguments = ParametersListUtil.parse(configuration.runArguments),
                 environment = configuration.runEnvironment.envs.toMap(),
             )

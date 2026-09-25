@@ -43,39 +43,63 @@ internal suspend fun prepareXMakeDebugLaunch(
         XMakeConsoleOptions(showConsole = false, showProblems = true),
     )
     val output = execution.captureStandardOutput(state.targetPathCommand)
-    val target = resolveTarget(state, output)
+    val debugTarget = resolveDebugTarget(state, output)
     val driver = resolveDriver(state)
     if (driver.type == DapDriverDetector.DapDriverType.GDB_DAP && !driver.dapCapable) {
         notifyUnsupportedGdb(project, driver)
         throw ExecutionException("GDB does not support DAP: ${driver.path}")
     }
     return XMakeDebugLaunch(
-        executablePath = target.absolutePath,
+        executablePath = debugTarget.executableFile.absolutePath,
         driver = driver,
         launchConfiguration = state.launchConfiguration,
         arguments = state.arguments,
         environment = state.environment,
-        workingDirectory = state.buildCommand.workingDirectory,
+        workingDirectory = state.launchWorkingDirectory
+            ?: debugTarget.effectiveRunDirectory.absolutePath,
     )
 }
 
-private fun resolveTarget(state: XMakeDebugState, output: String): File {
-    val path = "__begin__([\\s\\S]*?)__end__".toRegex()
+private data class DebugTarget(
+    val executableFile: File,
+    val effectiveRunDirectory: File,
+)
+
+private fun resolveDebugTarget(state: XMakeDebugState, output: String): DebugTarget {
+    val targetOutputLines = "__begin__([\\s\\S]*?)__end__".toRegex()
         .find(output.trim())
         ?.groupValues
         ?.get(1)
         ?.trim()
-        ?.takeIf { it.isNotBlank() }
+        ?.lineSequence()
+        ?.map(String::trim)
+        ?.filter(String::isNotEmpty)
+        ?.toList()
+        .orEmpty()
+
+    val targetPath = targetOutputLines.firstOrNull()
         ?: throw ExecutionException("Could not determine the executable path for ${state.targetName}")
 
-    val targetPath = if (File(path).isAbsolute) {
-        path
+    val resolvedTargetPath = if (File(targetPath).isAbsolute) {
+        targetPath
     } else {
-        File(state.targetPathCommand.workingDirectory, path).absolutePath
+        File(state.targetPathCommand.workingDirectory, targetPath).absolutePath
     }
-    val target = File(targetPath)
-    if (!target.isFile) throw ExecutionException("Target executable not found: $targetPath")
-    return target
+    val executableFile = File(resolvedTargetPath)
+    if (!executableFile.isFile) throw ExecutionException("Target executable not found: $targetPath")
+
+    val effectiveRunDirectoryPath = targetOutputLines.getOrNull(1)
+    val effectiveRunDirectory = if (effectiveRunDirectoryPath == null) {
+        executableFile.absoluteFile.parentFile
+    } else if (File(effectiveRunDirectoryPath).isAbsolute) {
+        File(effectiveRunDirectoryPath)
+    } else {
+        File(state.targetPathCommand.workingDirectory, effectiveRunDirectoryPath).absoluteFile
+    }
+    if (!effectiveRunDirectory.isDirectory) {
+        throw ExecutionException("Target run directory not found: ${effectiveRunDirectory.absolutePath}")
+    }
+    return DebugTarget(executableFile.absoluteFile, effectiveRunDirectory)
 }
 
 private fun resolveDriver(state: XMakeDebugState): DapDriverDetector.DapDriverInfo {
