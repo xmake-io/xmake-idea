@@ -21,13 +21,14 @@ import com.intellij.openapi.diagnostic.logger
 import com.intellij.platform.dap.DapProcessStarter
 import com.intellij.platform.dap.DapStartRequest
 import com.intellij.xdebugger.XDebugProcessStarter
+import io.xmake.debug.XMakeDebugDriver
 import io.xmake.debug.XMakeDebugLaunch
 import io.xmake.debug.XMakeDebugSupport
 import io.xmake.debug.clion.dap.XMakeDapLaunchArguments
 import io.xmake.debug.clion.dap.XMakeDapLaunchState
 import io.xmake.debug.clion.dap.XMakeDebugAdapterId
+import io.xmake.debug.clion.native.XMakeLocalDebugProcessStarter
 
-/** Connects resolved XMake launches to IntelliJ Platform's public DAP lifecycle. */
 class ClionDebugSupport : XMakeDebugSupport {
 
     override fun createProcessStarter(
@@ -35,17 +36,20 @@ class ClionDebugSupport : XMakeDebugSupport {
         environment: ExecutionEnvironment,
     ): XDebugProcessStarter {
         Log.info(
-            "Creating DAP process starter: project=${environment.project.name}, " +
+            "Creating debug process starter: project=${environment.project.name}, " +
                 "driver=${launch.driver.displayName}, target=${launch.executablePath}",
         )
-        return DapProcessStarter(
-            environment,
-            environment.executor,
-            XMakeDapLaunchState(launch),
-            XMakeDebugAdapterId,
-            DapStartRequest.Launch,
-            XMakeDapLaunchArguments.create(launch),
-        )
+        return when (val driver = launch.driver) {
+            XMakeDebugDriver.BundledLldb -> XMakeLocalDebugProcessStarter(launch)
+            is XMakeDebugDriver.Dap -> DapProcessStarter(
+                environment,
+                environment.executor,
+                XMakeDapLaunchState(launch, driver),
+                XMakeDebugAdapterId,
+                DapStartRequest.Launch,
+                XMakeDapLaunchArguments.create(launch, driver),
+            )
+        }
     }
 
     private companion object {
