@@ -21,27 +21,35 @@ import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.project.Project
-import io.xmake.project.console.XMakeConsole
-import io.xmake.run.command.XMakeConsoleOptions
+import io.xmake.build.XMakeBuildTask
+import io.xmake.build.runXMakeBuildTask
 import io.xmake.run.command.XMakeExecutionService
 import io.xmake.run.state.XMakeDebugState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
+/**
+ * Builds the debug target through [com.intellij.task.ProjectTaskManager] (same path as the Build
+ * action, so it shows in CLion's Build tool window). Must run *before* [prepareXMakeDebugLaunch]
+ * acquires the XMake execution mutex — see [io.xmake.run.command.XMakeExecutionService.submitAfter].
+ */
+internal suspend fun prepareXMakeDebugBuild(project: Project, state: XMakeDebugState) {
+    warnAboutBuildMode(project, state.buildMode)
+    runXMakeBuildTask(
+        project,
+        XMakeBuildTask(
+            presentableName = "Build '${state.targetName}'",
+            commands = listOf(state.configureCommand, state.buildCommand),
+        ),
+    )
+}
+
 internal suspend fun prepareXMakeDebugLaunch(
     state: XMakeDebugState,
     project: Project,
-    console: XMakeConsole,
     execution: XMakeExecutionService,
 ): XMakeDebugLaunch {
-    warnAboutBuildMode(project, state.buildMode)
-    execution.execute(console, state.configureCommand)
-    execution.execute(
-        console,
-        state.buildCommand,
-        XMakeConsoleOptions(showConsole = false, showProblems = true),
-    )
     val output = execution.captureStandardOutput(state.targetPathCommand)
     val debugTarget = resolveDebugTarget(state, output)
     val driver = resolveDriver(state)
