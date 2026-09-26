@@ -25,6 +25,7 @@ import com.intellij.openapi.application.asContextElement
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
+import io.xmake.project.directory.XMakeProjectDirectoryManager
 import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.project.profile.XMakeBuildProfileManager
 import io.xmake.project.profile.xmakeBuildProfiles
@@ -89,6 +90,9 @@ class XMakeBuildTargetSelector(
             editedConfiguration?.let(::refreshBuildTargets)
         })
         connection.subscribe(XMakeBuildProfileManager.TOPIC, XMakeBuildProfileManager.Listener {
+            editedConfiguration?.let(::refreshBuildTargets)
+        })
+        connection.subscribe(XMakeProjectDirectoryManager.TOPIC, XMakeProjectDirectoryManager.Listener {
             editedConfiguration?.let(::refreshBuildTargets)
         })
     }
