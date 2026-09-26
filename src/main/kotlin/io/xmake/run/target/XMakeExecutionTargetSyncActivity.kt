@@ -32,7 +32,7 @@ import com.intellij.openapi.startup.ProjectActivity
 import com.intellij.util.messages.MessageBusConnection
 import io.xmake.project.profile.XMakeBuildProfileManager
 import io.xmake.project.directory.XMakeProjectDirectoryManager
-import io.xmake.run.XMakeRunConfiguration
+import io.xmake.run.XMakeProfileRunConfiguration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -113,9 +113,9 @@ private class TargetSynchronizer(
     fun syncTargetFromConfiguration(settings: RunnerAndConfigurationSettings?) {
         val selectedConfiguration = settings?.configuration
         trackedConfiguration = selectedConfiguration
-        val configuration = selectedConfiguration as? XMakeRunConfiguration ?: return
+        val configuration = selectedConfiguration as? XMakeProfileRunConfiguration ?: return
         val activeTarget = ExecutionTargetManager.getActiveTarget(project)
-        val profileTargets = ExecutionTargetManager.getTargetsToChooseFor(project, configuration)
+        val profileTargets = ExecutionTargetManager.getTargetsToChooseFor(project, selectedConfiguration)
             .filterIsInstance<XMakeBuildProfileExecutionTarget>()
         val activeProfileId = (activeTarget as? XMakeBuildProfileExecutionTarget)?.profileId
         val targetProfileId = configuration.preferredBuildProfileId ?: activeProfileId
@@ -139,7 +139,7 @@ private class TargetSynchronizer(
         if (activeTargetUpdateDepth > 0) return
         val profileId = (executionTarget as? XMakeBuildProfileExecutionTarget)?.profileId ?: return
         val configuration = runManager.selectedConfiguration
-            ?.configuration as? XMakeRunConfiguration ?: return
+            ?.configuration as? XMakeProfileRunConfiguration ?: return
         if (configuration !== trackedConfiguration) return
         configuration.preferredBuildProfileId = profileId
     }

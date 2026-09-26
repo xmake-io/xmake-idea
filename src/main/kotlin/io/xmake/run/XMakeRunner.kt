@@ -36,6 +36,7 @@ import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
 import com.intellij.xdebugger.XDebuggerManager
 import io.xmake.debug.XMakeDebugSupport
+import io.xmake.debug.prepareXMakeDebugBuild
 import io.xmake.debug.prepareXMakeDebugLaunch
 import io.xmake.project.console.XMakeConsole
 import io.xmake.project.console.xmakeConsoleService
@@ -63,17 +64,28 @@ class XMakeRunner : AsyncProgramRunner<RunnerSettings>() {
         environment: ExecutionEnvironment,
         state: RunProfileState,
     ): Promise<RunContentDescriptor?> {
-        val execution = environment.project.xmakeExecutionService
-        return execution.submit {
-            val console = prepareConsole(environment.project)
-            when (state) {
-                is XMakeRunState -> executeRun(execution, state, environment, console)
-                is XMakeDebugState -> executeDebug(execution, state, environment, console)
-                else -> throw ExecutionException(
-                    "Unsupported XMake run profile state: ${state::class.java.name}",
-                )
+        val project = environment.project
+        val execution = project.xmakeExecutionService
+        val deferred = when (state) {
+            is XMakeRunState -> execution.submit {
+                val console = prepareConsole(project)
+                executeRun(execution, state, environment, console)
             }
-        }.toPromiseWithoutLogError()
+            // The build runs through ProjectTaskManager *before* the mutex is acquired: it takes
+            // the mutex itself internally, and the mutex is not reentrant (see
+            // XMakeExecutionService.submitAfter).
+            is XMakeDebugState -> execution.submitAfter(
+                before = { prepareXMakeDebugBuild(project, state) },
+                task = {
+                    val console = prepareConsole(project)
+                    executeDebug(execution, state, environment, console)
+                },
+            )
+            else -> execution.submit {
+                throw ExecutionException("Unsupported XMake run profile state: ${state::class.java.name}")
+            }
+        }
+        return deferred.toPromiseWithoutLogError()
     }
 
     private suspend fun executeRun(
@@ -103,11 +115,11 @@ class XMakeRunner : AsyncProgramRunner<RunnerSettings>() {
         execution: XMakeExecutionService,
         state: XMakeDebugState,
         environment: ExecutionEnvironment,
-        console: XMakeConsole,
+        @Suppress("UNUSED_PARAMETER") console: XMakeConsole,
     ): RunContentDescriptor {
         val debugSupport = XMakeDebugSupport.find()
             ?: throw ExecutionException("XMake debug support is not available in this IDE")
-        val launch = prepareXMakeDebugLaunch(state, environment.project, console, execution)
+        val launch = prepareXMakeDebugLaunch(state, environment.project, execution)
 
         return withContext(Dispatchers.EDT) {
             ensureProjectIsOpen(environment.project)

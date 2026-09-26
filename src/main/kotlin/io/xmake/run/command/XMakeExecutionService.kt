@@ -41,6 +41,19 @@ internal class XMakeExecutionService(
     fun <T> submit(task: suspend () -> T): Deferred<T> =
         coroutineScope.async { runExclusive(task) }
 
+    /**
+     * Runs [before] first (outside the exclusive lock — typically another mutex-guarded
+     * operation, e.g. a [com.intellij.task.ProjectTaskManager] build, that must fully finish
+     * before [task] starts), then runs [task] without interleaving it with another XMake
+     * operation. Never call this with a [before] that itself calls [submit]/[runExclusive]
+     * concurrently with the returned [Deferred] still pending — the mutex is not reentrant.
+     */
+    fun <T> submitAfter(before: suspend () -> Unit, task: suspend () -> T): Deferred<T> =
+        coroutineScope.async {
+            before()
+            runExclusive(task)
+        }
+
     /** Runs a command operation without interleaving it with another XMake operation. */
     suspend fun <T> runExclusive(task: suspend () -> T): T = taskMutex.withLock { task() }
 
