@@ -23,9 +23,23 @@ package io.xmake.debug
  */
 data class XMakeDebugLaunch(
     val executablePath: String,
-    val driver: DapDriverDetector.DapDriverInfo,
-    val launchConfiguration: String,
+    val driver: XMakeDebugDriver,
     val arguments: List<String>,
     val environment: Map<String, String>,
     val workingDirectory: String,
 )
+
+sealed interface XMakeDebugDriver {
+    val displayName: String
+
+    data object BundledLldb : XMakeDebugDriver {
+        override val displayName: String = "CLion bundled LLDB"
+    }
+
+    data class Dap(
+        val info: DapDriverDetector.DapDriverInfo,
+        val launchConfiguration: String,
+    ) : XMakeDebugDriver {
+        override val displayName: String get() = info.displayName
+    }
+}

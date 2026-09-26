@@ -20,11 +20,13 @@ import com.intellij.execution.ExecutionResult
 import com.intellij.execution.Executor
 import com.intellij.execution.configurations.RunProfileState
 import com.intellij.execution.runners.ProgramRunner
+import io.xmake.debug.XMakeDebugDriver
 import io.xmake.debug.XMakeDebugLaunch
 
 /** Carries one resolved launch through the platform DAP starter without starting another process. */
 internal class XMakeDapLaunchState(
     val launch: XMakeDebugLaunch,
+    val driver: XMakeDebugDriver.Dap,
 ) : RunProfileState {
 
     override fun execute(executor: Executor, runner: ProgramRunner<*>): ExecutionResult? = null

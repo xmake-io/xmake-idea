@@ -32,6 +32,7 @@ import com.intellij.util.EnvironmentUtil
 import com.jetbrains.cidr.execution.debugger.breakpoints.CidrExceptionBreakpointType
 import com.jetbrains.cidr.execution.debugger.breakpoints.CidrLineBreakpointType
 import io.xmake.debug.DapDriverDetector
+import io.xmake.debug.XMakeDebugDriver
 import io.xmake.debug.XMakeDebugLaunch
 import io.xmake.debug.clion.utils.Logger
 import java.io.File
@@ -42,13 +43,13 @@ internal class XMakeDebugAdapterDescriptor(
     private val project: Project,
 ) : DebugAdapterDescriptor<XMakeDebugAdapterId>() {
 
-    private var launch: XMakeDebugLaunch? = null
+    private var state: XMakeDapLaunchState? = null
 
     override val id: XMakeDebugAdapterId
         get() = XMakeDebugAdapterId
 
     override fun configureProfileState(environment: ExecutionEnvironment, state: RunProfileState) {
-        launch = requireNotNull((state as? XMakeDapLaunchState)?.launch) {
+        this.state = requireNotNull(state as? XMakeDapLaunchState) {
             "XMake DAP requires XMakeDapLaunchState"
         }
     }
@@ -58,24 +59,26 @@ internal class XMakeDebugAdapterDescriptor(
         executionResult: ExecutionResult?,
         sessionId: String,
     ): DebugAdapterHandle {
-        val launch = requireNotNull(this.launch) { "XMake DAP requires a resolved launch" }
-        val commandLine = createDriverCommandLine(launch)
+        val state = requireNotNull(this.state) { "XMake DAP requires a resolved launch" }
+        val commandLine = createDriverCommandLine(state.launch, state.driver)
         diagnoseWindowsDriver(commandLine)
         return CommandLineDebugAdapterHandle(commandLine)
     }
 
-    @Suppress("DEPRECATION")
-    override val breakpointsDescription: DapBreakpointsDescription = createBreakpointsDescription()
+    override val breakpointsDescription: DapBreakpointsDescription = DapBreakpointsDescription(
+        CidrLineBreakpointType::class.java,
+        CidrExceptionBreakpointType::class.java,
+    )
 
-    private fun createDriverCommandLine(launch: XMakeDebugLaunch): GeneralCommandLine =
-        baseDriverCommandLine(launch).apply {
-            if (launch.driver.type == DapDriverDetector.DapDriverType.GDB_DAP) {
+    private fun createDriverCommandLine(launch: XMakeDebugLaunch, driver: XMakeDebugDriver.Dap): GeneralCommandLine =
+        baseDriverCommandLine(launch, driver).apply {
+            if (driver.info.type == DapDriverDetector.DapDriverType.GDB_DAP) {
                 addParameters("-i", "dap")
             }
         }
 
-    private fun baseDriverCommandLine(launch: XMakeDebugLaunch): GeneralCommandLine {
-        val driverPath = launch.driver.path
+    private fun baseDriverCommandLine(launch: XMakeDebugLaunch, driver: XMakeDebugDriver.Dap): GeneralCommandLine {
+        val driverPath = driver.info.path
         val driverDirectory = File(driverPath).absoluteFile.parent
         val environment = EnvironmentUtil.getEnvironmentMap().toMutableMap().apply {
             putAll(launch.environment)
@@ -84,25 +87,6 @@ internal class XMakeDebugAdapterDescriptor(
         return GeneralCommandLine(driverPath)
             .withWorkDirectory(launch.workingDirectory.ifBlank { project.basePath })
             .withEnvironment(environment)
-    }
-
-    /**
-     * IntelliJ 2026.3 added a nullable function-breakpoint type to this constructor while removing
-     * the old two-argument overload. Resolve the available constructor at runtime so one plugin
-     * distribution can run on both 2026.2 and 2026.3.
-     */
-    private fun createBreakpointsDescription(): DapBreakpointsDescription {
-        val lineBreakpointType = CidrLineBreakpointType::class.java
-        val exceptionBreakpointType = CidrExceptionBreakpointType::class.java
-        val constructor = DapBreakpointsDescription::class.java.constructors.single {
-            it.parameterCount in 2..3
-        }
-
-        return if (constructor.parameterCount == 3) {
-            constructor.newInstance(lineBreakpointType, exceptionBreakpointType, null)
-        } else {
-            constructor.newInstance(lineBreakpointType, exceptionBreakpointType)
-        } as DapBreakpointsDescription
     }
 
     private fun MutableMap<String, String>.prependPath(directory: String?) {
