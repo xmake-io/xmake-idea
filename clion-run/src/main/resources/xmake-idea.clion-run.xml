@@ -1,0 +1,16 @@
+<idea-plugin>
+    <!-- Public CLion modules only. Never add intellij.cidr.debugger.profiles (internal visibility). -->
+    <dependencies>
+        <plugin id="com.intellij.modules.clion"/>
+        <module name="intellij.clion.execution"/>
+        <module name="intellij.clion.toolchains"/>
+        <module name="intellij.cidr.runner"/>
+        <module name="intellij.cidr.execution"/>
+        <module name="intellij.cidr.projectModel"/>
+    </dependencies>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <configurationType implementation="io.xmake.clion.run.XMakeClionRunConfigurationType"/>
+        <stepsBeforeRunProvider implementation="io.xmake.clion.run.XMakeClionBuildBeforeRunTaskProvider"/>
+    </extensions>
+</idea-plugin>

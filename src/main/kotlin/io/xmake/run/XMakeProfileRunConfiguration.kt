@@ -16,7 +16,13 @@
  */
 package io.xmake.run
 
+/**
+ * Marks a run configuration that runs an xmake target against an XMake build profile, selected
+ * through the profile execution targets. Implemented by [XMakeRunConfiguration] and by the
+ * CLion-only configuration in the `:clion-run` content module.
+ */
 interface XMakeProfileRunConfiguration {
     var runTarget: String
+    /** Preferred profile reference; the execution target remains the runtime authority. */
     var preferredBuildProfileId: String?
 }
