@@ -252,6 +252,7 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
                                 this@with,
                                 SyncDirection.REMOTE_TO_LOCAL,
                                 hostDirectory,
+                                project.xmakeProjectDirectories.resolveLocalSyncDirectory(),
                             )
                         }
                     }

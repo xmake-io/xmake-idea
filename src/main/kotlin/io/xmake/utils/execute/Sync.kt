@@ -31,7 +31,6 @@ import com.intellij.platform.ide.progress.withBackgroundProgress
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHost
 import io.xmake.project.toolkit.ToolkitHostType
-import io.xmake.project.directory.xmakeProjectDirectories
 import io.xmake.utils.extension.ToolkitHostExtension
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -253,12 +252,14 @@ suspend fun transferProjectFiles(
     toolkit: Toolkit,
     direction: SyncDirection,
     hostDirectoryPath: String,
+    localDirectoryPath: String,
     relativePath: String? = null,
 ) {
     if (project.isDisposed) {
         throw ProcessCanceledException()
     }
     require(hostDirectoryPath.isNotBlank()) { "Sync directory must be explicit" }
+    require(localDirectoryPath.isNotBlank()) { "Local sync directory must be explicit" }
 
     if (toolkit.host.type == ToolkitHostType.LOCAL) {
         refreshVirtualFileSystem()
@@ -266,7 +267,6 @@ suspend fun transferProjectFiles(
     }
 
     try {
-        val localDirectoryPath = project.xmakeProjectDirectories.resolveLocalSyncDirectory()
         when (toolkit.host.type) {
             ToolkitHostType.LOCAL -> Unit
             ToolkitHostType.WSL -> transferWslFolder(
@@ -295,13 +295,19 @@ internal fun resolveSshSyncPath(hostDirectoryPath: String, relativePath: String?
     return "${hostDirectoryPath.trimEnd('/')}/${relativePath.trimStart('/')}"
 }
 
-suspend fun syncBeforeFetch(project: Project, toolkit: Toolkit, hostDirectoryPath: String) {
+suspend fun syncBeforeFetch(
+    project: Project,
+    toolkit: Toolkit,
+    hostDirectoryPath: String,
+    localDirectoryPath: String,
+) {
     withBackgroundProgress(project, "Sync directory", cancellable = true) {
         transferProjectFiles(
             project,
             toolkit,
             SyncDirection.LOCAL_TO_REMOTE,
             hostDirectoryPath,
+            localDirectoryPath,
         )
     }
 }
@@ -310,6 +316,7 @@ suspend fun fetchGeneratedFile(
     project: Project,
     toolkit: Toolkit,
     hostDirectoryPath: String,
+    localDirectoryPath: String,
     generatedFileRelativePath: String,
 ) {
     withBackgroundProgress(project, "Sync directory", cancellable = true) {
@@ -318,6 +325,7 @@ suspend fun fetchGeneratedFile(
             toolkit,
             SyncDirection.REMOTE_TO_LOCAL,
             hostDirectoryPath,
+            localDirectoryPath,
             generatedFileRelativePath,
         )
     }

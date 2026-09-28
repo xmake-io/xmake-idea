@@ -37,10 +37,10 @@ import com.intellij.ui.layout.ComboBoxPredicate
 import io.xmake.project.directory.ui.DirectoryBrowser
 import io.xmake.project.directory.XMakeProjectDirectoryManager
 import io.xmake.project.directory.XMakeProjectDirectoryResolutionService
-import io.xmake.project.directory.canResolveXMakeProjectDirectory
 import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.project.profile.XMakeBuildProfileOptions
 import io.xmake.project.profile.queryXMakeBuildProfileOptions
+import io.xmake.project.directory.canResolveXMakeProjectDirectory
 import io.xmake.project.directory.xmakeProjectDirectories
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ui.ToolkitComboBox
@@ -357,7 +357,8 @@ internal class XMakeBuildProfileForm(
             try {
                 withBackgroundProgress(project, "Transfer XMake project files", cancellable = true) {
                     val projectDirectory = project.xmakeProjectDirectories.resolveProjectDirectory(toolkit)
-                    transferProjectFiles(project, toolkit, direction, projectDirectory)
+                    val localDirectory = project.xmakeProjectDirectories.resolveLocalSyncDirectory()
+                    transferProjectFiles(project, toolkit, direction, projectDirectory, localDirectory)
                 }
             } catch (error: CancellationException) {
                 throw error
