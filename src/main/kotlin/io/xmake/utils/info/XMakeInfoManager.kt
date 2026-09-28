@@ -27,13 +27,13 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.openapi.vfs.newvfs.BulkFileListener
 import com.intellij.openapi.vfs.newvfs.events.VFileEvent
-import com.intellij.openapi.vfs.newvfs.events.VFileContentChangeEvent
-import com.intellij.openapi.vfs.newvfs.events.VFileCreateEvent
-import com.intellij.openapi.vfs.newvfs.events.VFilePropertyChangeEvent
 import com.intellij.util.messages.Topic
 import io.xmake.file.highlight.XMakeLuaLexer
 import io.xmake.project.directory.XMakeProjectDirectoryManager
+import io.xmake.project.directory.XMakeProjectDirectoryResolutionService
+import io.xmake.project.directory.hasRootXMakeLua
 import io.xmake.project.directory.hasXMakeProjectDirectorySource
+import io.xmake.project.directory.isXMakeLuaVfsEvent
 import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.project.profile.XMakeBuildProfileManager
 import io.xmake.project.profile.XMakeBuildProfileOptions
@@ -83,17 +83,16 @@ class XMakeInfoManager(
             XMakeProjectDirectoryManager.TOPIC,
             XMakeProjectDirectoryManager.Listener { refreshProfileInfo() },
         )
+        // A probe dropped while the cached directory awareness lagged behind is retried here.
+        messageBusConnection.subscribe(
+            XMakeProjectDirectoryResolutionService.TOPIC,
+            XMakeProjectDirectoryResolutionService.Listener { refreshProfileInfo() },
+        )
         messageBusConnection.subscribe(
             VirtualFileManager.VFS_CHANGES,
             object : BulkFileListener {
                 override fun after(events: MutableList<out VFileEvent>) {
-                    val xmakeProjectFileAppearedOrChanged = events.any { event ->
-                        (event is VFileCreateEvent ||
-                                event is VFileContentChangeEvent ||
-                                event is VFilePropertyChangeEvent) &&
-                                event.file?.name?.equals("xmake.lua", ignoreCase = true) == true
-                    }
-                    if (xmakeProjectFileAppearedOrChanged) {
+                    if (events.any(::isXMakeLuaVfsEvent)) {
                         project.xmakeBuildProfileOptionsCache.clear()
                         enqueueActiveProfileProbe()
                     }
@@ -129,6 +128,11 @@ class XMakeInfoManager(
     private suspend fun probeBuildProfile(profile: XMakeBuildProfile) {
         try {
             withContext(Dispatchers.IO) {
+                // Probes without a usable project directory only produce noise; the cached flag
+                // may lag a just-configured directory, so the IDE root is checked on disk too.
+                if (!project.hasXMakeProjectDirectorySource && !project.hasRootXMakeLua) {
+                    return@withContext
+                }
                 project.withProfileCommands(profile) {
                     configureBestEffort(it)
                     val parser = XMakeInfo()
