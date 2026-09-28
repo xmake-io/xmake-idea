@@ -94,6 +94,8 @@ class XMakeExecutionTargetSyncService(
                     XMakeProjectDirectoryManager.TOPIC,
                     XMakeProjectDirectoryManager.Listener { refreshTargets() },
                 )
+                // Target readiness reads a cached snapshot, so the targets are refreshed again
+                // when the background resolution finishes.
                 connection.subscribe(
                     XMakeProjectDirectoryResolutionService.TOPIC,
                     XMakeProjectDirectoryResolutionService.Listener { refreshTargets() },
@@ -122,6 +124,9 @@ private class TargetSynchronizer(
     private var trackedConfiguration: RunConfiguration? = null
     private var activeTargetUpdateDepth = 0
     private var lastProfileId: String? = null
+
+    @Volatile
+    private var latestConfigureRequest = 0
 
     fun syncTargetFromConfiguration(settings: RunnerAndConfigurationSettings?) {
         val selectedConfiguration = settings?.configuration
@@ -162,18 +167,22 @@ private class TargetSynchronizer(
 
     private fun autoConfigure(profileId: String) {
         val profile = project.xmakeBuildProfiles.findProfile(profileId) ?: return
+        val request = ++latestConfigureRequest
         ApplicationManager.getApplication().executeOnPooledThread {
+            if (request != latestConfigureRequest) return@executeOnPooledThread
             val task = try {
                 XMakeBuildTask(
                     presentableName = "Configure '${profile.name}'",
                     commands = listOf(XMakeCommandFactory(project, profile).createConfigure()),
                 )
             } catch (error: Exception) {
-                notifyConfigureFailed(profile.name, error.message)
+                if (request == latestConfigureRequest) {
+                    notifyConfigureFailed(profile.name, error.message)
+                }
                 return@executeOnPooledThread
             }
             ApplicationManager.getApplication().invokeLater {
-                if (!project.isDisposed) {
+                if (!project.isDisposed && request == latestConfigureRequest) {
                     ProjectTaskManager.getInstance(project).run(task)
                         .onSuccess { result ->
                             if (result.hasErrors()) notifyConfigureFailed(profile.name, null)
