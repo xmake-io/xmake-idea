@@ -24,15 +24,22 @@ import com.intellij.execution.RunManager
 import com.intellij.execution.RunManagerListener
 import com.intellij.execution.RunnerAndConfigurationSettings
 import com.intellij.execution.configurations.RunConfiguration
+import com.intellij.notification.NotificationGroupManager
+import com.intellij.notification.NotificationType
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity
+import com.intellij.task.ProjectTaskManager
 import com.intellij.util.messages.MessageBusConnection
+import io.xmake.build.XMakeBuildTask
 import io.xmake.project.profile.XMakeBuildProfileManager
+import io.xmake.project.profile.xmakeBuildProfiles
 import io.xmake.project.directory.XMakeProjectDirectoryManager
 import io.xmake.run.XMakeProfileRunConfiguration
+import io.xmake.run.command.XMakeCommandFactory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -109,6 +116,7 @@ private class TargetSynchronizer(
 ) {
     private var trackedConfiguration: RunConfiguration? = null
     private var activeTargetUpdateDepth = 0
+    private var lastProfileId: String? = null
 
     fun syncTargetFromConfiguration(settings: RunnerAndConfigurationSettings?) {
         val selectedConfiguration = settings?.configuration
@@ -142,10 +150,50 @@ private class TargetSynchronizer(
             ?.configuration as? XMakeProfileRunConfiguration ?: return
         if (configuration !== trackedConfiguration) return
         configuration.preferredBuildProfileId = profileId
+        if (profileId == lastProfileId) return
+        lastProfileId = profileId
+        autoConfigure(profileId)
+    }
+
+    private fun autoConfigure(profileId: String) {
+        val profile = project.xmakeBuildProfiles.findProfile(profileId) ?: return
+        ApplicationManager.getApplication().executeOnPooledThread {
+            val task = try {
+                XMakeBuildTask(
+                    presentableName = "Configure '${profile.name}'",
+                    commands = listOf(XMakeCommandFactory(project, profile).createConfigure()),
+                )
+            } catch (error: Exception) {
+                notifyConfigureFailed(profile.name, error.message)
+                return@executeOnPooledThread
+            }
+            ApplicationManager.getApplication().invokeLater {
+                if (!project.isDisposed) {
+                    ProjectTaskManager.getInstance(project).run(task)
+                        .onSuccess { result ->
+                            if (result.hasErrors()) notifyConfigureFailed(profile.name, null)
+                        }
+                        .onError { error -> notifyConfigureFailed(profile.name, error.message) }
+                }
+            }
+        }
+    }
+
+    private fun notifyConfigureFailed(profileName: String, details: String?) {
+        if (project.isDisposed) return
+        val message = buildString {
+            append("Configure failed for profile '").append(profileName).append("'")
+            if (!details.isNullOrBlank()) append(": ").append(details)
+        }
+        NotificationGroupManager.getInstance()
+            .getNotificationGroup("XMake.NotificationGroup")
+            .createNotification(message, NotificationType.ERROR)
+            .notify(project)
     }
 
     private fun switchActiveTarget(target: ExecutionTarget) {
         // The listener echo from our own switch must not write back into the configuration.
+        (target as? XMakeBuildProfileExecutionTarget)?.let { lastProfileId = it.profileId }
         activeTargetUpdateDepth++
         try {
             ExecutionTargetManager.setActiveTarget(project, target)
