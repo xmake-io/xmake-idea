@@ -20,7 +20,7 @@
  */
 package io.xmake.utils.info
 
-import io.xmake.utils.Logger
+import com.intellij.openapi.diagnostic.logger
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.JsonObject
@@ -29,6 +29,8 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
+
+private val Log = logger<XMakeInfo>()
 
 data class XMakeInfo(
     val architectures: XMakeArchitectures = emptyMap(),
@@ -62,7 +64,8 @@ data class XMakeInfo(
                 }
                 architectures
             } catch (e: Exception) {
-                Logger.e("Failed to parse architectures: $e\n$archString")
+                // Expected when the show output is not valid JSON; the text fallback handles it.
+                Log.warn("Failed to parse architectures: $e\n$archString")
                 emptyMap()
             }
         }
@@ -78,7 +81,8 @@ data class XMakeInfo(
                 val modes = buildModeString.split("\n").map { it.trim() }.filter { it.isNotEmpty() }
                 modes
             } catch (e: Exception) {
-                Logger.e("Failed to parse buildmodes: $e\n$buildModeString")
+                // Expected when the show output is not valid JSON; the text fallback handles it.
+                Log.warn("Failed to parse buildmodes: $e\n$buildModeString")
                 emptyList()
             }
         }
@@ -94,7 +98,8 @@ data class XMakeInfo(
                 val platforms = platformString.split("\n").map { it.trim() }.filter { it.isNotEmpty() }
                 platforms
             } catch (e: Exception) {
-                Logger.e("Failed to parse platforms: $e\n$platformString")
+                // Expected when the show output is not valid JSON; the text fallback handles it.
+                Log.warn("Failed to parse platforms: $e\n$platformString")
                 emptyList()
             }
         }
@@ -110,7 +115,7 @@ data class XMakeInfo(
                 val targets = targetString.split("\n").map { it.trim() }.filter { it.isNotEmpty() }
                 targets
             } catch (e: Exception) {
-                Logger.w("Failed to parse targets: $e\n$targetString")
+                Log.warn("Failed to parse targets: $e\n$targetString")
                 emptyList()
             }
         }
@@ -146,7 +151,7 @@ data class XMakeInfo(
                      } else null
                  }.associate { it }
             } catch (e: Exception) {
-                Logger.w("Failed to parse toolchains: $e\n$toolchainString")
+                Log.warn("Failed to parse toolchains: $e\n$toolchainString")
                 emptyMap()
             }
         }
@@ -170,7 +175,7 @@ data class XMakeInfo(
                     return apis
                 }
             } catch (e: Exception) {
-                Logger.w("Failed to parse apis: $e\n$apiString")
+                Log.warn("Failed to parse apis: $e\n$apiString")
             }
             return emptySet()
         }

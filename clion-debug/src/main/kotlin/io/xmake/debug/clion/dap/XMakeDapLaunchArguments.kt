@@ -16,8 +16,8 @@
  */
 package io.xmake.debug.clion.dap
 
+import com.intellij.openapi.diagnostic.logger
 import io.xmake.debug.XMakeDebugLaunch
-import io.xmake.debug.clion.utils.Logger
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -51,7 +51,7 @@ internal object XMakeDapLaunchArguments {
         return try {
             json.decodeFromString<JsonObject>(configuration).mapValues { (_, value) -> value.toValue() }
         } catch (error: Exception) {
-            Logger.w(TAG, "Failed to parse DAP launch configuration: ${error.message}", error)
+            Log.warn("Failed to parse DAP launch configuration: ${error.message}", error)
             emptyMap()
         }
     }
@@ -69,5 +69,5 @@ internal object XMakeDapLaunchArguments {
         }
     }
 
-    private const val TAG = "XMakeDapLaunchArguments"
+    private val Log = logger<XMakeDapLaunchArguments>()
 }

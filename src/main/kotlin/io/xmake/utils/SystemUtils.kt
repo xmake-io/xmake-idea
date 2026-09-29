@@ -20,6 +20,7 @@
  */
 package io.xmake.utils
 
+import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.openapi.vfs.VirtualFile
 import io.xmake.shared.XMakeProblem
@@ -29,7 +30,7 @@ import java.util.regex.Pattern
 
 object SystemUtils {
     
-    private const val TAG = "SystemUtils"
+    private val Log = logger<SystemUtils>()
 
     // get platform
     fun platform(): String = when {
@@ -133,7 +134,7 @@ object SystemUtils {
                     val file = File(url.toURI())
                     return file.absolutePath
                 } catch (e: Exception) {
-                    Logger.e(TAG, "Failed to get resource path from file URI", e)
+                    Log.error("Failed to get resource path from file URI", e)
                 }
             } else if (url.protocol == "jar") {
                 // Extract from JAR to temp file
@@ -147,7 +148,7 @@ object SystemUtils {
                     }
                     return tempFile.absolutePath
                 } catch (e: Exception) {
-                    Logger.e(TAG, "Failed to extract resource from JAR", e)
+                    Log.error("Failed to extract resource from JAR", e)
                 }
             }
         }
@@ -166,7 +167,7 @@ object SystemUtils {
                 return tempFile.absolutePath
             }
         } catch (e: Exception) {
-            Logger.e(TAG, "Failed to extract resource from stream", e)
+            Log.error("Failed to extract resource from stream", e)
         }
 
         // Local development fallback for resources that have not been copied to the classpath yet.

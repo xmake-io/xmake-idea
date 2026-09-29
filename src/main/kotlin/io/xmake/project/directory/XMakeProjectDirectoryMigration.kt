@@ -1,6 +1,6 @@
 package io.xmake.project.directory
 
-import com.intellij.openapi.diagnostic.logger
+import com.intellij.openapi.diagnostic.Logger
 import io.xmake.project.directory.XMakeProjectDirectoryState.HostDirectory
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHostType
@@ -61,4 +61,4 @@ private fun XMakeProjectDirectoryState.importHostDirectory(legacy: LegacyProject
     return copy(hostDirectories = (hostDirectories + hostDirectory).toMutableList())
 }
 
-private val Log = logger<XMakeProjectDirectoryState>()
+private val Log = Logger.getInstance("io.xmake.project.directory.XMakeProjectDirectoryMigration")

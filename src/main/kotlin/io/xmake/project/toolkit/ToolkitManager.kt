@@ -29,6 +29,7 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.intellij.openapi.components.serviceOrNull
+import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.project.ProjectManagerListener
@@ -36,7 +37,6 @@ import com.intellij.util.xmlb.annotations.XCollection
 import io.xmake.project.toolkit.ToolkitHostType.LOCAL
 import io.xmake.project.toolkit.ToolkitHostType.SSH
 import io.xmake.project.toolkit.ToolkitHostType.WSL
-import io.xmake.utils.Logger
 import io.xmake.utils.extension.ToolkitHostExtension
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -152,10 +152,7 @@ class ToolkitManager(private val scope: CoroutineScope) :
         }
         if (registrationResult.changed) {
             publishToolkitChanges(listOf(registrationResult.toolkit))
-            Logger.i(
-                TAG,
-                "registered toolkit: ${registrationResult.toolkit.name}, ${registrationResult.toolkit.id}",
-            )
+            Log.info("registered toolkit: ${registrationResult.toolkit.name}, ${registrationResult.toolkit.id}")
         }
         return registrationResult.toolkit
     }
@@ -176,10 +173,9 @@ class ToolkitManager(private val scope: CoroutineScope) :
             registry.replaceState(migrated)
         }
         if (registered.size != migrated.registeredToolkits.size) {
-            Logger.w(
-                TAG,
+            Log.warn(
                 "Discarded ${migrated.registeredToolkits.size - registered.size} duplicate " +
-                        "toolkit registrations at the same location",
+                    "toolkit registrations at the same location",
             )
         }
         registered.forEach(::restoreWslBackend)
@@ -342,17 +338,17 @@ class ToolkitManager(private val scope: CoroutineScope) :
             scanner.scan(project, hostsByType.values.flatten()).collect { scanResult ->
                 val affectedToolkits = applyScanResult(scanResult, sshHostsById)
                 publishToolkitChanges(affectedToolkits)
-                affectedToolkits.forEach { toolkit -> Logger.i(TAG, "toolkit changed: $toolkit") }
+                affectedToolkits.forEach { toolkit -> Log.info("toolkit changed: $toolkit") }
             }
             val affectedToolkits = applyHosts(hostsByType, sshHostsById)
             publishToolkitChanges(affectedToolkits)
             affectedToolkits.forEach { toolkit ->
-                Logger.i(TAG, "toolkit host removed: ${toolkit.host.id.canonical}")
+                Log.info("toolkit host removed: ${toolkit.host.id.canonical}")
             }
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
-            Logger.e(TAG, "Failed to scan for XMake toolkits", error)
+            Log.error("Failed to scan for XMake toolkits", error)
         }
     }
 
@@ -368,7 +364,7 @@ class ToolkitManager(private val scope: CoroutineScope) :
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                Logger.w(TAG, "Failed to restore toolkit ${toolkit.id}: ${error.message.orEmpty()}")
+                Log.warn("Failed to restore toolkit ${toolkit.id}: ${error.message.orEmpty()}")
             }
         }
     }
@@ -390,7 +386,7 @@ class ToolkitManager(private val scope: CoroutineScope) :
     }
 
     companion object {
-        private const val TAG = "ToolkitManager"
+        private val Log = logger<ToolkitManager>()
 
         fun getInstance(): ToolkitManager =
             serviceOrNull() ?: error("Failed to get ToolkitManager")
