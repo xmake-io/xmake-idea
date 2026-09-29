@@ -16,8 +16,6 @@
  */
 package io.xmake.debug.clion.dap
 
-import com.intellij.openapi.project.Project
-import io.xmake.debug.DapDriverDetector
 import io.xmake.debug.XMakeDebugLaunch
 import io.xmake.debug.clion.utils.Logger
 import kotlinx.serialization.json.Json
@@ -34,29 +32,18 @@ internal object XMakeDapLaunchArguments {
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    fun create(launch: XMakeDebugLaunch, project: Project): Map<String, Any?> = buildMap {
-        putAll(defaults(launch.driver.type))
+    fun create(launch: XMakeDebugLaunch): Map<String, Any?> = buildMap {
+        putAll(defaults())
         putAll(parseUserConfiguration(launch.launchConfiguration))
         // program/cwd/env/args are owned by the XMake run configuration and cannot be overridden here.
         put("program", launch.executablePath)
         put("cwd", launch.workingDirectory)
         put("env", launch.environment)
         put("args", launch.arguments)
-        if (launch.driver.type == DapDriverDetector.DapDriverType.GDB_DAP) {
-            addGdbSourceMappings(project)
-        }
     }
 
-    private fun defaults(driverType: DapDriverDetector.DapDriverType): Map<String, Any?> = mapOf(
-        "type" to if (driverType == DapDriverDetector.DapDriverType.GDB_DAP) "gdb-dap" else "lldb-dap",
-        "name" to if (driverType == DapDriverDetector.DapDriverType.GDB_DAP) {
-            "XMake GDB Debug"
-        } else {
-            "XMake LLDB Debug"
-        },
+    private fun defaults(): Map<String, Any?> = mapOf(
         "stopOnEntry" to false,
-        "sourceMap" to emptyMap<String, String>(),
-        "showDisassembly" to if (driverType == DapDriverDetector.DapDriverType.GDB_DAP) "auto" else false,
     )
 
     private fun parseUserConfiguration(configuration: String): Map<String, Any?> {
@@ -80,18 +67,6 @@ internal object XMakeDapLaunchArguments {
             doubleOrNull != null -> doubleOrNull
             else -> content
         }
-    }
-
-    private fun MutableMap<String, Any?>.addGdbSourceMappings(project: Project) {
-        val basePath = project.basePath?.takeIf(String::isNotBlank) ?: return
-        val sourceMap = (get("sourceMap") as? Map<*, *>)
-            .orEmpty()
-            .mapNotNull { (key, value) -> (key as? String)?.let { it to value } }
-            .toMap(mutableMapOf())
-        sourceMap.putIfAbsent(basePath, ".")
-        sourceMap.putIfAbsent("$basePath/src", "src")
-        put("sourceMap", sourceMap)
-        put("sourceFileMap", sourceMap)
     }
 
     private const val TAG = "XMakeDapLaunchArguments"

@@ -45,7 +45,7 @@ class ClionDebugSupport : XMakeDebugSupport {
             XMakeDapLaunchState(launch),
             XMakeDebugAdapterId,
             DapStartRequest.Launch,
-            XMakeDapLaunchArguments.create(launch, environment.project),
+            XMakeDapLaunchArguments.create(launch),
         )
     }
 
