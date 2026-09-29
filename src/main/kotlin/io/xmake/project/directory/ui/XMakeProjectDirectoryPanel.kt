@@ -111,7 +111,17 @@ internal class XMakeProjectDirectoryPanel(private val project: Project) {
     }
 
     val isModified: Boolean
-        get() = editedState() != baselineState
+        get() = comparisonSnapshot(editedState()) != comparisonSnapshot(baselineState)
+
+    /** Host entries are keyed by identity, so their order must not affect change detection. */
+    private fun comparisonSnapshot(state: XMakeProjectDirectoryState): XMakeProjectDirectoryState {
+        val normalized = state.normalized()
+        return normalized.copy(
+            hostDirectories = normalized.hostDirectories
+                .sortedBy(HostDirectory::hostId)
+                .toMutableList(),
+        )
+    }
 
     @Throws(ConfigurationException::class)
     fun apply() {

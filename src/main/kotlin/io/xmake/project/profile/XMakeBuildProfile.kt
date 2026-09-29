@@ -17,7 +17,7 @@
 package io.xmake.project.profile
 
 import com.intellij.openapi.project.Project
-import io.xmake.project.directory.xmakeProjectDirectories
+import io.xmake.project.directory.canResolveXMakeProjectDirectory
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitManager
 import java.util.UUID
@@ -44,7 +44,7 @@ data class XMakeBuildProfile(
         if (!isValidId(id)) return false
         val toolkit = resolveToolkit(project) ?: return false
         return toolkit.isAvailable &&
-                project.xmakeProjectDirectories.canResolve(toolkit)
+                project.canResolveXMakeProjectDirectory(toolkit)
     }
 
     companion object {

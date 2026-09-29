@@ -104,13 +104,18 @@ private class XMakeProjectSettingsFile(private val path: Path) {
     ) {
         val root = loadOrCreate()
         val profilesComponent = findOrCreateComponent(root, PROFILES_COMPONENT)
-        val existingLegacyDirectories = XMakeBuildProfileXml.legacyProjectDirectories(profilesComponent) { toolkitId ->
-            ToolkitManager.getInstance().registeredToolkit(toolkitId)
-        }
-        val legacyProjectDirectories = existingLegacyDirectories + importedProjectDirectories
+        val (existingDirectories, unresolvedDirectories) =
+            XMakeBuildProfileXml.resolveLegacyWorkingDirectories(
+                XMakeBuildProfileXml.readLegacyWorkingDirectories(profilesComponent),
+            ) { toolkitId ->
+                ToolkitManager.getInstance().registeredToolkit(toolkitId)
+            }
+        val legacyProjectDirectories = existingDirectories + importedProjectDirectories
         val existingProfiles = XMakeBuildProfileXml.readProfiles(profilesComponent)
         val mergedProfiles = mergeProfiles(existingProfiles, importedProfiles)
         XMakeBuildProfileXml.writeProfiles(profilesComponent, mergedProfiles)
+        // Directories whose toolkit is not registered yet stay in the file for a later retry.
+        XMakeBuildProfileXml.writeLegacyWorkingDirectories(profilesComponent, unresolvedDirectories)
         if (legacyProjectDirectories.isNotEmpty()) {
             writeMigratedDirectories(root, legacyProjectDirectories)
         }
