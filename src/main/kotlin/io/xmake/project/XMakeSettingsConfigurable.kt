@@ -32,6 +32,8 @@ class XMakeSettingsConfigurable(private val project: Project) : SearchableConfig
     private var toolkitList: JBList<ToolkitListItem>? = null
     private var myPanel: DialogPanel? = null
 
+    private val pendingToolkitRemovals = mutableSetOf<String>()
+
     override fun createComponent(): JComponent {
         val toolkitList = JBList(toolkitListModel).apply {
             cellRenderer = object : ColoredListCellRenderer<ToolkitListItem>() {
@@ -87,7 +89,7 @@ class XMakeSettingsConfigurable(private val project: Project) : SearchableConfig
                     Messages.getQuestionIcon()
                 ) == Messages.YES
             ) {
-                toolkitManager.unregister(toolkit.id)
+                pendingToolkitRemovals += toolkit.id
                 toolkitListModel.removeElement(toolkitList.selectedValue)
             }
         }
@@ -126,9 +128,11 @@ class XMakeSettingsConfigurable(private val project: Project) : SearchableConfig
     private fun refreshToolkitList() {
         val selectedId = (toolkitList?.selectedValue as? ToolkitListItem.Entry)?.id
         toolkitListModel.clear()
-        toolkitManager.registeredToolkits(project).forEach { toolkit ->
-            toolkitListModel.addElement(ToolkitListItem.Entry(toolkit))
-        }
+        toolkitManager.registeredToolkits(project)
+            .filter { toolkit -> toolkit.id !in pendingToolkitRemovals }
+            .forEach { toolkit ->
+                toolkitListModel.addElement(ToolkitListItem.Entry(toolkit))
+            }
         if (selectedId != null) {
             val selectedIndex = (0 until toolkitListModel.size)
                 .firstOrNull { index -> toolkitListModel.getElementAt(index).id == selectedId }
@@ -145,17 +149,29 @@ class XMakeSettingsConfigurable(private val project: Project) : SearchableConfig
     }
 
     override fun isModified(): Boolean {
-        return projectDirectoryPanel?.isModified == true || myPanel?.isModified() == true
+        return pendingToolkitRemovals.isNotEmpty() ||
+                projectDirectoryPanel?.isModified == true ||
+                myPanel?.isModified() == true
     }
 
     override fun apply() {
+        pendingToolkitRemovals.forEach(toolkitManager::unregister)
+        pendingToolkitRemovals.clear()
         projectDirectoryPanel?.apply()
         myPanel?.apply()
     }
 
     override fun reset() {
+        pendingToolkitRemovals.clear()
+        refreshToolkitList()
         projectDirectoryPanel?.reset()
         myPanel?.reset()
+    }
+
+    override fun cancel() {
+        // Cancelling a modified page does not run reset on this platform.
+        pendingToolkitRemovals.clear()
+        refreshToolkitList()
     }
 
     override fun getDisplayName() = "XMake"
