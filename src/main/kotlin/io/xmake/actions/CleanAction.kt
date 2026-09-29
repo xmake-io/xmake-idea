@@ -33,6 +33,8 @@ class CleanAction : XMakeBuildAction() {
         commandFactory: XMakeCommandFactory,
     ): XMakeBuildTask = XMakeBuildTask(
         presentableName = "Clean '${profile.name}'",
-        commands = listOf(commandFactory.createConfigure(), commandFactory.createClean()),
+        // `clean -a` removes both the build artifacts and the cached configuration; the
+        // following configure recreates the configuration so the profile remains buildable.
+        commands = listOf(commandFactory.createClean(), commandFactory.createConfigure()),
     )
 }

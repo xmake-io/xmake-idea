@@ -34,6 +34,8 @@ internal class XMakeCommandFactory(
 ) {
     private val profileSnapshot = profile.copy()
     private val compileCommandsPath = project.xmakeSettings.state.compileCommandsPath
+    val compileCommandsGeneratedPath: String = compileCommandsGeneratedPath(compileCommandsPath)
+    private val compileCommandsOutputDirectory: String? = compileCommandsOutputDirectory(compileCommandsGeneratedPath)
     private val configureArguments = buildList {
         args("-m", profileSnapshot.buildMode)
         option("-p", profileSnapshot.platform.takeUnless { it == XMakeBuildProfile.USE_XMAKE_DEFAULT })
@@ -76,7 +78,9 @@ internal class XMakeCommandFactory(
     }
 
     fun createClean(): XMakeCommand = createCommand {
-        args("clean")
+        // `clean -a` also removes the cached configuration for the profile, which a
+        // subsequent configure rebuilds.
+        args("clean", "-a")
         flag("-v", profileSnapshot.verbose)
     }
 
@@ -98,9 +102,7 @@ internal class XMakeCommandFactory(
 
     fun createUpdateCompileCommands(): XMakeCommand = createCommand {
         args("project", "-k", "compile_commands", "--lsp=clangd")
-        compileCommandsPath
-            .takeIf { it.isNotEmpty() }
-            ?.let { args(it) }
+        compileCommandsOutputDirectory?.let { args("--outputdir=$it") }
     }
 
     fun createRun(
@@ -172,7 +174,8 @@ internal class XMakeCommandFactory(
         val QUERY_ENVIRONMENT = mapOf(
             "XMAKE_SKIP_HISTORY" to "1",
             "XMAKE_ROOT" to "y",
-            "XMAKE_COLOR_TERM" to "nocolor",
+            // xmake reads XMAKE_COLORTERM (core/base/tty.lua), not XMAKE_COLOR_TERM.
+            "XMAKE_COLORTERM" to "nocolor",
         )
 
     }
@@ -181,6 +184,18 @@ internal class XMakeCommandFactory(
 private fun MutableList<String>.args(vararg values: String) {
     addAll(values)
 }
+
+/** Generated file path relative to the project directory; xmake always names the file
+ *  compile_commands.json, so only the directory part of [setting] applies. */
+internal fun compileCommandsGeneratedPath(setting: String): String {
+    val normalized = setting.trim().replace('\\', '/').trimEnd('/')
+    if (normalized.isEmpty()) return "compile_commands.json"
+    val directory = normalized.substringBeforeLast('/', "")
+    return if (directory.isEmpty()) "compile_commands.json" else "$directory/compile_commands.json"
+}
+
+internal fun compileCommandsOutputDirectory(generatedPath: String): String? =
+    generatedPath.substringBeforeLast('/', "").takeIf { it.isNotEmpty() }
 
 private fun MutableList<String>.args(values: Iterable<String>) {
     addAll(values)

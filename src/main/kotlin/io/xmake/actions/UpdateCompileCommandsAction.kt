@@ -47,6 +47,6 @@ class UpdateCompileCommandsAction : XMakeCommandAction() {
             updateCommand,
             XMakeConsoleOptions(showConsole = false, showProblems = true, showExitCode = true),
         )
-        fetchGeneratedFile(project, toolkit, workingDirectory, localDirectory, "compile_commands.json")
+        fetchGeneratedFile(project, toolkit, workingDirectory, localDirectory, commandFactory.compileCommandsGeneratedPath)
     }
 }
