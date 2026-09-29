@@ -38,6 +38,7 @@ import io.xmake.build.XMakeBuildTask
 import io.xmake.project.profile.XMakeBuildProfileManager
 import io.xmake.project.profile.xmakeBuildProfiles
 import io.xmake.project.directory.XMakeProjectDirectoryManager
+import io.xmake.project.directory.XMakeProjectDirectoryResolutionService
 import io.xmake.run.XMakeProfileRunConfiguration
 import io.xmake.run.command.XMakeCommandFactory
 import kotlinx.coroutines.CoroutineScope
@@ -92,6 +93,10 @@ class XMakeExecutionTargetSyncService(
                 connection.subscribe(
                     XMakeProjectDirectoryManager.TOPIC,
                     XMakeProjectDirectoryManager.Listener { refreshTargets() },
+                )
+                connection.subscribe(
+                    XMakeProjectDirectoryResolutionService.TOPIC,
+                    XMakeProjectDirectoryResolutionService.Listener { refreshTargets() },
                 )
                 synchronizer.syncTargetFromConfiguration(runManager.selectedConfiguration)
             }

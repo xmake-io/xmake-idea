@@ -1,17 +1,19 @@
 package io.xmake.project.directory
 
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
+import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity
-import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.openapi.vfs.newvfs.BulkFileListener
-import com.intellij.openapi.vfs.newvfs.events.VFileCreateEvent
-import com.intellij.openapi.vfs.newvfs.events.VFileDeleteEvent
 import com.intellij.openapi.vfs.newvfs.events.VFileEvent
-import com.intellij.openapi.vfs.newvfs.events.VFileMoveEvent
-import com.intellij.openapi.vfs.newvfs.events.VFilePropertyChangeEvent
+import com.intellij.util.messages.Topic
+import io.xmake.project.toolkit.Toolkit
+import io.xmake.project.toolkit.ToolkitListener
+import io.xmake.project.toolkit.ToolkitManager
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,11 +31,22 @@ class XMakeProjectDirectoryResolutionService(
     private val scope: CoroutineScope,
 ) : Disposable {
 
+    /** The published snapshot; `null` until the first background computation completes. */
     @Volatile
-    private var cachedHasDirectorySource = false
+    private var cachedResolution: DirectoryResolution? = null
 
     val hasDirectorySource: Boolean
-        get() = cachedHasDirectorySource
+        get() = cachedResolution?.hasDirectorySource == true
+
+    /** Cached, EDT-safe variant of [XMakeProjectDirectoryManager.canResolve] for action and
+     *  execution-target updates. The answer is optimistic (true) until the first background
+     *  computation completes; execution paths keep the authoritative disk validation. */
+    fun isToolkitResolvable(toolkit: Toolkit): Boolean {
+        if (toolkit.path.isBlank()) return false
+        if (toolkit.requiresBackend && !toolkit.host.hasBackend) return false
+        val resolution = cachedResolution ?: return true
+        return toolkit.id in resolution.resolvableToolkitIds
+    }
 
     private val initialResolution = CompletableDeferred<Unit>()
     private val requestGeneration = AtomicInteger()
@@ -45,9 +58,17 @@ class XMakeProjectDirectoryResolutionService(
             XMakeProjectDirectoryManager.TOPIC,
             XMakeProjectDirectoryManager.Listener { resolveAsync() },
         )
+        messageBusConnection.subscribe(
+            ToolkitListener.TOPIC,
+            object : ToolkitListener {
+                override fun toolkitsChanged() {
+                    resolveAsync()
+                }
+            },
+        )
         messageBusConnection.subscribe(VirtualFileManager.VFS_CHANGES, object : BulkFileListener {
             override fun after(events: MutableList<out VFileEvent>) {
-                if (events.any(::isRelevantVfsEvent)) resolveAsync()
+                if (events.any(::isXMakeLuaVfsEvent)) resolveAsync()
             }
         })
     }
@@ -56,20 +77,75 @@ class XMakeProjectDirectoryResolutionService(
         if (project.isDisposed) return
         val request = requestGeneration.incrementAndGet()
         scope.launch {
-            val refreshed = withContext(Dispatchers.IO) {
-                project.xmakeProjectDirectories.hasDirectorySource()
+            try {
+                val resolution = withContext(Dispatchers.IO) { resolveDirectories() }
+                publishLatestResolution(request, resolution)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Throwable) {
+                Log.error("Failed to resolve the XMake project directory source", error)
+            } finally {
+                // Startup awaits the first resolution: it must complete on every path.
+                initialResolution.complete(Unit)
             }
-            publishLatestResolution(request, refreshed)
         }
     }
 
+    private fun resolveDirectories(): DirectoryResolution {
+        val directories = project.xmakeProjectDirectories
+        val resolvableToolkitIds = ToolkitManager.getInstance()
+            .registeredToolkits(project)
+            .filter { it.path.isNotBlank() }
+            .filter { directories.canResolve(it) }
+            .mapTo(mutableSetOf()) { it.id }
+        return DirectoryResolution(directories.hasDirectorySource(), resolvableToolkitIds)
+    }
+
     /** A newer request supersedes an older result; only the newest result becomes visible. */
-    private fun publishLatestResolution(request: Int, refreshed: Boolean) {
+    private fun publishLatestResolution(request: Int, resolution: DirectoryResolution) {
         if (request != requestGeneration.get()) return
         if (!project.isDisposed) {
-            cachedHasDirectorySource = refreshed
+            val previous = cachedResolution
+            cachedResolution = resolution
+            // EDT readers may have acted on the previous snapshot (for example a profile form
+            // that skipped its option query): tell them the answer changed.
+            if (previous != resolution) publishResolutionUpdated()
         }
         initialResolution.complete(Unit)
+    }
+
+    private fun publishResolutionUpdated() {
+        val publish = Runnable {
+            if (!project.isDisposed) {
+                project.messageBus.syncPublisher(TOPIC).projectDirectoryResolutionUpdated()
+            }
+        }
+        val application = ApplicationManager.getApplication()
+        if (application.isDispatchThread) {
+            publish.run()
+        } else {
+            application.invokeLater(publish)
+        }
+    }
+
+    private data class DirectoryResolution(
+        val hasDirectorySource: Boolean,
+        val resolvableToolkitIds: Set<String>,
+    )
+
+    companion object {
+        private val Log = logger<XMakeProjectDirectoryResolutionService>()
+
+        /** Announces that the cached resolution snapshot changed. Complements
+         *  [XMakeProjectDirectoryManager.TOPIC], which reports configuration edits immediately:
+         *  this topic fires only once the background resolution catches up, so EDT readers can
+         *  re-query answers that were stale when the edit arrived. */
+        @Topic.ProjectLevel
+        val TOPIC: Topic<Listener> = Topic.create("XMake project directory resolution updated", Listener::class.java)
+    }
+
+    fun interface Listener {
+        fun projectDirectoryResolutionUpdated()
     }
 
     /** Waits for the first resolution so project startup does not race the initial menu render. */
@@ -77,32 +153,22 @@ class XMakeProjectDirectoryResolutionService(
         initialResolution.await()
     }
 
-    // Deliberately over-inclusive: an xmake.lua outside the IDE project may back a configured
-    // local directory, so filtering by project membership would miss relevant changes.
-    private fun isRelevantVfsEvent(event: VFileEvent): Boolean =
-        when (event) {
-            is VFileCreateEvent, is VFileDeleteEvent, is VFileMoveEvent ->
-                event.file?.name?.equals("xmake.lua", ignoreCase = true) == true
-
-            is VFilePropertyChangeEvent ->
-                event.propertyName == VirtualFile.PROP_NAME &&
-                        listOf(event.oldValue, event.newValue).any { value ->
-                            value is String && value.equals("xmake.lua", ignoreCase = true)
-                        }
-
-            else -> false
-        }
-
     override fun dispose() {
         initialResolution.complete(Unit)
         // The message bus connection registered with [this] is disposed automatically.
     }
 }
 
+
 /** Whether the project has any XMake project-directory source. This is deliberately weaker than
  *  toolkit-specific resolution and is cached for action visibility. */
 val Project.hasXMakeProjectDirectorySource: Boolean
     get() = getService(XMakeProjectDirectoryResolutionService::class.java)?.hasDirectorySource == true
+
+/** Cached, EDT-safe answer to whether [toolkit] can resolve a project directory right now. */
+fun Project.canResolveXMakeProjectDirectory(toolkit: Toolkit): Boolean =
+    getService(XMakeProjectDirectoryResolutionService::class.java)
+        ?.isToolkitResolvable(toolkit) == true
 
 /** Completes only after the cached answer is ready, so startup orders menu availability. */
 class XMakeProjectDirectoryResolutionActivity : ProjectActivity {

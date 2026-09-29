@@ -36,6 +36,8 @@ import com.intellij.ui.dsl.gridLayout.toJBEmptyBorder
 import com.intellij.ui.layout.ComboBoxPredicate
 import io.xmake.project.directory.ui.DirectoryBrowser
 import io.xmake.project.directory.XMakeProjectDirectoryManager
+import io.xmake.project.directory.XMakeProjectDirectoryResolutionService
+import io.xmake.project.directory.canResolveXMakeProjectDirectory
 import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.project.profile.XMakeBuildProfileOptions
 import io.xmake.project.profile.queryXMakeBuildProfileOptions
@@ -187,6 +189,12 @@ internal class XMakeBuildProfileForm(
                 requestProfileOptions()
             },
         )
+        // The cached resolvability answer may still reflect the pre-apply state when the topic
+        // above fires; re-query once the background resolution catches up.
+        projectDirectoryConnection.subscribe(
+            XMakeProjectDirectoryResolutionService.TOPIC,
+            XMakeProjectDirectoryResolutionService.Listener { requestProfileOptions() },
+        )
         toolkitComboBox.addSelectionListener { selectedToolkit ->
             if (!isResetting) onToolkitSelected(selectedToolkit)
         }
@@ -294,7 +302,7 @@ internal class XMakeBuildProfileForm(
             !selectedToolkit.isAvailable ||
             selectedToolkit.path.isBlank() ||
             selectedToolkit.requiresBackend && !selectedToolkit.host.hasBackend ||
-            !project.xmakeProjectDirectories.canResolve(selectedToolkit)
+            !project.canResolveXMakeProjectDirectory(selectedToolkit)
         ) {
             return null
         }
