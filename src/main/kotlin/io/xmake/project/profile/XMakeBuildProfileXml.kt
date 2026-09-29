@@ -11,8 +11,6 @@ import java.util.UUID
 /** Maps the persisted build-profile XML schema to and from the runtime model. */
 internal object XMakeBuildProfileXml {
 
-    private val Log = logger<XMakeBuildProfileXml>()
-
     fun readProfiles(element: Element): List<XMakeBuildProfile> {
         val persistedState = PersistedState()
         XmlSerializer.deserializeInto(persistedState, element)
@@ -27,28 +25,52 @@ internal object XMakeBuildProfileXml {
         )
     }
 
-    /** Reads directories that older versions stored on individual build profiles.
-     *
-     *  [toolkitForId] resolves the persisted toolkit identity. A missing toolkit is not mapped
-     *  to `null`: without its host type a remote path cannot be migrated safely. */
-    fun legacyProjectDirectories(
-        element: Element,
-        toolkitForId: (String) -> Toolkit?,
-    ): List<LegacyProjectDirectory> =
+    /** Reads directories that older versions stored on individual build profiles, keyed by
+     *  profile id so unresolved ones can be re-attached on the next write. */
+    fun readLegacyWorkingDirectories(element: Element): Map<String, PendingLegacyDirectory> =
         profileElements(element).mapNotNull { profile ->
-            val legacyDirectory = optionValue(profile, WORKING_DIRECTORY_OPTION)
-                ?.takeUnless(String::isBlank)
+            val directory = optionValue(profile, WORKING_DIRECTORY_OPTION)?.takeUnless(String::isBlank)
                 ?: return@mapNotNull null
+            val profileId = optionValue(profile, ID_OPTION) ?: return@mapNotNull null
+            profileId to PendingLegacyDirectory(optionValue(profile, TOOLKIT_ID_OPTION), directory)
+        }.toMap()
 
-            val toolkitId = optionValue(profile, TOOLKIT_ID_OPTION)
-            val toolkit = toolkitId?.let(toolkitForId)
-            if (toolkitId != null && toolkit == null) {
-                Log.warn("Dropped legacy working directory '$legacyDirectory': toolkit '$toolkitId' is not registered")
-                return@mapNotNull null
+    /** Splits pending legacy directories into migratable ones and those whose toolkit is not
+     *  registered yet; a missing toolkit id means a local directory, which always migrates. */
+    fun resolveLegacyWorkingDirectories(
+        pending: Map<String, PendingLegacyDirectory>,
+        toolkitForId: (String) -> Toolkit?,
+    ): Pair<List<LegacyProjectDirectory>, Map<String, PendingLegacyDirectory>> {
+        val directories = mutableListOf<LegacyProjectDirectory>()
+        val unresolved = linkedMapOf<String, PendingLegacyDirectory>()
+        pending.forEach { (profileId, entry) ->
+            val toolkit = entry.toolkitId?.let(toolkitForId)
+            if (entry.toolkitId == null || toolkit != null) {
+                directories += LegacyProjectDirectory(toolkit, entry.directory)
+            } else {
+                unresolved[profileId] = entry
             }
-
-            LegacyProjectDirectory(toolkit, legacyDirectory)
         }
+        return directories to unresolved
+    }
+
+    /** Re-attaches unresolved legacy working directory options to their profile elements so a
+     *  later session can retry once the toolkit is registered. */
+    fun writeLegacyWorkingDirectories(element: Element, pending: Map<String, PendingLegacyDirectory>) {
+        if (pending.isEmpty()) return
+        profileElements(element).forEach { profile ->
+            val profileId = optionValue(profile, ID_OPTION) ?: return@forEach
+            val entry = pending[profileId] ?: return@forEach
+            profile.addContent(
+                Element("option")
+                    .setAttribute("name", WORKING_DIRECTORY_OPTION)
+                    .setAttribute("value", entry.directory),
+            )
+        }
+    }
+
+    /** A legacy working directory whose toolkit could not be resolved yet. */
+    data class PendingLegacyDirectory(val toolkitId: String?, val directory: String)
 
     private fun profileElements(element: Element): List<Element> =
         element.children.flatMap { child ->
@@ -119,6 +141,7 @@ internal object XMakeBuildProfileXml {
     }
 
     private const val PROFILE_ELEMENT_TAG = "XMakeBuildProfile"
+    private const val ID_OPTION = "id"
     private const val TOOLKIT_ID_OPTION = "toolkitId"
     private const val WORKING_DIRECTORY_OPTION = "workingDirectory"
 }

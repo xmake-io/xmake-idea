@@ -36,9 +36,14 @@ class XMakeBuildProfileManager(private val project: Project) :
     private val stateLock = Any()
     private var currentProfiles = listOf<XMakeBuildProfile>()
 
+    /** Legacy working directories whose toolkit is not registered yet; they stay in the
+     *  persisted snapshot until the toolkit appears instead of being dropped. */
+    private var pendingLegacyDirectories: Map<String, XMakeBuildProfileXml.PendingLegacyDirectory> = emptyMap()
+
     override fun getState(): Element = synchronized(stateLock) {
         Element("XMakeBuildProfiles").also { element ->
             XMakeBuildProfileXml.writeProfiles(element, currentProfiles)
+            XMakeBuildProfileXml.writeLegacyWorkingDirectories(element, pendingLegacyDirectories)
         }
     }
 
@@ -62,18 +67,31 @@ class XMakeBuildProfileManager(private val project: Project) :
         val loadedState = loadedProfiles.ifEmpty {
             listOf(XMakeBuildProfile.createDefault(project))
         }
+        val pendingDirectories = XMakeBuildProfileXml.readLegacyWorkingDirectories(state)
+        val orphanedIds = pendingDirectories.keys - loadedState.mapTo(mutableSetOf(), XMakeBuildProfile::id)
+        if (orphanedIds.isNotEmpty()) {
+            Logger.w(TAG, "Discarding legacy working directories of malformed profiles: IDs $orphanedIds")
+        }
         synchronized(stateLock) {
             currentProfiles = loadedState
+            pendingLegacyDirectories = pendingDirectories - orphanedIds
         }
-        migrateLegacyProjectDirectories(state)
+        migratePendingLegacyDirectories()
     }
 
-    private fun migrateLegacyProjectDirectories(element: Element) {
-        val legacyDirectories = XMakeBuildProfileXml.legacyProjectDirectories(element) { toolkitId ->
-            ToolkitManager.getInstance().registeredToolkit(toolkitId, project)
+    /** Migrates pending legacy directories whose toolkit has appeared; the rest are retained in
+     *  the persisted snapshot until their toolkit resolves. */
+    private fun migratePendingLegacyDirectories() {
+        val (migratable, remaining) = synchronized(stateLock) {
+            XMakeBuildProfileXml.resolveLegacyWorkingDirectories(pendingLegacyDirectories) { toolkitId ->
+                ToolkitManager.getInstance().registeredToolkit(toolkitId, project)
+            }
         }
-        if (legacyDirectories.isNotEmpty()) {
-            project.xmakeProjectDirectories.migrateLegacyProjectDirectories(legacyDirectories)
+        if (migratable.isNotEmpty()) {
+            project.xmakeProjectDirectories.migrateLegacyProjectDirectories(migratable)
+        }
+        synchronized(stateLock) {
+            pendingLegacyDirectories = remaining
         }
     }
 
@@ -142,6 +160,8 @@ class XMakeBuildProfileManager(private val project: Project) :
             }
         }
         if (shouldPublish) publishProfilesChanged()
+        // A newly registered or scanned toolkit may resolve retained legacy directories.
+        migratePendingLegacyDirectories()
     }
 
     private fun publishProfilesChanged() {
