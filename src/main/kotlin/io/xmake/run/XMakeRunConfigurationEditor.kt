@@ -19,11 +19,13 @@ package io.xmake.run
 import com.intellij.execution.ExecutionTargetListener
 import com.intellij.execution.ExecutionTargetManager
 import com.intellij.execution.configuration.EnvironmentVariablesComponent
+import com.intellij.openapi.application.EDT
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.options.SettingsEditor
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.TextBrowseFolderListener
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
+import com.intellij.openapi.util.Disposer
 import com.intellij.ui.EditorTextField
 import com.intellij.ui.RawCommandLineEditor
 import com.intellij.ui.components.JBCheckBox
@@ -35,6 +37,13 @@ import io.xmake.project.directory.XMakeProjectDirectoryManager
 import io.xmake.project.directory.ui.DirectoryBrowser
 import io.xmake.project.profile.XMakeBuildProfileManager
 import io.xmake.project.profile.xmakeBuildProfiles
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.awt.Dimension
 import java.awt.event.ItemEvent
 import javax.swing.JComponent
@@ -85,6 +94,10 @@ class XMakeRunConfigurationEditor(
     private var isResetting = false
     private val profileSelectionConnection = project.messageBus.connect(this)
 
+    /** Auto-detection scans files and may spawn version probes, so it runs off the EDT. */
+    private val detectScope = CoroutineScope(SupervisorJob())
+    private var detectJob: Job? = null
+
     init {
         profileSelectionConnection.subscribe(ExecutionTargetManager.TOPIC, ExecutionTargetListener {
             editedConfiguration?.let(::refreshWorkingDirectoryToolkit)
@@ -101,14 +114,28 @@ class XMakeRunConfigurationEditor(
             }
             dapDriverPath.isEnabled = !dapDriverAutoDetect.isSelected
             if (!isResetting && dapDriverAutoDetect.isSelected) {
-                DapDriverDetector.findBestDriver()?.let { driver ->
-                    replaceDefaultLaunchConfiguration(driver.type.displayName)
+                startDriverAutoDetection()
+            }
+        }
+        Disposer.register(this) { detectScope.cancel() }
+    }
+
+    /** Cancelling the previous probe also invalidates its pending result, so a reset or a
+     *  re-selection can never apply a stale driver default. */
+    private fun startDriverAutoDetection() {
+        detectJob?.cancel()
+        detectJob = detectScope.launch {
+            val driver = withContext(Dispatchers.IO) { DapDriverDetector.findBestDriver() }
+            withContext(Dispatchers.EDT) {
+                if (!isResetting && dapDriverAutoDetect.isSelected) {
+                    driver?.let { found -> replaceDefaultLaunchConfiguration(found.type) }
                 }
             }
         }
     }
 
     override fun resetEditorFrom(configuration: XMakeRunConfiguration) {
+        detectJob?.cancel()
         editedConfiguration = configuration
         isResetting = true
         try {
@@ -175,7 +202,7 @@ class XMakeRunConfigurationEditor(
         launchWorkingDirectory.setToolkit(profile?.resolveToolkit(project))
     }
 
-    private fun replaceDefaultLaunchConfiguration(driverName: String) {
+    private fun replaceDefaultLaunchConfiguration(driverType: DapDriverDetector.DapDriverType) {
         val currentLaunchConfiguration = launchConfiguration.text.trim()
         val gdbDefault = XMakeRunConfiguration.getDefaultGdbLaunchConfigJson()
         val lldbDefault = XMakeRunConfiguration.getDefaultLldbLaunchConfigJson()
@@ -185,10 +212,11 @@ class XMakeRunConfigurationEditor(
             currentLaunchConfiguration != lldbDefault.trim()
         ) return
 
-        launchConfiguration.text = if (driverName.contains("gdb", ignoreCase = true)) {
-            gdbDefault
-        } else {
-            lldbDefault
+        launchConfiguration.text = when (driverType) {
+            DapDriverDetector.DapDriverType.GDB_DAP -> gdbDefault
+            DapDriverDetector.DapDriverType.LLDB_DAP,
+            DapDriverDetector.DapDriverType.UNKNOWN,
+            -> lldbDefault
         }
     }
 }

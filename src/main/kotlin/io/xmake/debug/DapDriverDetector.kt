@@ -20,24 +20,24 @@
  */
 package io.xmake.debug
 
+import com.intellij.execution.process.CapturingProcessHandler
 import com.intellij.openapi.util.SystemInfo
-import io.xmake.utils.Logger
 import java.io.File
-import java.util.concurrent.TimeUnit
 
 /**
  * DAP driver path detection utility
  */
 object DapDriverDetector {
-    
-    private const val TAG = "DapDriverDetector"
-    
+
     data class DapDriverInfo(
         val path: String,
         val type: DapDriverType,
         val displayName: String,
         val dapCapable: Boolean = true,
-        val diagnostics: String? = null
+        val diagnostics: String? = null,
+        /** True only when the unsupported verdict rests on parsed version evidence; a failed
+         *  probe is reported as unverifiable instead of unsupported. */
+        val unsupportedConfirmed: Boolean = false
     )
     
     enum class DapDriverType(val displayName: String) {
@@ -46,38 +46,39 @@ object DapDriverDetector {
         UNKNOWN("Unknown DAP")
     }
 
+    private enum class ProbeOutcome { EXITED, LAUNCH_FAILED, TIMED_OUT }
+
     private data class ProcessResult(
-        val exitCode: Int?,
-        val output: String,
-        val timedOut: Boolean
+        val outcome: ProbeOutcome,
+        val exitCode: Int? = null,
+        val output: String = "",
+        val errorText: String? = null
     )
 
     private data class GdbDapCapability(
         val dapCapable: Boolean,
         val versionText: String?,
-        val diagnostics: String?
+        val diagnostics: String?,
+        val unsupportedConfirmed: Boolean = false
     )
 
     private val gdbCapabilityCache: MutableMap<String, GdbDapCapability> = mutableMapOf()
 
-    private fun runProcess(
-        executable: String,
-        args: List<String>,
-        timeoutMillis: Long
-    ): ProcessResult {
-        return try {
-            val pb = ProcessBuilder(listOf(executable) + args)
-            pb.redirectErrorStream(true)
-            val process = pb.start()
-            val finished = process.waitFor(timeoutMillis, TimeUnit.MILLISECONDS)
-            if (!finished) {
-                process.destroy()
-                return ProcessResult(exitCode = null, output = "", timedOut = true)
-            }
-            val output = process.inputStream.bufferedReader().readText()
-            ProcessResult(exitCode = process.exitValue(), output = output, timedOut = false)
-        } catch (e: Throwable) {
-            ProcessResult(exitCode = null, output = e.message ?: "", timedOut = false)
+    /** Synchronous probe helper; must be called off the EDT. [CapturingProcessHandler] reads
+     *  both streams concurrently, so a full pipe can never fake a timeout. */
+    private fun runProcess(executable: String, args: List<String>): ProcessResult {
+        val process = try {
+            ProcessBuilder(listOf(executable) + args).start()
+        } catch (error: Throwable) {
+            return ProcessResult(ProbeOutcome.LAUNCH_FAILED, errorText = error.message ?: error.javaClass.simpleName)
+        }
+        val output = CapturingProcessHandler(process, Charsets.UTF_8, "$executable ${args.joinToString(" ")}")
+            .runProcess(PROBE_TIMEOUT_MS.toInt(), true)
+        val text = (output.stdout + "\n" + output.stderr).trim()
+        return if (output.isTimeout) {
+            ProcessResult(ProbeOutcome.TIMED_OUT, output = text)
+        } else {
+            ProcessResult(ProbeOutcome.EXITED, exitCode = output.exitCode, output = text)
         }
     }
 
@@ -100,7 +101,7 @@ object DapDriverDetector {
     private fun getGdbDapCapability(path: String): GdbDapCapability {
         gdbCapabilityCache[path]?.let { return it }
 
-        val versionResult = runProcess(path, listOf("--version"), 1500)
+        val versionResult = runProcess(path, listOf("--version"))
         val versionText = versionResult.output.lineSequence().firstOrNull()?.trim()
         val parsed = parseGdbVersion(versionResult.output)
         if (parsed != null) {
@@ -112,25 +113,28 @@ object DapDriverDetector {
                 GdbDapCapability(
                     false,
                     versionText,
-                    "GDB ${major}.${minor} detected; DAP requires GDB 14.1+."
+                    "GDB ${major}.${minor} detected; DAP requires GDB 14.1+.",
+                    unsupportedConfirmed = true
                 )
             }
             gdbCapabilityCache[path] = capability
             return capability
         }
 
-        val dapProbe = runProcess(path, listOf("-i", "dap", "--version"), 1500)
+        val dapProbe = runProcess(path, listOf("-i", "dap", "--version"))
         val probeOutput = truncateDiagnostics(dapProbe.output)
-        val probeDiagnostics = if (dapProbe.timedOut) {
-            "Timed out probing DAP interpreter via: $path -i dap --version"
-        } else if (dapProbe.exitCode != null && dapProbe.exitCode != 0) {
-            if (probeOutput.isBlank()) {
-                "Failed probing DAP interpreter via: $path -i dap --version (exit=${dapProbe.exitCode})"
-            } else {
-                "Failed probing DAP interpreter (exit=${dapProbe.exitCode}): $probeOutput"
-            }
-        } else {
-            null
+        val probeDiagnostics = when (dapProbe.outcome) {
+            ProbeOutcome.LAUNCH_FAILED ->
+                "Failed to launch the DAP probe via $path: ${dapProbe.errorText}"
+            ProbeOutcome.TIMED_OUT ->
+                "Timed out probing the DAP interpreter via $path -i dap --version"
+            ProbeOutcome.EXITED if dapProbe.exitCode != 0 ->
+                if (probeOutput.isBlank()) {
+                    "Failed to probe the DAP interpreter via $path -i dap --version, exit=${dapProbe.exitCode}"
+                } else {
+                    "Failed to probe the DAP interpreter, exit=${dapProbe.exitCode}: $probeOutput"
+                }
+            ProbeOutcome.EXITED -> null
         }
         val dapCapable = probeDiagnostics == null
 
@@ -154,17 +158,12 @@ object DapDriverDetector {
             fileName.contains("lldb-vscode") -> DapDriverType.LLDB_DAP
             fileName.contains("gdb") && !fileName.contains("lldb") -> DapDriverType.GDB_DAP
             else -> {
-                try {
-                    val result = runProcess(path, listOf("--version"), 1500)
-                    val output = result.output.lowercase()
-                    when {
-                        output.contains("lldb-dap") || output.contains("lldb-vscode") -> DapDriverType.LLDB_DAP
-                        output.contains("gdb") -> DapDriverType.GDB_DAP
-                        else -> DapDriverType.UNKNOWN
-                    }
-                } catch (e: Exception) {
-                    Logger.d(TAG, "Failed to get driver version for $path: ${e.message}")
-                    DapDriverType.UNKNOWN
+                val result = runProcess(path, listOf("--version"))
+                val output = result.output.lowercase()
+                when {
+                    output.contains("lldb-dap") || output.contains("lldb-vscode") -> DapDriverType.LLDB_DAP
+                    output.contains("gdb") -> DapDriverType.GDB_DAP
+                    else -> DapDriverType.UNKNOWN
                 }
             }
         }
@@ -226,10 +225,12 @@ object DapDriverDetector {
                 if (type != DapDriverType.UNKNOWN) {
                     if (type == DapDriverType.GDB_DAP) {
                         val capability = getGdbDapCapability(path)
-                        val displayName = if (capability.dapCapable) {
-                            type.displayName
-                        } else {
-                            "${type.displayName} (need 14.1+)"
+                        // The label states the version requirement only when the parsed version
+                        // confirms it; an unverified probe stays neutral instead of guessing.
+                        val displayName = when {
+                            capability.dapCapable -> type.displayName
+                            capability.unsupportedConfirmed -> "${type.displayName} (need 14.1+)"
+                            else -> "${type.displayName} (unavailable)"
                         }
                         drivers.add(
                             DapDriverInfo(
@@ -237,7 +238,8 @@ object DapDriverDetector {
                                 type = type,
                                 displayName = displayName,
                                 dapCapable = capability.dapCapable,
-                                diagnostics = capability.diagnostics ?: capability.versionText
+                                diagnostics = capability.diagnostics ?: capability.versionText,
+                                unsupportedConfirmed = capability.unsupportedConfirmed
                             )
                         )
                     } else {
@@ -275,17 +277,19 @@ object DapDriverDetector {
         return if (type != DapDriverType.UNKNOWN) {
             if (type == DapDriverType.GDB_DAP) {
                 val capability = getGdbDapCapability(path)
-                val displayName = if (capability.dapCapable) {
-                    type.displayName
-                } else {
-                    "${type.displayName} (need 14.1+)"
+                // Mirrors the discovery label: state the requirement only when confirmed.
+                val displayName = when {
+                    capability.dapCapable -> type.displayName
+                    capability.unsupportedConfirmed -> "${type.displayName} (need 14.1+)"
+                    else -> "${type.displayName} (unavailable)"
                 }
                 DapDriverInfo(
                     path = path,
                     type = type,
                     displayName = displayName,
                     dapCapable = capability.dapCapable,
-                    diagnostics = capability.diagnostics ?: capability.versionText
+                    diagnostics = capability.diagnostics ?: capability.versionText,
+                    unsupportedConfirmed = capability.unsupportedConfirmed
                 )
             } else {
                 DapDriverInfo(path, type, type.displayName, dapCapable = true)
@@ -294,4 +298,6 @@ object DapDriverDetector {
             null
         }
     }
+
+    private const val PROBE_TIMEOUT_MS = 1_500L
 }
