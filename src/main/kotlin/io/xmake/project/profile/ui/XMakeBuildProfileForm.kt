@@ -263,6 +263,7 @@ internal class XMakeBuildProfileForm(
         if (toolkitId == loadedOptionsToolkitId) return
 
         loadedOptionsToolkitId = toolkitId
+        loadedOptionsProfile = null // switching toolkits invalidates the loaded options snapshot
         profileOptions = XMakeBuildProfileOptions()
         updateOptionModels()
         requestProfileOptions()

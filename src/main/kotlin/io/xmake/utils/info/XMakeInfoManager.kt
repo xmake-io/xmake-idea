@@ -92,7 +92,7 @@ class XMakeInfoManager(
             VirtualFileManager.VFS_CHANGES,
             object : BulkFileListener {
                 override fun after(events: MutableList<out VFileEvent>) {
-                    if (events.any(::isXMakeLuaVfsEvent)) {
+                    if (events.any { isXMakeLuaVfsEvent(it, includeContentChanges = true) }) {
                         project.xmakeBuildProfileOptionsCache.clear()
                         enqueueActiveProfileProbe()
                     }
