@@ -53,8 +53,9 @@ enum class SyncDirection { LOCAL_TO_REMOTE, REMOTE_TO_LOCAL }
 
 internal val defaultSyncExcludedEntryNames = setOf(".xmake", ".idea", "build", ".git", ".gitignore")
 
-private fun isDefaultSyncExcluded(path: NioPath): Boolean =
-    path.fileName?.toString() in defaultSyncExcludedEntryNames
+/** Whether [path] takes part in syncing; the default scope excludes build and VCS artifacts. */
+internal fun isDefaultSyncIncluded(path: NioPath): Boolean =
+    path.fileName?.toString() !in defaultSyncExcludedEntryNames
 
 private suspend fun transferWslFolder(
     host: ToolkitHost,
@@ -66,6 +67,9 @@ private suspend fun transferWslFolder(
     val wslDistribution = host.wslDistribution
         ?: throw IllegalArgumentException("XMake WSL host backend is not available")
     val cancellationContext = currentCoroutineContext()
+    val reportProgress: (NioPath) -> Unit = { path ->
+        ProgressManager.progress2(path.fileName?.toString() ?: path.toString())
+    }
     runInterruptible(Dispatchers.IO) {
         val localRoot = Path(localDirectoryPath)
         val remoteRoot = Path(wslDistribution.toWindowsPath(hostDirectoryPath))
@@ -74,16 +78,19 @@ private suspend fun transferWslFolder(
 
         when (direction) {
             SyncDirection.LOCAL_TO_REMOTE -> {
-                pruneMissingEntries(syncPaths.local, syncPaths.remote, checkCanceled, ::isDefaultSyncExcluded)
+                pruneMissingEntries(syncPaths.local, syncPaths.remote, checkCanceled, ::isDefaultSyncIncluded)
                 copyPath(
                     syncPaths.local,
                     syncPaths.remote,
                     checkCanceled,
-                    ::isDefaultSyncExcluded,
+                    ::isDefaultSyncIncluded,
+                    reportProgress,
                 )
             }
 
-            SyncDirection.REMOTE_TO_LOCAL -> copyPath(syncPaths.remote, syncPaths.local, checkCanceled)
+            // Deliberately unfiltered: the wizard's initial clone must fetch everything the remote
+            // xmake create generated, and the SSH backend has no download filter anyway.
+            SyncDirection.REMOTE_TO_LOCAL -> copyPath(syncPaths.remote, syncPaths.local, checkCanceled, reportProgress = reportProgress)
         }
     }
 }
@@ -131,7 +138,8 @@ internal fun copyPath(
     source: NioPath,
     target: NioPath,
     checkCanceled: () -> Unit,
-    filesFilter: (NioPath) -> Boolean = { _ -> true },
+    shouldTransfer: (NioPath) -> Boolean = { _ -> true },
+    reportProgress: (NioPath) -> Unit = {},
 ) {
     checkCanceled()
 
@@ -151,8 +159,9 @@ internal fun copyPath(
     }
 
     if (Files.isDirectory(resolvedSource)) {
-        copyDirectoryContents(resolvedSource, targetPath, checkCanceled, filesFilter)
+        copyDirectoryContents(resolvedSource, targetPath, checkCanceled, shouldTransfer, reportProgress)
     } else {
+        reportProgress(resolvedSource)
         copyFile(resolvedSource, targetPath)
     }
 }
@@ -174,30 +183,30 @@ private fun NioPath.toResolvedPath(): NioPath {
 }
 
 /** Removes remote entries without a local counterpart so uploads mirror the local project. */
-private fun pruneMissingEntries(
+internal fun pruneMissingEntries(
     localRoot: NioPath,
     remoteRoot: NioPath,
     checkCanceled: () -> Unit,
-    filesFilter: (NioPath) -> Boolean,
+    shouldTransfer: (NioPath) -> Boolean,
 ) {
     if (!Files.exists(remoteRoot)) return
 
     Files.walkFileTree(remoteRoot, object : SimpleFileVisitor<NioPath>() {
         override fun preVisitDirectory(dir: NioPath, attrs: BasicFileAttributes): FileVisitResult {
             checkCanceled()
-            return if (dir != remoteRoot && filesFilter(dir)) FileVisitResult.SKIP_SUBTREE else FileVisitResult.CONTINUE
+            return if (dir != remoteRoot && !shouldTransfer(dir)) FileVisitResult.SKIP_SUBTREE else FileVisitResult.CONTINUE
         }
 
         override fun visitFile(file: NioPath, attrs: BasicFileAttributes): FileVisitResult {
             checkCanceled()
-            if (!filesFilter(file) && !Files.isRegularFile(localRoot.resolve(remoteRoot.relativize(file)))) {
+            if (shouldTransfer(file) && !Files.isRegularFile(localRoot.resolve(remoteRoot.relativize(file)))) {
                 Files.deleteIfExists(file)
             }
             return FileVisitResult.CONTINUE
         }
 
         override fun postVisitDirectory(dir: NioPath, error: IOException?): FileVisitResult {
-            if (dir != remoteRoot && !filesFilter(dir) && !Files.isDirectory(localRoot.resolve(remoteRoot.relativize(dir)))) {
+            if (dir != remoteRoot && !Files.isDirectory(localRoot.resolve(remoteRoot.relativize(dir)))) {
                 runCatching { Files.deleteIfExists(dir) }
             }
             return FileVisitResult.CONTINUE
@@ -211,16 +220,20 @@ private fun copyDirectoryContents(
     sourceRoot: NioPath,
     targetRoot: NioPath,
     checkCanceled: () -> Unit,
-    filesFilter: (NioPath) -> Boolean,
+    shouldTransfer: (NioPath) -> Boolean,
+    reportProgress: (NioPath) -> Unit,
 ) {
     Files.createDirectories(targetRoot)
+    val unreadableEntries = mutableListOf<NioPath>()
     Files.walkFileTree(sourceRoot, object : SimpleFileVisitor<NioPath>() {
         override fun preVisitDirectory(
             dir: NioPath,
             attrs: BasicFileAttributes,
         ): FileVisitResult {
             checkCanceled()
-            if (!filesFilter(dir)) return FileVisitResult.SKIP_SUBTREE
+            // The source root itself is always transferred, mirroring the prune pass and the SSH
+            // backend, so a project directory named e.g. "build" still syncs.
+            if (dir != sourceRoot && !shouldTransfer(dir)) return FileVisitResult.SKIP_SUBTREE
             val target = targetRoot.resolve(sourceRoot.relativize(dir).toString())
             Files.createDirectories(target)
             return FileVisitResult.CONTINUE
@@ -228,16 +241,27 @@ private fun copyDirectoryContents(
 
         override fun visitFile(file: NioPath, attrs: BasicFileAttributes): FileVisitResult {
             checkCanceled()
-            if (!filesFilter(file)) return FileVisitResult.CONTINUE
+            if (!shouldTransfer(file)) return FileVisitResult.CONTINUE
+            reportProgress(file)
             val target = targetRoot.resolve(sourceRoot.relativize(file).toString())
             copyFile(file, target)
             return FileVisitResult.CONTINUE
         }
+
+        override fun visitFileFailed(file: NioPath, error: IOException): FileVisitResult {
+            unreadableEntries.add(file)
+            return FileVisitResult.CONTINUE
+        }
     })
+    if (unreadableEntries.isNotEmpty()) {
+        throw IOException(
+            "Sync skipped ${unreadableEntries.size} unreadable entries: " +
+                    unreadableEntries.joinToString(limit = 10) { it.fileName?.toString() ?: it.toString() },
+        )
+    }
 }
 
 private fun copyFile(source: NioPath, target: NioPath) {
-    ProgressManager.progress2(source.fileName?.toString() ?: source.toString())
     target.parent?.let { Files.createDirectories(it) }
 
     try {
