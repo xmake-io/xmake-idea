@@ -38,6 +38,10 @@ class XMakeProjectDirectoryResolutionService(
     val hasDirectorySource: Boolean
         get() = cachedResolution?.hasDirectorySource == true
 
+    /** Whether the IDE project root contains a root xmake.lua, from the latest snapshot. */
+    val hasRootXMakeLua: Boolean
+        get() = cachedResolution?.hasRootXMakeLua == true
+
     /** Cached, EDT-safe variant of [XMakeProjectDirectoryManager.canResolve] for action and
      *  execution-target updates. The answer is optimistic (true) until the first background
      *  computation completes; execution paths keep the authoritative disk validation. */
@@ -84,6 +88,9 @@ class XMakeProjectDirectoryResolutionService(
                 throw error
             } catch (error: Throwable) {
                 Log.error("Failed to resolve the XMake project directory source", error)
+                // Escape the optimistic pre-first-result state; the info manager's disk probe
+                // still recovers once a root xmake.lua appears.
+                publishLatestResolution(request, cachedResolution ?: DirectoryResolution(false, false, emptySet()))
             } finally {
                 // Startup awaits the first resolution: it must complete on every path.
                 initialResolution.complete(Unit)
@@ -98,7 +105,7 @@ class XMakeProjectDirectoryResolutionService(
             .filter { it.path.isNotBlank() }
             .filter { directories.canResolve(it) }
             .mapTo(mutableSetOf()) { it.id }
-        return DirectoryResolution(directories.hasDirectorySource(), resolvableToolkitIds)
+        return DirectoryResolution(directories.hasDirectorySource(), project.hasRootXMakeLua, resolvableToolkitIds)
     }
 
     /** A newer request supersedes an older result; only the newest result becomes visible. */
@@ -130,6 +137,7 @@ class XMakeProjectDirectoryResolutionService(
 
     private data class DirectoryResolution(
         val hasDirectorySource: Boolean,
+        val hasRootXMakeLua: Boolean,
         val resolvableToolkitIds: Set<String>,
     )
 
@@ -164,6 +172,10 @@ class XMakeProjectDirectoryResolutionService(
  *  toolkit-specific resolution and is cached for action visibility. */
 val Project.hasXMakeProjectDirectorySource: Boolean
     get() = getService(XMakeProjectDirectoryResolutionService::class.java)?.hasDirectorySource == true
+
+/** Cached, EDT-safe answer to whether the project root contains a root xmake.lua. */
+val Project.hasRootXMakeLuaCached: Boolean
+    get() = getService(XMakeProjectDirectoryResolutionService::class.java)?.hasRootXMakeLua == true
 
 /** Cached, EDT-safe answer to whether [toolkit] can resolve a project directory right now. */
 fun Project.canResolveXMakeProjectDirectory(toolkit: Toolkit): Boolean =
