@@ -19,7 +19,6 @@ package io.xmake.project.toolkit
 import com.intellij.execution.ExecutionException
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.processTools.ExecutionResult
-import com.intellij.execution.processTools.getBareExecutionResult
 import com.intellij.execution.wsl.WSLUtil
 import com.intellij.execution.wsl.WslDistributionManager
 import com.intellij.openapi.diagnostic.logger
@@ -27,6 +26,7 @@ import com.intellij.openapi.project.Project
 import io.xmake.project.toolkit.ToolkitHostType.LOCAL
 import io.xmake.project.toolkit.ToolkitHostType.SSH
 import io.xmake.project.toolkit.ToolkitHostType.WSL
+import io.xmake.utils.execute.awaitBounded
 import io.xmake.utils.execute.createWslProcess
 import io.xmake.utils.execute.probeXmakeLocCommand
 import io.xmake.utils.execute.probeXmakeLocCommandOnWin
@@ -43,6 +43,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
+import kotlin.time.Duration.Companion.seconds
 
 /** Reads current hosts, probes their XMake installations, and remembers the latest scan results. */
 internal class ToolkitScanner {
@@ -207,7 +208,7 @@ internal class ToolkitScanner {
         val output = result.stdOut.toString(Charsets.UTF_8)
         val paths = output
             .lineSequence()
-            .filterNot { line -> line.isBlank() || line.contains("not found") }
+            .filterNot(String::isBlank)
             .distinct()
             .toList()
         Log.info("Host: ${host.type} ExitCode: ${result.exitCode} Output: $output")
@@ -260,7 +261,7 @@ internal class ToolkitScanner {
         )
 
         SSH -> ToolkitHostExtension.requireForHostType(SSH).startProcess(host, command)
-    }.getBareExecutionResult()
+    }.awaitBounded(PROBE_TIMEOUT)
 
     private fun createToolkit(host: ToolkitHost, path: String, version: String): Toolkit =
         Toolkit(
@@ -272,6 +273,9 @@ internal class ToolkitScanner {
 
     companion object {
         private val Log = logger<ToolkitScanner>()
+
+        /** Bounds every probe process; a hung SSH or WSL channel must not freeze a host's scan. */
+        private val PROBE_TIMEOUT = 15.seconds
 
         private val IS_WINDOWS_HOST = System.getProperty("os.name").orEmpty().startsWith("Windows", ignoreCase = true)
         private val XMAKE_VERSION_PATTERN = Regex("""xmake\s+(v[^,\s]+)""", RegexOption.IGNORE_CASE)
