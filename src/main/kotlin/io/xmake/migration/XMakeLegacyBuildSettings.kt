@@ -59,7 +59,7 @@ internal fun readLegacyBuildSettings(
         profile = migratedProfile,
         legacyProjectDirectory = legacySettings.workingDirectory
             .takeUnless(String::isBlank)
-            ?.let { LegacyProjectDirectory(legacySettings.toolkit, it) },
+            ?.let { LegacyProjectDirectory(legacySettings.toolkit?.let(::migratedLegacyToolkit), it) },
     )
 }
 
@@ -92,6 +92,14 @@ private fun settingsFingerprint(element: Element): String =
     element.children
         .filter { child -> child.name in LEGACY_BUILD_SETTING_TAGS }
         .joinToString(separator = "\u0000") { child -> JDOMUtil.write(child, "") }
+
+/** Rebuilds a legacy run configuration toolkit host with the identity used by the current
+ *  registry, so a migrated host directory matches its runtime host. */
+private fun migratedLegacyToolkit(toolkit: Toolkit): Toolkit {
+    val host = toolkit.host
+    val backendId = if (host.type == ToolkitHostType.LOCAL) null else host.migratedBackendId
+    return toolkit.copy(host = ToolkitHost(host.type, backendId))
+}
 
 /** Remaps a legacy run configuration toolkit to the ID used by the current registry. */
 private fun migratedToolkitId(toolkit: Toolkit): String {

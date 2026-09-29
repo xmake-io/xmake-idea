@@ -1,6 +1,7 @@
 package io.xmake.project.directory
 
 import com.intellij.execution.configurations.RuntimeConfigurationError
+import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.util.IncorrectOperationException
 import io.xmake.project.toolkit.Toolkit
@@ -68,11 +69,20 @@ internal class XMakeProjectDirectoryResolver(
         return validateLocalDirectory(project, configuredDirectoryPath)
     }
 
+    // An invalid entry must not poison resolution: skip it so the fallbacks still apply.
     private fun findExplicitHostDirectoryPath(host: ToolkitHost): String? =
         state.hostDirectories.firstOrNull { it.hostId == host.id.canonical }
             ?.directory
             ?.takeUnless(String::isBlank)
-            ?.let(::validateAbsoluteHostDirectory)
+            ?.let(::hostDirectoryOrNull)
+
+    private fun hostDirectoryOrNull(directoryPath: String): String? =
+        try {
+            validateAbsoluteHostDirectory(directoryPath)
+        } catch (error: RuntimeConfigurationError) {
+            Log.warn("Ignored invalid XMake host directory '$directoryPath': ${error.message}")
+            null
+        }
 
     private inline fun resolutionSucceeds(block: () -> Unit): Boolean =
         try {
@@ -82,3 +92,5 @@ internal class XMakeProjectDirectoryResolver(
             false
         }
 }
+
+private val Log = logger<XMakeProjectDirectoryResolver>()

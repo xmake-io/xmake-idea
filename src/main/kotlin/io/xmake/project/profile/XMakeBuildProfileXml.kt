@@ -1,5 +1,6 @@
 package io.xmake.project.profile
 
+import com.intellij.openapi.diagnostic.logger
 import com.intellij.util.xmlb.XmlSerializer
 import com.intellij.util.xmlb.annotations.Tag
 import io.xmake.project.directory.LegacyProjectDirectory
@@ -9,6 +10,8 @@ import java.util.UUID
 
 /** Maps the persisted build-profile XML schema to and from the runtime model. */
 internal object XMakeBuildProfileXml {
+
+    private val Log = logger<XMakeBuildProfileXml>()
 
     fun readProfiles(element: Element): List<XMakeBuildProfile> {
         val persistedState = PersistedState()
@@ -39,7 +42,10 @@ internal object XMakeBuildProfileXml {
 
             val toolkitId = optionValue(profile, TOOLKIT_ID_OPTION)
             val toolkit = toolkitId?.let(toolkitForId)
-            if (toolkitId != null && toolkit == null) return@mapNotNull null
+            if (toolkitId != null && toolkit == null) {
+                Log.warn("Dropped legacy working directory '$legacyDirectory': toolkit '$toolkitId' is not registered")
+                return@mapNotNull null
+            }
 
             LegacyProjectDirectory(toolkit, legacyDirectory)
         }
