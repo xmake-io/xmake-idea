@@ -1,6 +1,7 @@
 package io.xmake.project
 
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.options.SearchableConfigurable
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
@@ -64,15 +65,17 @@ class XMakeSettingsConfigurable(private val project: Project) : SearchableConfig
         val projectDirectoryPanel = XMakeProjectDirectoryPanel(project)
         this.projectDirectoryPanel = projectDirectoryPanel
 
+        // createComponent may run again on this configurable, so an earlier connection is released first.
+        messageBusConnection?.disconnect()
         messageBusConnection = project.messageBus.connect().apply {
             subscribe(
                 ToolkitListener.TOPIC,
                 object : ToolkitListener {
                     override fun toolkitsChanged() {
-                        ApplicationManager.getApplication().invokeLater {
+                        ApplicationManager.getApplication().invokeLater({
                             refreshToolkitList()
                             projectDirectoryPanel.refreshToolkits()
-                        }
+                        }, ModalityState.any())
                     }
                 },
             )

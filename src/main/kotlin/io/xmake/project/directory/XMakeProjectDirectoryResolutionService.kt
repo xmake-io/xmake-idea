@@ -2,6 +2,7 @@ package io.xmake.project.directory
 
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
@@ -131,7 +132,7 @@ class XMakeProjectDirectoryResolutionService(
         if (application.isDispatchThread) {
             publish.run()
         } else {
-            application.invokeLater(publish)
+            application.invokeLater(publish, ModalityState.any())
         }
     }
 
