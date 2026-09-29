@@ -27,7 +27,6 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.openapi.vfs.newvfs.BulkFileListener
 import com.intellij.openapi.vfs.newvfs.events.VFileEvent
-import com.intellij.util.messages.Topic
 import io.xmake.file.highlight.XMakeLuaLexer
 import io.xmake.project.directory.XMakeProjectDirectoryManager
 import io.xmake.project.directory.XMakeProjectDirectoryResolutionService
@@ -61,7 +60,10 @@ class XMakeInfoManager(
     scope: CoroutineScope,
 ) : Disposable {
 
-    val xmakeInfo: XMakeInfo = XMakeInfo()
+    /** Latest probe result; replaced atomically so readers never see a torn snapshot. */
+    @Volatile
+    var xmakeInfo: XMakeInfo = XMakeInfo()
+        private set
 
     private val messageBusConnection = project.messageBus.connect(this)
     private val probeRequests = Channel<XMakeBuildProfile>(Channel.CONFLATED)
@@ -135,35 +137,28 @@ class XMakeInfoManager(
                 }
                 project.withProfileCommands(profile) {
                     configureBestEffort(it)
-                    val parser = XMakeInfo()
-                    val architectures = parser.parseArchitectures(executeInfoQuery("architectures", it))
-                    val buildModes = parser.parseBuildModes(executeInfoQuery("buildmodes", it))
-                    val platforms = parser.parsePlatforms(executeInfoQuery("platforms", it))
-                    val targets = parser.parseTargets(executeInfoQuery("targets", it))
-                    val toolchains = parser.parseToolchains(executeInfoQuery("toolchains", it))
-                    val apis = parser.parseApis(executeInfoQuery("apis", it))
-                    xmakeInfo.apply {
-                        this.architectures = architectures
-                        this.buildModes = buildModes
-                        this.platforms = platforms
-                        this.targets = targets
-                        this.toolchains = toolchains
-                        this.apis = apis
-                    }
+                    val info = XMakeInfo(
+                        architectures = XMakeInfo.parseArchitectures(executeInfoQuery("architectures", it)),
+                        buildModes = XMakeInfo.parseBuildModes(executeInfoQuery("buildmodes", it)),
+                        platforms = XMakeInfo.parsePlatforms(executeInfoQuery("platforms", it)),
+                        targets = XMakeInfo.parseTargets(executeInfoQuery("targets", it)),
+                        toolchains = XMakeInfo.parseToolchains(executeInfoQuery("toolchains", it)),
+                        apis = XMakeInfo.parseApis(executeInfoQuery("apis", it)),
+                    )
+                    xmakeInfo = info
                     project.xmakeBuildProfileOptionsCache.put(
                         profile,
                         XMakeBuildProfileOptions(
-                            architectures = architectures,
-                            buildModes = buildModes,
-                            platforms = platforms,
-                            toolchains = toolchains,
+                            architectures = info.architectures,
+                            buildModes = info.buildModes,
+                            platforms = info.platforms,
+                            toolchains = info.toolchains,
                         ),
                     )
 
-                    if (xmakeInfo.apis.isNotEmpty()) {
-                        XMakeLuaLexer.updateApis(xmakeInfo.apis)
+                    if (info.apis.isNotEmpty()) {
+                        XMakeLuaLexer.updateApis(info.apis)
                     }
-                    project.messageBus.syncPublisher(XMAKE_INFO_TOPIC).onXMakeInfoUpdated(xmakeInfo)
                 }
             }
         } catch (error: CancellationException) {
@@ -177,15 +172,10 @@ class XMakeInfoManager(
         messageBusConnection.disconnect()
     }
 
-    interface XMakeInfoListener {
-        fun onXMakeInfoUpdated(xmakeInfo: XMakeInfo)
-    }
-
     companion object {
         private val PROBE_DEBOUNCE = 300.milliseconds
 
-        val Log = logger<XMakeInfoManager>()
-        val XMAKE_INFO_TOPIC = Topic.create("XMake Info Updated", XMakeInfoListener::class.java)
+        private val Log = logger<XMakeInfoManager>()
 
         fun getInstance(project: Project): XMakeInfoManager =
             project.getService(XMakeInfoManager::class.java) ?: error("Failed to get XMakeInfoManager for $project")

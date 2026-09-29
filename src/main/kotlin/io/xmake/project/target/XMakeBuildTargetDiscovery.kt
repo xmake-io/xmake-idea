@@ -30,6 +30,6 @@ internal suspend fun Project.discoverXMakeBuildTargets(profile: XMakeBuildProfil
     withContext(Dispatchers.IO) {
         withProfileCommands(profile) { executionService ->
             configureBestEffort(executionService)
-            XMakeInfo().parseTargets(executeInfoQuery("targets", executionService))
+            XMakeInfo.parseTargets(executeInfoQuery("targets", executionService))
         }
     }
