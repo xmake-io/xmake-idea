@@ -23,7 +23,6 @@ package io.xmake.project.wizard
 import com.intellij.facet.ui.ValidationResult
 import com.intellij.ide.util.projectWizard.AbstractNewProjectStep
 import com.intellij.ide.util.projectWizard.CustomStepProjectGenerator
-import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.wm.impl.welcomeScreen.AbstractActionWithPanel
 import com.intellij.platform.DirectoryProjectGenerator
 
@@ -47,7 +46,6 @@ class XMakeProjectDirectoryGenerator :
             panel.step.propertyGraph.afterPropagation {
                 setErrorText(validate().errorMessage)
             }
-            Disposer.register(this) { }
         }
     }
 }
