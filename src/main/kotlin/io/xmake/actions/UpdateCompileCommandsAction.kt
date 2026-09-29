@@ -22,6 +22,7 @@ package io.xmake.actions
 
 import com.intellij.openapi.project.Project
 import io.xmake.project.console.XMakeConsole
+import io.xmake.project.directory.xmakeProjectDirectories
 import io.xmake.run.command.XMakeCommandFactory
 import io.xmake.run.command.XMakeConsoleOptions
 import io.xmake.run.command.xmakeExecutionService
@@ -38,13 +39,14 @@ class UpdateCompileCommandsAction : XMakeCommandAction() {
         val updateCommand = commandFactory.createUpdateCompileCommands()
         val toolkit = updateCommand.toolkit
         val workingDirectory = updateCommand.workingDirectory
-        syncBeforeFetch(project, toolkit, workingDirectory)
+        val localDirectory = project.xmakeProjectDirectories.resolveLocalSyncDirectory()
+        syncBeforeFetch(project, toolkit, workingDirectory, localDirectory)
         execution.execute(console, commandFactory.createConfigure())
         execution.execute(
             console,
             updateCommand,
             XMakeConsoleOptions(showConsole = false, showProblems = true, showExitCode = true),
         )
-        fetchGeneratedFile(project, toolkit, workingDirectory, "compile_commands.json")
+        fetchGeneratedFile(project, toolkit, workingDirectory, localDirectory, "compile_commands.json")
     }
 }

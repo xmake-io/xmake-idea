@@ -27,6 +27,7 @@ import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.ssh.ConnectionBuilder
+import com.intellij.ssh.SftpChannelException
 import com.intellij.ssh.SftpProgressTracker
 import com.intellij.ssh.SftpChannelNoSuchFileException
 import com.intellij.ssh.config.unified.SshConfig
@@ -190,7 +191,9 @@ class SshToolkitHostExtensionImpl : ToolkitHostExtension {
     private fun joinRemotePath(parent: String, child: String): String =
         if (parent == "/") "/$child" else "${parent.trimEnd('/')}/$child"
 
-    /** Removes remote entries without a local counterpart so uploads mirror the local project. */
+    /** Removes remote entries without a local counterpart so uploads mirror the local project.
+     *  Symlinks are always removed as links: readdir attributes may report a link to a
+     *  directory as a directory, and recursing through it would delete outside the project. */
     private fun SftpChannel.pruneMissingEntries(
         localRoot: File,
         remoteRoot: String,
@@ -209,6 +212,7 @@ class SshToolkitHostExtensionImpl : ToolkitHostExtension {
             val remotePath = joinRemotePath(remoteRoot, name)
             when {
                 !entry.attrs.isDir -> if (!localFile.isFile) rm(remotePath)
+                isRemoteSymlink(remotePath) -> rm(remotePath)
                 localFile.isDirectory -> pruneMissingEntries(localFile, remotePath, checkCanceled)
                 else -> deleteRemoteTree(remotePath, checkCanceled)
             }
@@ -226,9 +230,17 @@ class SshToolkitHostExtensionImpl : ToolkitHostExtension {
             val name = entry.name
             if (name == "." || name == "..") return@forEach
             val childPath = joinRemotePath(remotePath, name)
-            if (entry.attrs.isDir) deleteRemoteTree(childPath, checkCanceled) else rm(childPath)
+            if (entry.attrs.isDir && !isRemoteSymlink(childPath)) deleteRemoteTree(childPath, checkCanceled) else rm(childPath)
         }
         rmdir(remotePath)
+    }
+
+    /** lstat does not follow symlinks, unlike readdir attributes whose semantics depend on the
+     *  server, so this is the only reliable way to avoid deleting through a link. */
+    private fun SftpChannel.isRemoteSymlink(remotePath: String): Boolean = try {
+        (lstat(remotePath).permissions and 0xF000) == 0xA000 // S_IFLNK
+    } catch (_: SftpChannelException) {
+        false
     }
 
     companion object {
