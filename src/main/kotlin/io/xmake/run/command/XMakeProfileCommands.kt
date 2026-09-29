@@ -53,16 +53,7 @@ internal suspend fun XMakeCommandFactory.configureBestEffort(executionService: X
 internal suspend fun XMakeCommandFactory.executeInfoQuery(
     queryName: String,
     executionService: XMakeExecutionService,
-): String {
-    val command = createInfoQuery(queryName)
-    return try {
-        executionService.captureStandardOutput(command)
-    } catch (error: CancellationException) {
-        throw error
-    } catch (error: Exception) {
-        throw error
-    }
-}
+): String = executionService.captureStandardOutput(createInfoQuery(queryName))
 
 private val Log = Logger.getInstance("io.xmake.run.command.XMakeProfileCommands")
 
