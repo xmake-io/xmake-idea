@@ -3,6 +3,7 @@ package io.xmake.project.directory
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.newvfs.events.VFileCreateEvent
+import com.intellij.openapi.vfs.newvfs.events.VFileContentChangeEvent
 import com.intellij.openapi.vfs.newvfs.events.VFileDeleteEvent
 import com.intellij.openapi.vfs.newvfs.events.VFileEvent
 import com.intellij.openapi.vfs.newvfs.events.VFileMoveEvent
@@ -17,10 +18,12 @@ internal val Project.hasRootXMakeLua: Boolean
 internal fun hasRootXMakeLua(directory: String): Boolean =
     File(directory, "xmake.lua").isFile
 
-/** Whether [event] creates, deletes, moves, or renames an xmake.lua file. Deliberately
- *  over-inclusive: an xmake.lua outside the IDE project may back a configured local directory,
- *  so filtering by project membership would miss relevant changes. */
-internal fun isXMakeLuaVfsEvent(event: VFileEvent): Boolean =
+/** Whether [event] creates, deletes, moves, or renames an xmake.lua file, and optionally
+ *  saves its content. Deliberately over-inclusive: an xmake.lua outside the IDE project may
+ *  back a configured local directory, so filtering by project membership would miss relevant
+ *  changes. Content changes are irrelevant to existence tracking but matter to consumers
+ *  that cache parsed xmake.lua results. */
+internal fun isXMakeLuaVfsEvent(event: VFileEvent, includeContentChanges: Boolean = false): Boolean =
     when (event) {
         is VFileCreateEvent, is VFileDeleteEvent, is VFileMoveEvent ->
             event.file?.name?.equals("xmake.lua", ignoreCase = true) == true
@@ -30,6 +33,9 @@ internal fun isXMakeLuaVfsEvent(event: VFileEvent): Boolean =
                     listOf(event.oldValue, event.newValue).any { value ->
                         value is String && value.equals("xmake.lua", ignoreCase = true)
                     }
+
+        is VFileContentChangeEvent -> includeContentChanges &&
+                event.file?.name?.equals("xmake.lua", ignoreCase = true) == true
 
         else -> false
     }

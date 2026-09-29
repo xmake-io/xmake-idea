@@ -27,13 +27,12 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.openapi.vfs.newvfs.BulkFileListener
 import com.intellij.openapi.vfs.newvfs.events.VFileEvent
-import com.intellij.openapi.vfs.newvfs.events.VFileContentChangeEvent
-import com.intellij.openapi.vfs.newvfs.events.VFileCreateEvent
-import com.intellij.openapi.vfs.newvfs.events.VFilePropertyChangeEvent
-import com.intellij.util.messages.Topic
 import io.xmake.file.highlight.XMakeLuaLexer
 import io.xmake.project.directory.XMakeProjectDirectoryManager
+import io.xmake.project.directory.XMakeProjectDirectoryResolutionService
+import io.xmake.project.directory.hasRootXMakeLua
 import io.xmake.project.directory.hasXMakeProjectDirectorySource
+import io.xmake.project.directory.isXMakeLuaVfsEvent
 import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.project.profile.XMakeBuildProfileManager
 import io.xmake.project.profile.XMakeBuildProfileOptions
@@ -61,7 +60,10 @@ class XMakeInfoManager(
     scope: CoroutineScope,
 ) : Disposable {
 
-    val xmakeInfo: XMakeInfo = XMakeInfo()
+    /** Latest probe result; replaced atomically so readers never see a torn snapshot. */
+    @Volatile
+    var xmakeInfo: XMakeInfo = XMakeInfo()
+        private set
 
     private val messageBusConnection = project.messageBus.connect(this)
     private val probeRequests = Channel<XMakeBuildProfile>(Channel.CONFLATED)
@@ -83,17 +85,16 @@ class XMakeInfoManager(
             XMakeProjectDirectoryManager.TOPIC,
             XMakeProjectDirectoryManager.Listener { refreshProfileInfo() },
         )
+        // A probe dropped while the cached directory awareness lagged behind is retried here.
+        messageBusConnection.subscribe(
+            XMakeProjectDirectoryResolutionService.TOPIC,
+            XMakeProjectDirectoryResolutionService.Listener { refreshProfileInfo() },
+        )
         messageBusConnection.subscribe(
             VirtualFileManager.VFS_CHANGES,
             object : BulkFileListener {
                 override fun after(events: MutableList<out VFileEvent>) {
-                    val xmakeProjectFileAppearedOrChanged = events.any { event ->
-                        (event is VFileCreateEvent ||
-                                event is VFileContentChangeEvent ||
-                                event is VFilePropertyChangeEvent) &&
-                                event.file?.name?.equals("xmake.lua", ignoreCase = true) == true
-                    }
-                    if (xmakeProjectFileAppearedOrChanged) {
+                    if (events.any { isXMakeLuaVfsEvent(it, includeContentChanges = true) }) {
                         project.xmakeBuildProfileOptionsCache.clear()
                         enqueueActiveProfileProbe()
                     }
@@ -129,37 +130,49 @@ class XMakeInfoManager(
     private suspend fun probeBuildProfile(profile: XMakeBuildProfile) {
         try {
             withContext(Dispatchers.IO) {
-                project.withProfileCommands(profile) {
-                    configureBestEffort(it)
-                    val parser = XMakeInfo()
-                    val architectures = parser.parseArchitectures(executeInfoQuery("architectures", it))
-                    val buildModes = parser.parseBuildModes(executeInfoQuery("buildmodes", it))
-                    val platforms = parser.parsePlatforms(executeInfoQuery("platforms", it))
-                    val targets = parser.parseTargets(executeInfoQuery("targets", it))
-                    val toolchains = parser.parseToolchains(executeInfoQuery("toolchains", it))
-                    val apis = parser.parseApis(executeInfoQuery("apis", it))
-                    xmakeInfo.apply {
-                        this.architectures = architectures
-                        this.buildModes = buildModes
-                        this.platforms = platforms
-                        this.targets = targets
-                        this.toolchains = toolchains
-                        this.apis = apis
-                    }
+                // Probes without a usable project directory only produce noise; the cached flag
+                // may lag a just-configured directory, so the IDE root is checked on disk too.
+                if (!project.hasXMakeProjectDirectorySource && !project.hasRootXMakeLua) {
+                    return@withContext
+                }
+project.withProfileCommands(profile) { executionService ->
+                    configureBestEffort(executionService)
+
+                    // A failed query yields null; the field then keeps its previous value.
+                    suspend fun <T> queryOrNull(queryName: String, parse: (String) -> T): T? =
+                        try {
+                            parse(executeInfoQuery(queryName, executionService))
+                        } catch (error: CancellationException) {
+                            throw error
+                        } catch (error: Exception) {
+                            Log.warn("Failed to query XMake '$queryName'; keeping its previous value", error)
+                            null
+                        }
+
+                    val previous = xmakeInfo
+                    val info = XMakeInfo(
+                        architectures = queryOrNull("architectures", XMakeInfo::parseArchitectures)
+                            ?: previous.architectures,
+                        buildModes = queryOrNull("buildmodes", XMakeInfo::parseBuildModes) ?: previous.buildModes,
+                        platforms = queryOrNull("platforms", XMakeInfo::parsePlatforms) ?: previous.platforms,
+                        targets = queryOrNull("targets", XMakeInfo::parseTargets) ?: previous.targets,
+                        toolchains = queryOrNull("toolchains", XMakeInfo::parseToolchains) ?: previous.toolchains,
+                        apis = queryOrNull("apis", XMakeInfo::parseApis) ?: previous.apis,
+                    )
+                    xmakeInfo = info
                     project.xmakeBuildProfileOptionsCache.put(
                         profile,
                         XMakeBuildProfileOptions(
-                            architectures = architectures,
-                            buildModes = buildModes,
-                            platforms = platforms,
-                            toolchains = toolchains,
+                            architectures = info.architectures,
+                            buildModes = info.buildModes,
+                            platforms = info.platforms,
+                            toolchains = info.toolchains,
                         ),
                     )
 
-                    if (xmakeInfo.apis.isNotEmpty()) {
-                        XMakeLuaLexer.updateApis(xmakeInfo.apis)
+                    if (info.apis.isNotEmpty()) {
+                        XMakeLuaLexer.updateApis(info.apis)
                     }
-                    project.messageBus.syncPublisher(XMAKE_INFO_TOPIC).onXMakeInfoUpdated(xmakeInfo)
                 }
             }
         } catch (error: CancellationException) {
@@ -173,15 +186,10 @@ class XMakeInfoManager(
         messageBusConnection.disconnect()
     }
 
-    interface XMakeInfoListener {
-        fun onXMakeInfoUpdated(xmakeInfo: XMakeInfo)
-    }
-
     companion object {
         private val PROBE_DEBOUNCE = 300.milliseconds
 
-        val Log = logger<XMakeInfoManager>()
-        val XMAKE_INFO_TOPIC = Topic.create("XMake Info Updated", XMakeInfoListener::class.java)
+        private val Log = logger<XMakeInfoManager>()
 
         fun getInstance(project: Project): XMakeInfoManager =
             project.getService(XMakeInfoManager::class.java) ?: error("Failed to get XMakeInfoManager for $project")

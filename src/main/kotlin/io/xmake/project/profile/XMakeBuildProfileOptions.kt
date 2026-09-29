@@ -39,12 +39,11 @@ internal suspend fun Project.queryXMakeBuildProfileOptions(
     val options = withContext(Dispatchers.IO) {
         withProfileCommands(profile) { executionService ->
             configureBestEffort(executionService)
-            val parser = XMakeInfo()
             XMakeBuildProfileOptions(
-                architectures = parser.parseArchitectures(executeInfoQuery("architectures", executionService)),
-                buildModes = parser.parseBuildModes(executeInfoQuery("buildmodes", executionService)),
-                platforms = parser.parsePlatforms(executeInfoQuery("platforms", executionService)),
-                toolchains = parser.parseToolchains(executeInfoQuery("toolchains", executionService)),
+                architectures = XMakeInfo.parseArchitectures(executeInfoQuery("architectures", executionService)),
+                buildModes = XMakeInfo.parseBuildModes(executeInfoQuery("buildmodes", executionService)),
+                platforms = XMakeInfo.parsePlatforms(executeInfoQuery("platforms", executionService)),
+                toolchains = XMakeInfo.parseToolchains(executeInfoQuery("toolchains", executionService)),
             )
         }
     }
