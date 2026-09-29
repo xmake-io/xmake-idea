@@ -22,11 +22,11 @@ package io.xmake.utils.execute
 
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.openapi.application.EDT
-import com.intellij.openapi.application.runWriteAction
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.vfs.VirtualFileManager
+import com.intellij.openapi.vfs.LocalFileSystem
+import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.platform.ide.progress.withBackgroundProgress
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHost
@@ -38,6 +38,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.io.IOException
 import java.nio.file.FileVisitResult
 import java.nio.file.Files
@@ -126,10 +127,12 @@ internal fun resolveSyncPaths(
     return SyncPaths(local, remote)
 }
 
-private suspend fun refreshVirtualFileSystem() {
+/** Refreshes only the synced local directory instead of the whole VFS, and still completes
+ *  after a cancellation so freshly fetched files are immediately visible. */
+private suspend fun refreshVirtualFileSystem(localDirectoryPath: String) {
     withContext(NonCancellable + Dispatchers.EDT) {
-        runWriteAction {
-            VirtualFileManager.getInstance().syncRefresh()
+        LocalFileSystem.getInstance().refreshAndFindFileByIoFile(File(localDirectoryPath))?.let { localDirectory ->
+            VfsUtil.markDirtyAndRefresh(false, true, true, localDirectory)
         }
     }
 }
@@ -286,7 +289,7 @@ suspend fun transferProjectFiles(
     require(localDirectoryPath.isNotBlank()) { "Local sync directory must be explicit" }
 
     if (toolkit.host.type == ToolkitHostType.LOCAL) {
-        refreshVirtualFileSystem()
+        refreshVirtualFileSystem(localDirectoryPath)
         return
     }
 
@@ -308,15 +311,41 @@ suspend fun transferProjectFiles(
             }
         }
     } finally {
-        refreshVirtualFileSystem()
+        refreshVirtualFileSystem(localDirectoryPath)
     }
 }
 
+/** Lexically normalizes a POSIX path: collapses '//', '.' and '..' segments. */
+internal fun normalizeRemotePath(path: String): String {
+    val absolute = path.startsWith("/")
+    val segments = ArrayDeque<String>()
+    for (segment in path.split('/')) {
+        when {
+            segment.isEmpty() || segment == "." -> Unit
+            segment == ".." -> segments.removeLastOrNull()
+            else -> segments.addLast(segment)
+        }
+    }
+    val joined = segments.joinToString("/")
+    return when {
+        absolute && joined.isEmpty() -> "/"
+        absolute -> "/$joined"
+        else -> joined
+    }
+}
+
+/** Whether this path is [root] itself or located underneath it. */
+internal fun String.isWithin(root: String): Boolean =
+    this == root || (root == "/" && startsWith("/")) || startsWith("$root/")
+
 internal fun resolveSshSyncPath(hostDirectoryPath: String, relativePath: String?): String {
     require(hostDirectoryPath.isNotBlank()) { "Sync directory must be explicit" }
-    if (relativePath == null) return hostDirectoryPath
+    if (relativePath == null) return normalizeRemotePath(hostDirectoryPath)
     require(!relativePath.startsWith("/")) { "Sync path must be relative: $relativePath" }
-    return "${hostDirectoryPath.trimEnd('/')}/${relativePath.trimStart('/')}"
+    val root = normalizeRemotePath(hostDirectoryPath)
+    val joined = normalizeRemotePath("$root/${relativePath.trimStart('/')}")
+    require(joined.isWithin(root)) { "Sync path escapes its root: $relativePath" }
+    return joined
 }
 
 suspend fun syncBeforeFetch(
