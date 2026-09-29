@@ -22,10 +22,12 @@ package io.xmake.run
 
 import com.intellij.execution.actions.ConfigurationContext
 import com.intellij.execution.actions.LazyRunConfigurationProducer
+import com.intellij.execution.configuration.EnvironmentVariablesData
 import com.intellij.execution.configurations.ConfigurationFactory
 import com.intellij.openapi.util.Ref
 import com.intellij.psi.PsiElement
 import io.xmake.project.directory.hasXMakeProjectDirectorySource
+import io.xmake.run.command.DEFAULT_BUILD_TARGET
 
 class XMakeRunConfigurationProducer : LazyRunConfigurationProducer<XMakeRunConfiguration>() {
     override fun getConfigurationFactory(): ConfigurationFactory {
@@ -36,8 +38,14 @@ class XMakeRunConfigurationProducer : LazyRunConfigurationProducer<XMakeRunConfi
         configuration: XMakeRunConfiguration,
         context: ConfigurationContext
     ): Boolean {
-
-        return false
+        // A context gesture produces a configuration with template defaults only, so an existing
+        // configuration that still matches those defaults can be reused. preferredBuildProfileId
+        // is realigned by the target synchronizer, and debug-only fields do not affect run semantics.
+        return context.project.hasXMakeProjectDirectorySource &&
+                configuration.runTarget == DEFAULT_BUILD_TARGET &&
+                configuration.runArguments.isEmpty() &&
+                configuration.launchWorkingDirectory.isEmpty() &&
+                configuration.runEnvironment == EnvironmentVariablesData.DEFAULT
     }
 
     override fun setupConfigurationFromContext(
