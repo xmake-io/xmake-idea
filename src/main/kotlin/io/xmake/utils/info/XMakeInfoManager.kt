@@ -135,15 +135,29 @@ class XMakeInfoManager(
                 if (!project.hasXMakeProjectDirectorySource && !project.hasRootXMakeLua) {
                     return@withContext
                 }
-                project.withProfileCommands(profile) {
-                    configureBestEffort(it)
+project.withProfileCommands(profile) { executionService ->
+                    configureBestEffort(executionService)
+
+                    // A failed query yields null; the field then keeps its previous value.
+                    suspend fun <T> queryOrNull(queryName: String, parse: (String) -> T): T? =
+                        try {
+                            parse(executeInfoQuery(queryName, executionService))
+                        } catch (error: CancellationException) {
+                            throw error
+                        } catch (error: Exception) {
+                            Log.warn("Failed to query XMake '$queryName'; keeping its previous value", error)
+                            null
+                        }
+
+                    val previous = xmakeInfo
                     val info = XMakeInfo(
-                        architectures = XMakeInfo.parseArchitectures(executeInfoQuery("architectures", it)),
-                        buildModes = XMakeInfo.parseBuildModes(executeInfoQuery("buildmodes", it)),
-                        platforms = XMakeInfo.parsePlatforms(executeInfoQuery("platforms", it)),
-                        targets = XMakeInfo.parseTargets(executeInfoQuery("targets", it)),
-                        toolchains = XMakeInfo.parseToolchains(executeInfoQuery("toolchains", it)),
-                        apis = XMakeInfo.parseApis(executeInfoQuery("apis", it)),
+                        architectures = queryOrNull("architectures", XMakeInfo::parseArchitectures)
+                            ?: previous.architectures,
+                        buildModes = queryOrNull("buildmodes", XMakeInfo::parseBuildModes) ?: previous.buildModes,
+                        platforms = queryOrNull("platforms", XMakeInfo::parsePlatforms) ?: previous.platforms,
+                        targets = queryOrNull("targets", XMakeInfo::parseTargets) ?: previous.targets,
+                        toolchains = queryOrNull("toolchains", XMakeInfo::parseToolchains) ?: previous.toolchains,
+                        apis = queryOrNull("apis", XMakeInfo::parseApis) ?: previous.apis,
                     )
                     xmakeInfo = info
                     project.xmakeBuildProfileOptionsCache.put(
