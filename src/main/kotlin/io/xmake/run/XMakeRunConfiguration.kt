@@ -134,52 +134,19 @@ class XMakeRunConfiguration(
         }
 
     companion object {
+        /** Only keys documented for gdb's DAP interpreter and lldb-dap belong here; the
+         *  object-form cpptools leftovers (sourceMap objects, setupCommands, variables) are
+         *  not read by either. lldb-dap's documented array-form sourceMap stays passable. */
         fun getDefaultGdbLaunchConfigJson(): String {
             return """{
-    "stopOnEntry": true,
-    "sourceMap": {
-        "enabled": "true"
-    },
-    "showDisassembly": "auto",
-    "setupCommands": [
-        {
-            "description": "Enable pretty-printing for gdb",
-            "text": "-enable-pretty-printing",
-            "ignoreFailures": true
-        }
-    ],
-    "variables": {
-        "showArguments": true,
-        "showLocals": true,
-        "showGlobals": true,
-        "showStatics": true,
-        "showRegisters": true
-    },
-    "ignoreFunctionBpoints": false,
-    "stopAtConnectTime": false
+    "stopOnEntry": true
 }"""
         }
 
         fun getDefaultLldbLaunchConfigJson(): String {
             return """{
     "stopOnEntry": true,
-    "sourceMap": {
-        "enabled": "true"
-    },
-    "showDisassembly": "auto",
-    "initCommands": [],
-    "preRunTask": {
-        "commands": []
-    },
-    "variables": {
-        "showArguments": true,
-        "showLocals": true,
-        "showGlobals": true,
-        "showStatics": true,
-        "showRegisters": true
-    },
-    "ignoreFunctionBpoints": false,
-    "stopAtConnectTime": false
+    "initCommands": []
 }"""
         }
 

@@ -16,6 +16,7 @@
  */
 package io.xmake.debug.clion.dap
 
+import com.intellij.execution.ExecutionException
 import com.intellij.execution.ExecutionResult
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.configurations.RunProfileState
@@ -48,9 +49,8 @@ internal class XMakeDebugAdapterDescriptor(
         get() = XMakeDebugAdapterId
 
     override fun configureProfileState(environment: ExecutionEnvironment, state: RunProfileState) {
-        launch = requireNotNull((state as? XMakeDapLaunchState)?.launch) {
-            "XMake DAP requires XMakeDapLaunchState"
-        }
+        launch = (state as? XMakeDapLaunchState)?.launch
+            ?: throw ExecutionException("XMake DAP requires XMakeDapLaunchState, got ${state::class.java.name}")
     }
 
     override suspend fun launchDebugAdapter(
@@ -58,7 +58,8 @@ internal class XMakeDebugAdapterDescriptor(
         executionResult: ExecutionResult?,
         sessionId: String,
     ): DebugAdapterHandle {
-        val launch = requireNotNull(this.launch) { "XMake DAP requires a resolved launch" }
+        val launch = this.launch
+            ?: throw ExecutionException("XMake DAP launch is not resolved; the debug state was not prepared.")
         val commandLine = createDriverCommandLine(launch)
         diagnoseWindowsDriver(commandLine)
         return CommandLineDebugAdapterHandle(commandLine)
@@ -88,20 +89,22 @@ internal class XMakeDebugAdapterDescriptor(
 
     /**
      * IntelliJ 2026.3 added a nullable function-breakpoint type to this constructor while removing
-     * the old two-argument overload. Resolve the available constructor at runtime so one plugin
-     * distribution can run on both 2026.2 and 2026.3.
+     * the old two-argument overload. The constructor is resolved reflectively: a compiled call to
+     * either overload fails plugin verification against the platform that removed it.
      */
     private fun createBreakpointsDescription(): DapBreakpointsDescription {
         val lineBreakpointType = CidrLineBreakpointType::class.java
         val exceptionBreakpointType = CidrExceptionBreakpointType::class.java
-        val constructor = DapBreakpointsDescription::class.java.constructors.single {
-            it.parameterCount in 2..3
-        }
-
-        return if (constructor.parameterCount == 3) {
-            constructor.newInstance(lineBreakpointType, exceptionBreakpointType, null)
-        } else {
-            constructor.newInstance(lineBreakpointType, exceptionBreakpointType)
+        val constructor = DapBreakpointsDescription::class.java.constructors
+            .filter { it.parameterTypes.all { type -> type == Class::class.java } }
+            .let { candidates ->
+                candidates.firstOrNull { it.parameterCount == 2 }
+                    ?: candidates.firstOrNull { it.parameterCount == 3 }
+            }
+            ?: throw IllegalStateException("No compatible DapBreakpointsDescription constructor")
+        return when (constructor.parameterCount) {
+            2 -> constructor.newInstance(lineBreakpointType, exceptionBreakpointType)
+            else -> constructor.newInstance(lineBreakpointType, exceptionBreakpointType, null)
         } as DapBreakpointsDescription
     }
 
@@ -114,6 +117,8 @@ internal class XMakeDebugAdapterDescriptor(
     }
 
     private fun diagnoseWindowsDriver(commandLine: GeneralCommandLine) {
+        // Runs inside launchDebugAdapter, which the platform executes on Dispatchers.IO, so the
+        // synchronous probe below never touches the EDT.
         if (!SystemInfo.isWindows) return
         val driverPath = commandLine.exePath
         if (DIAGNOSTIC_CACHE.putIfAbsent(driverPath, true) != null) {
@@ -143,7 +148,7 @@ internal class XMakeDebugAdapterDescriptor(
         NotificationGroupManager.getInstance()
             .getNotificationGroup("XMake.NotificationGroup")
             .createNotification(
-                "DAP driver may be missing DLLs",
+                "DAP driver is missing a DLL",
                 "Failed to start ${File(driverPath).name} (0xC0000135). " +
                     "Run '$driverPath --version' in a terminal to identify the missing dependency.",
                 NotificationType.ERROR,

@@ -54,8 +54,14 @@ internal suspend fun prepareXMakeDebugLaunch(
     val debugTarget = resolveDebugTarget(state, output)
     val driver = resolveDriver(state)
     if (driver.type == DapDriverDetector.DapDriverType.GDB_DAP && !driver.dapCapable) {
-        notifyUnsupportedGdb(project, driver)
-        throw ExecutionException("GDB does not support DAP: ${driver.path}")
+        notifyGdbDapUnavailable(project, driver)
+        throw ExecutionException(
+            if (driver.unsupportedConfirmed) {
+                "GDB does not support DAP: ${driver.path}"
+            } else {
+                "GDB DAP support could not be verified: ${driver.path}"
+            }
+        )
     }
     return XMakeDebugLaunch(
         executablePath = debugTarget.executableFile.absolutePath,
@@ -126,22 +132,29 @@ private fun resolveDriver(state: XMakeDebugState): DapDriverDetector.DapDriverIn
         ?: throw ExecutionException("Invalid DAP driver path: $driverPath")
 }
 
-private suspend fun notifyUnsupportedGdb(
+private suspend fun notifyGdbDapUnavailable(
     project: Project,
     driver: DapDriverDetector.DapDriverInfo,
 ) = withContext(Dispatchers.EDT) {
     if (project.isDisposed) return@withContext
 
     val detail = driver.diagnostics?.let { "<br/><br/>$it" }.orEmpty()
+    val (title, message) = if (driver.unsupportedConfirmed) {
+        "GDB does not support DAP" to (
+            "The selected GDB does not support Debug Adapter Protocol (DAP).<br/>" +
+                "Please install GDB 14.1+ or use lldb-dap, then retry.<br/><br/>" +
+                "driver=${driver.path}$detail"
+            )
+    } else {
+        "GDB DAP support could not be verified" to (
+            "The DAP support probe for the selected GDB failed or timed out.<br/>" +
+                "Run '${driver.path} -i dap --version' in a terminal to check the driver directly.<br/><br/>" +
+                "driver=${driver.path}$detail"
+            )
+    }
     NotificationGroupManager.getInstance()
         .getNotificationGroup("XMake.NotificationGroup")
-        .createNotification(
-            "GDB does not support DAP",
-            "The selected GDB does not support Debug Adapter Protocol (DAP).<br/>" +
-                "Please install GDB 14.1+ (or use lldb-dap) and retry.<br/><br/>" +
-                "driver=${driver.path}$detail",
-            NotificationType.ERROR,
-        )
+        .createNotification(title, message, NotificationType.ERROR)
         .notify(project)
 }
 
