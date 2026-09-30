@@ -38,9 +38,14 @@ val probeXmakeLocCommandOnWin = GeneralCommandLine("where.exe")
     .withParameters("xmake")
     .withCharset(Charsets.UTF_8)
 
-val probeXmakeLocCommand = GeneralCommandLine("which")
+fun probeXmakeLocCommand(home: String?): GeneralCommandLine = GeneralCommandLine("which")
     .withParameters(*arrayOf("xmake")
-        .plus(predefinedPath["unix"]?.map2Array { "$it/xmake" } ?: emptyArray())
+        .plus(
+            predefinedPath["unix"]?.map2Array { path ->
+                val resolved = home?.let { path.replace("\${HOME}", it) } ?: path
+                "$resolved/xmake"
+            } ?: emptyArray()
+        )
     )
     .withCharset(Charsets.UTF_8)
 

@@ -202,10 +202,10 @@ internal class ToolkitScanner {
     }
 
     private suspend fun locateExecutables(project: Project?, host: ToolkitHost): List<String> {
-        val command = if (host.type == LOCAL && IS_WINDOWS_HOST) {
-            probeXmakeLocCommandOnWin
-        } else {
-            probeXmakeLocCommand
+        val command = when {
+            host.type == LOCAL && IS_WINDOWS_HOST -> probeXmakeLocCommandOnWin
+            host.type == LOCAL -> probeXmakeLocCommand(System.getProperty("user.home"))
+            else -> probeXmakeLocCommand(null)
         }
         val result = execute(project, host, command)
         val output = result.stdout
