@@ -34,19 +34,28 @@ import com.intellij.ide.util.projectWizard.AbstractNewProjectStep
 import com.intellij.ide.util.projectWizard.ProjectSettingsStepBase
 import com.intellij.ide.util.projectWizard.WizardContext
 import com.intellij.ide.wizard.GeneratorNewProjectWizard
+import com.intellij.ide.wizard.NewProjectWizardBaseData.Companion.baseData
 import com.intellij.ide.wizard.NewProjectWizardStepPanel
+import com.intellij.openapi.Disposable
+import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.module.Module
+import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.openapi.ui.VerticalFlowLayout
+import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.platform.DirectoryProjectGeneratorBase
 import com.intellij.platform.GeneratorPeerImpl
 import com.intellij.platform.ProjectGeneratorPeer
+import java.nio.file.Path
 import javax.swing.Icon
 import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JPanel
+
+private val Log = logger<NewProjectWizardDirectoryGeneratorAdapter<*>>()
 
 // Todo: Refactor to transform a project wizard to a [com.intellij.platform.DirectoryProjectGenerator] directly.
 
@@ -60,16 +69,29 @@ open class NewProjectWizardDirectoryGeneratorAdapter<T : Any>(val wizard: Genera
     DirectoryProjectGeneratorBase<T>() {
     internal lateinit var panel: NewProjectWizardStepPanel
 
+    /** Owns the peer's [WizardContext]; parented to the settings step inside [createPeer]. */
+    internal lateinit var wizardDisposable: Disposable
+
     @Suppress("DialogTitleCapitalization")
     override fun getName(): String = wizard.name
     override fun getLogo(): Icon = wizard.icon
 
     override fun generateProject(project: Project, baseDir: VirtualFile, settings: T, module: Module) {
-        panel.step.setupProject(project)
+        try {
+            panel.step.setupProject(project)
+        } catch (error: ProcessCanceledException) {
+            throw error
+        } catch (error: Exception) {
+            // The welcome-screen generator chain has no outer handler: report the failure
+            // instead of killing the IDE with an uncaught exception.
+            Messages.showErrorDialog(project, error.message, wizard.name)
+            Log.warn("XMake project generation failed", error)
+        }
     }
 
     override fun createPeer(): ProjectGeneratorPeer<T> {
-        val context = WizardContext(null) {}
+        wizardDisposable = Disposer.newDisposable("XMake wizard context")
+        val context = WizardContext(null, wizardDisposable)
         return object : GeneratorPeerImpl<T>() {
             override fun getComponent(myLocationField: TextFieldWithBrowseButton, checkValid: Runnable): JComponent {
                 panel = NewProjectWizardStepPanel(wizard.createStep(context))
@@ -90,15 +112,26 @@ open class NewProjectWizardProjectSettingsStep<T : Any>(private val projectGener
         myCallback = AbstractNewProjectStep.AbstractCallback()
     }
 
-    override fun createAndFillContentPanel(): JPanel =
-        JPanel(VerticalFlowLayout()).apply {
+    override fun createAndFillContentPanel(): JPanel {
+        // peer.getComponent materializes the lazy peer, whose creation builds the wizard
+        // context's disposable; parent it to this step only once that disposable exists,
+        // because this step is constructed long before any panel is shown.
+        val content = JPanel(VerticalFlowLayout()).apply {
             add(peer.getComponent(TextFieldWithBrowseButton()) {})
         }
+        Disposer.register(this, projectGenerator.wizardDisposable)
+        return content
+    }
 
     override fun registerValidators() {}
 
-    override fun getProjectLocation(): String =
-        projectGenerator.panel.step.context.projectFileDirectory
+    override fun getProjectLocation(): String {
+        // The platform's close action listener reads the location before the apply listener
+        // appended in getActionButton runs, so derive it from the live base data instead of
+        // the WizardContext value that apply would have written.
+        val base = projectGenerator.panel.step.baseData ?: return super.getProjectLocation()
+        return Path.of(base.path).resolve(base.name).toString()
+    }
 
     override fun getActionButton(): JButton =
         super.getActionButton().apply {

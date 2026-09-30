@@ -64,16 +64,17 @@ import io.xmake.project.toolkit.ui.ToolkitComboBox.Companion.forToolkitComboBox
 import io.xmake.project.wizard.XMakeNewProjectWizardData.Companion.xmakeData
 import io.xmake.run.XMakeRunConfigurationType
 import io.xmake.run.target.XMakeBuildProfileExecutionTarget
+import io.xmake.utils.execute.ProcessTimeoutException
 import io.xmake.utils.execute.SyncDirection
+import io.xmake.utils.execute.awaitBounded
 import io.xmake.utils.execute.createProcess
-import io.xmake.utils.execute.runProcess
 import io.xmake.utils.execute.transferProjectFiles
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
 import java.io.File
+import java.io.IOException
 import java.nio.file.Path
 import javax.swing.DefaultComboBoxModel
 import kotlin.io.path.Path
+import kotlin.time.Duration.Companion.seconds
 
 class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
     AbstractNewProjectWizardStep(parent),
@@ -210,38 +211,61 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
             Log.info("remote contentEntry path: $remoteContentEntryPath")
             Log.info("host directory: $hostDirectory")
 
-            val command = listOf(
-                selectedToolkit.path,
-                "create",
-                "-P",
-                generationDirectory,
-                "-l",
-                languageOptions[(xmakeData?.language)],
-                "-t",
-                kindOptions[xmakeData?.kind]
-            )
-            val commandLine: GeneralCommandLine = GeneralCommandLine(command)
-                .withCharset(Charsets.UTF_8)
+            val language = languageOptions[xmakeData?.language]
+                ?: throw IOException("Unsupported XMake project language: '${xmakeData?.language}'")
+            val kind = kindOptions[xmakeData?.kind]
+                ?: throw IOException("Unsupported XMake project kind: '${xmakeData?.kind}'")
+            val commandLine = GeneralCommandLine(
+                listOf(
+                    selectedToolkit.path,
+                    "create",
+                    "-P",
+                    generationDirectory,
+                    "-l",
+                    language,
+                    "-t",
+                    kind,
+                )
+            ).withCharset(Charsets.UTF_8)
 
-            val output = try {
-                val result = runBlocking(Dispatchers.IO) {
-                    return@runBlocking runProcess(commandLine.createProcess(selectedToolkit))
+            // setupProject runs on the EDT inside the wizard commit: the modal progress keeps
+            // the IDE responsive and cancellable, and a failed creation aborts the setup via
+            // IOException, which the wizard reports without opening a half-built project.
+            runWithModalProgressBlocking(project, "Creating XMake project") {
+                val result = try {
+                    commandLine.createProcess(selectedToolkit).awaitBounded(XMAKE_CREATE_TIMEOUT)
+                } catch (e: ProcessNotCreatedException) {
+                    throw IOException("Failed to start xmake (${selectedToolkit.path}): ${e.message}", e)
+                } catch (e: IOException) {
+                    // Local and WSL starts throw a raw IOException from ProcessBuilder.
+                    throw IOException("Failed to start xmake (${selectedToolkit.path}): ${e.message}", e)
+                } catch (e: ProcessTimeoutException) {
+                    throw IOException("xmake create timed out and was terminated", e)
                 }
-                result.first.getOrDefault("")
-            } catch (e: ProcessNotCreatedException) {
-                Log.warn("Failed to create the XMake project", e)
-                ""
+                val output = result.stdOut.toString(Charsets.UTF_8).trim()
+                Log.info("XMake project creation output: $output")
+                if (result.exitCode != 0) {
+                    val diagnostics = (output + result.stdErr.toString(Charsets.UTF_8)).trim().take(2000)
+                    throw IOException("xmake create failed (exit=${result.exitCode}): $diagnostics")
+                }
             }
-
-            Log.info("XMake project creation output: $output")
 
             with(selectedToolkit) {
                 when (host.type) {
                     LOCAL -> {
                         val tempDirectory = File(generationDirectory)
                         if (tempDirectory.exists()) {
-                            tempDirectory.copyRecursively(File(hostDirectory), true)
-                            tempDirectory.deleteRecursively()
+                            val copied = tempDirectory.copyRecursively(File(hostDirectory), true)
+                            val deleted = tempDirectory.deleteRecursively()
+                            if (!copied) {
+                                throw IOException(
+                                    "Failed to move the generated XMake project from $tempDirectory to $hostDirectory" +
+                                            if (deleted) "" else " (leftover kept in $tempDirectory)"
+                                )
+                            }
+                            if (!deleted) {
+                                Log.warn("Failed to clean up the temporary XMake project directory $tempDirectory")
+                            }
                         }
                     }
 
@@ -320,6 +344,8 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
     }
 
     companion object {
+
+        private val XMAKE_CREATE_TIMEOUT = 120.seconds
 
         private const val LOCATION_COMMENT_RATIO = 0.9f // Less than 1.0
 

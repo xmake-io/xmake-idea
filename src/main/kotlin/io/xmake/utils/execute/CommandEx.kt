@@ -21,12 +21,10 @@
 package io.xmake.utils.execute
 
 import com.intellij.execution.configurations.GeneralCommandLine
-import com.intellij.execution.processTools.getResultStdoutStr
 import com.intellij.execution.wsl.WSLCommandLineOptions
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
-import com.intellij.util.io.awaitExit
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHostType.*
 import io.xmake.utils.extension.ToolkitHostExtension
@@ -85,10 +83,4 @@ fun GeneralCommandLine.createProcess(
             }
         }
     }
-}
-
-suspend fun runProcess(process: Process): Pair<Result<String>, Int> {
-    val result = process.getResultStdoutStr()
-    val exitCode = process.awaitExit()
-    return Pair(result, exitCode)
 }

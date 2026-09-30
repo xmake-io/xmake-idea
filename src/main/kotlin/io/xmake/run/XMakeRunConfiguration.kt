@@ -28,6 +28,7 @@ import com.intellij.execution.configurations.ConfigurationFactory
 import com.intellij.execution.configurations.LocatableConfigurationBase
 import com.intellij.execution.configurations.RunConfiguration
 import com.intellij.execution.configurations.RunConfigurationWithSuppressedDefaultDebugAction
+import com.intellij.execution.configurations.RuntimeConfigurationError
 import com.intellij.execution.configurations.RunProfileState
 import com.intellij.execution.executors.DefaultDebugExecutor
 import com.intellij.execution.executors.DefaultRunExecutor
@@ -106,6 +107,17 @@ class XMakeRunConfiguration(
             if (!hasResolvableProfile) {
                 preferredBuildProfileId = project.xmakeBuildProfiles.importMigratedProfile(migratedBuildSettings.profile).id
             }
+        }
+    }
+
+    override fun checkConfiguration() {
+        // `xmake run` binds the first positional argument to the target name, so program
+        // arguments cannot reach the target unless a concrete one is selected.
+        val target = runTarget.trim()
+        val needsConcreteTarget = runArguments.isNotBlank() &&
+                (target.isEmpty() || target == DEFAULT_BUILD_TARGET || target == "all")
+        if (needsConcreteTarget) {
+            throw RuntimeConfigurationError("Program arguments require a concrete run target, got '$target'")
         }
     }
 

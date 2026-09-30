@@ -21,20 +21,19 @@
 package io.xmake.actions
 
 import com.intellij.execution.configurations.GeneralCommandLine
-import com.intellij.execution.process.KillableColoredProcessHandler
-import com.intellij.execution.process.ProcessEvent
-import com.intellij.execution.process.ProcessListener
+import com.intellij.execution.process.CapturingProcessHandler
+import com.intellij.execution.process.ProcessOutput
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
-import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.wm.ToolWindowManager
 import io.xmake.project.console.xmakeConsoleService
-import io.xmake.project.directory.hasRootXMakeLua
+import io.xmake.project.directory.hasRootXMakeLuaCached
 import io.xmake.project.directory.hasXMakeProjectDirectorySource
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitManager
@@ -50,14 +49,13 @@ class QuickStartAction : XMakeProjectAction() {
             return
         }
         e.presentation.isVisible = !project.hasXMakeProjectDirectorySource
-        e.presentation.isEnabled = !project.hasRootXMakeLua
+        e.presentation.isEnabled = !project.hasRootXMakeLuaCached
     }
 
     override fun execute(project: Project) {
-
         FileDocumentManager.getInstance().saveAllDocuments()
 
-        if (!project.hasRootXMakeLua) {
+        if (!project.hasRootXMakeLuaCached) {
             val manager = ToolkitManager.getInstance()
             val registeredToolkits = manager.registeredToolkits(project)
             val toolkit = manager.defaultToolkitId
@@ -73,46 +71,38 @@ class QuickStartAction : XMakeProjectAction() {
             ApplicationManager.getApplication().executeOnPooledThread {
                 try {
                     val process = commandLine.createProcess(toolkit)
-                    val processHandler = KillableColoredProcessHandler(
-                        process,
-                        commandLine.commandLineString,
-                        Charsets.UTF_8,
-                    )
-                    processHandler.addProcessListener(object : ProcessListener {
-                        override fun processTerminated(event: ProcessEvent) {
-                            if (project.isDisposed) return
+                    val output = CapturingProcessHandler(process, Charsets.UTF_8, commandLine.commandLineString)
+                        .runProcess(CREATE_TIMEOUT_MS.toInt(), true)
+                    when {
+                        output.isTimeout -> notifyQuickStartFailure(
+                            project,
+                            "xmake create timed out and was terminated.${output.outputTail()}",
+                        )
 
-                            if (event.exitCode == 0) {
-                                NotificationGroupManager.getInstance()
-                                    .getNotificationGroup("XMake.NotificationGroup")
-                                    .createNotification("XMake project created successfully!", NotificationType.INFORMATION)
-                                    .notify(project)
+                        output.exitCode == 0 -> {
+                            NotificationGroupManager.getInstance()
+                                .getNotificationGroup("XMake.NotificationGroup")
+                                .createNotification("XMake project created successfully!", NotificationType.INFORMATION)
+                                .notify(project)
 
-                                ToolWindowManager.getInstance(project).invokeLater {
-                                    if (project.isDisposed) return@invokeLater
+                            ToolWindowManager.getInstance(project).invokeLater {
+                                if (project.isDisposed) return@invokeLater
 
-                                    // Refresh VFS
-                                    project.basePath?.let { path ->
-                                        val file = LocalFileSystem.getInstance().findFileByPath(path)
-                                        file?.let {
-                                            VfsUtil.markDirtyAndRefresh(false, true, true, it)
-                                        }
-                                    }
+                                project.basePath
+                                    ?.let(LocalFileSystem.getInstance()::findFileByPath)
+                                    ?.let { VfsUtil.markDirtyAndRefresh(true, true, true, it) }
 
-                                    // Show Tool Window
-                                    project.xmakeConsoleService.whenReady { console ->
-                                        console.showOutput()
-                                    }
+                                project.xmakeConsoleService.whenReady { console ->
+                                    console.showOutput()
                                 }
-                            } else {
-                                NotificationGroupManager.getInstance()
-                                    .getNotificationGroup("XMake.NotificationGroup")
-                                    .createNotification("Failed to create XMake project.", NotificationType.ERROR)
-                                    .notify(project)
                             }
                         }
-                    })
-                    processHandler.startNotify()
+
+                        else -> notifyQuickStartFailure(
+                            project,
+                            "xmake create failed (exit=${output.exitCode}).${output.outputTail()}",
+                        )
+                    }
                 } catch (e: Exception) {
                     notifyQuickStartFailure(project, "Failed to start xmake create: ${e.message}")
                 }
@@ -126,4 +116,14 @@ class QuickStartAction : XMakeProjectAction() {
             .createNotification(message, NotificationType.ERROR)
             .notify(project)
     }
+
+    private companion object {
+        private const val CREATE_TIMEOUT_MS = 120_000L
+    }
+}
+
+/** The captured tail keeps the failure notification diagnosable. */
+private fun ProcessOutput.outputTail(): String {
+    val text = (stdout + "\n" + stderr).trim()
+    return if (text.isEmpty()) "" else "\n${text.takeLast(1000)}"
 }

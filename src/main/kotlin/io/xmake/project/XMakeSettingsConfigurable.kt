@@ -98,11 +98,11 @@ class XMakeSettingsConfigurable(private val project: Project) : SearchableConfig
             }
 
             groupRowsRange("IntelliSense") {
-                row("Compile commands path:") {
+                row("Compile commands directory:") {
                     textField()
                         .bindText(settings.state::compileCommandsPath)
                         .align(AlignX.FILL)
-                        .comment("Relative to the project directory. Defaults to compile_commands.json.")
+                        .comment("Directory for the generated compile_commands.json, relative to the project directory.")
                 }
                 row {
                     checkBox("Auto-update compile_commands.json after build")
