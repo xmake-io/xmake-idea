@@ -25,7 +25,6 @@ import com.intellij.openapi.vfs.VirtualFile
 import io.xmake.shared.XMakeProblem
 import java.io.File
 import java.nio.file.Path
-import java.nio.file.Paths
 import java.util.regex.Pattern
 
 object SystemUtils {
@@ -124,7 +123,7 @@ object SystemUtils {
     }
 
     private fun String.unquote(): String = removePrefix("\"").removeSuffix("\"")
-    fun getResourceFilePath(resourceName: String, resourceDir: String = "lib"): String? {
+    fun getResourceFilePath(resourceName: String, resourceDir: String): String? {
         val resourcePath = "/$resourceDir/$resourceName"
         val url = SystemUtils::class.java.getResource(resourcePath)
         
@@ -185,4 +184,3 @@ object SystemUtils {
     
 }
 
-val VirtualFile.pathAsPath: Path get() = Paths.get(path)

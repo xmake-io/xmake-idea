@@ -23,7 +23,6 @@ import com.intellij.build.events.MessageEvent
 import com.intellij.build.progress.BuildProgress
 import com.intellij.build.progress.BuildProgressDescriptor
 import com.intellij.execution.process.ProcessOutputType
-import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.project.Project
 import com.intellij.task.ProjectTask
 import com.intellij.task.ProjectTaskContext
@@ -105,9 +104,7 @@ class XMakeProjectTaskRunner : ProjectTaskRunner() {
         }
         result()
     } catch (error: CancellationException) {
-        cancel(progress, processHandler, completed, title)
-        throw error
-    } catch (error: ProcessCanceledException) {
+        // ProcessCanceledException is a CancellationException on this platform.
         cancel(progress, processHandler, completed, title)
         throw error
     } catch (error: Exception) {

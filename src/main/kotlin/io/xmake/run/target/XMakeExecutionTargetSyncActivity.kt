@@ -113,7 +113,7 @@ class XMakeExecutionTargetSyncService(
 
 class XMakeExecutionTargetSyncActivity : ProjectActivity {
     override suspend fun execute(project: Project) {
-        project.getService(XMakeExecutionTargetSyncService::class.java)?.start()
+        project.getService(XMakeExecutionTargetSyncService::class.java).start()
     }
 }
 

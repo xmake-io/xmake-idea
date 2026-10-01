@@ -76,10 +76,7 @@ class XMakeRunner : AsyncProgramRunner<RunnerSettings>() {
             // XMakeExecutionService.submitAfter).
             is XMakeDebugState -> execution.submitAfter(
                 before = { prepareXMakeDebugBuild(project, state) },
-                task = {
-                    val console = prepareConsole(project)
-                    executeDebug(execution, state, environment, console)
-                },
+                task = { executeDebug(execution, state, environment) },
             )
             else -> execution.submit {
                 throw ExecutionException("Unsupported XMake run profile state: ${state::class.java.name}")
@@ -115,7 +112,6 @@ class XMakeRunner : AsyncProgramRunner<RunnerSettings>() {
         execution: XMakeExecutionService,
         state: XMakeDebugState,
         environment: ExecutionEnvironment,
-        @Suppress("UNUSED_PARAMETER") console: XMakeConsole,
     ): RunContentDescriptor {
         val debugSupport = XMakeDebugSupport.find()
             ?: throw ExecutionException("XMake debug support is not available in this IDE")

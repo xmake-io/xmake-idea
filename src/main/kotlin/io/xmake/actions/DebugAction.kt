@@ -15,8 +15,6 @@ class DebugAction : XMakeProjectAction() {
         super.update(e)
         if (!e.presentation.isEnabledAndVisible) return
 
-        if (e.project == null) return
-
         if (!XMakeDebugSupport.isAvailable()) {
             e.presentation.isEnabled = false
         }
