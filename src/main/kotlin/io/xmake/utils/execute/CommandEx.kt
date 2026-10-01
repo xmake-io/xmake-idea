@@ -14,13 +14,15 @@
  *
  * Copyright (C) 2015-present, Xmake Open Source Community.
  *
- * @author      ruki
+ * @author      windchargerj
  * @file        CommandEx.kt
  *
  */
 package io.xmake.utils.execute
 
 import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.execution.processTools.ExecutionResult
+import com.intellij.execution.processTools.getBareExecutionResult
 import com.intellij.execution.wsl.WSLCommandLineOptions
 import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.openapi.diagnostic.logger
@@ -29,6 +31,9 @@ import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHostType.*
 import io.xmake.utils.extension.ToolkitHostExtension
 import java.io.File
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.withTimeout
+import kotlin.time.Duration
 
 private val Log = logger<GeneralCommandLine>()
 
@@ -83,4 +88,20 @@ fun GeneralCommandLine.createProcess(
             }
         }
     }
+}
+
+/** Thrown when a subprocess does not exit within the allowed time and had to be killed. */
+class ProcessTimeoutException(message: String, cause: Throwable? = null) : RuntimeException(message, cause)
+
+/**
+ * Collects the process's output with a hard time bound. The process is killed on timeout or
+ * caller cancellation; killing an already terminated process is a documented no-op, so one
+ * cleanup path covers every outcome.
+ */
+suspend fun Process.awaitBounded(timeout: Duration): ExecutionResult = try {
+    withTimeout(timeout) { getBareExecutionResult() }
+} catch (error: TimeoutCancellationException) {
+    throw ProcessTimeoutException("Process did not exit within $timeout", error)
+} finally {
+    runCatching { destroyForcibly() }
 }
