@@ -22,11 +22,11 @@ import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
+import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.util.messages.Topic
 import io.xmake.project.directory.xmakeProjectDirectories
 import io.xmake.project.toolkit.ToolkitManager
-import io.xmake.utils.Logger
 import org.jdom.Element
 
 @Service(Service.Level.PROJECT)
@@ -63,7 +63,7 @@ class XMakeBuildProfileManager(private val project: Project) :
         val discardedIds = rawProfiles.map(XMakeBuildProfile::id).toSet() -
                 loadedProfiles.map(XMakeBuildProfile::id).toSet()
         if (discardedIds.isNotEmpty()) {
-            Logger.w(TAG, "Discarding ${discardedIds.size} malformed or duplicate build profiles: IDs $discardedIds")
+            Log.warn("Discarding ${discardedIds.size} malformed or duplicate build profiles: IDs $discardedIds")
         }
         val loadedState = loadedProfiles.ifEmpty {
             listOf(XMakeBuildProfile.createDefault(project))
@@ -71,7 +71,7 @@ class XMakeBuildProfileManager(private val project: Project) :
         val pendingDirectories = XMakeBuildProfileXml.readLegacyWorkingDirectories(state)
         val orphanedIds = pendingDirectories.keys - loadedState.mapTo(mutableSetOf(), XMakeBuildProfile::id)
         if (orphanedIds.isNotEmpty()) {
-            Logger.w(TAG, "Discarding legacy working directories of malformed profiles: IDs $orphanedIds")
+            Log.warn("Discarding legacy working directories of malformed profiles: IDs $orphanedIds")
         }
         synchronized(stateLock) {
             currentProfiles = loadedState
@@ -184,7 +184,7 @@ class XMakeBuildProfileManager(private val project: Project) :
     }
 
     companion object {
-        private const val TAG = "XMakeBuildProfileManager"
+        private val Log = logger<XMakeBuildProfileManager>()
 
         @Topic.ProjectLevel
         val TOPIC: Topic<Listener> = Topic.create("XMake build profiles changed", Listener::class.java)

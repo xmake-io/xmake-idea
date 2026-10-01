@@ -17,6 +17,7 @@
 package io.xmake.debug.clion
 
 import com.intellij.execution.runners.ExecutionEnvironment
+import com.intellij.openapi.diagnostic.logger
 import com.intellij.platform.dap.DapProcessStarter
 import com.intellij.platform.dap.DapStartRequest
 import com.intellij.xdebugger.XDebugProcessStarter
@@ -25,7 +26,6 @@ import io.xmake.debug.XMakeDebugSupport
 import io.xmake.debug.clion.dap.XMakeDapLaunchArguments
 import io.xmake.debug.clion.dap.XMakeDapLaunchState
 import io.xmake.debug.clion.dap.XMakeDebugAdapterId
-import io.xmake.debug.clion.utils.Logger
 
 /** Connects resolved XMake launches to IntelliJ Platform's public DAP lifecycle. */
 class ClionDebugSupport : XMakeDebugSupport {
@@ -34,8 +34,7 @@ class ClionDebugSupport : XMakeDebugSupport {
         launch: XMakeDebugLaunch,
         environment: ExecutionEnvironment,
     ): XDebugProcessStarter {
-        Logger.i(
-            TAG,
+        Log.info(
             "Creating DAP process starter: project=${environment.project.name}, " +
                 "driver=${launch.driver.displayName}, target=${launch.executablePath}",
         )
@@ -50,6 +49,6 @@ class ClionDebugSupport : XMakeDebugSupport {
     }
 
     private companion object {
-        const val TAG = "ClionDebugSupport"
+        private val Log = logger<ClionDebugSupport>()
     }
 }

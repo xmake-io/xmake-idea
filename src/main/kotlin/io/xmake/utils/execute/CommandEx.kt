@@ -25,7 +25,7 @@ import com.intellij.execution.processTools.ExecutionResult
 import com.intellij.execution.processTools.getBareExecutionResult
 import com.intellij.execution.wsl.WSLCommandLineOptions
 import com.intellij.execution.wsl.WSLDistribution
-import com.intellij.openapi.diagnostic.logger
+import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHostType.*
@@ -35,7 +35,7 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
 import kotlin.time.Duration
 
-private val Log = logger<GeneralCommandLine>()
+private val Log = Logger.getInstance("io.xmake.utils.execute.CommandEx")
 
 fun GeneralCommandLine.createLocalProcess(): Process {
     return this

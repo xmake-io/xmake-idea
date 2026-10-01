@@ -27,6 +27,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.platform.dap.DapBreakpointsDescription
 import com.intellij.platform.dap.DebugAdapterDescriptor
+import com.intellij.openapi.diagnostic.logger
 import com.intellij.platform.dap.connection.CommandLineDebugAdapterHandle
 import com.intellij.platform.dap.connection.DebugAdapterHandle
 import com.intellij.util.EnvironmentUtil
@@ -34,7 +35,6 @@ import com.jetbrains.cidr.execution.debugger.breakpoints.CidrExceptionBreakpoint
 import com.jetbrains.cidr.execution.debugger.breakpoints.CidrLineBreakpointType
 import io.xmake.debug.DapDriverDetector
 import io.xmake.debug.XMakeDebugLaunch
-import io.xmake.debug.clion.utils.Logger
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -133,14 +133,14 @@ internal class XMakeDebugAdapterDescriptor(
             val process = probe.createProcess()
             if (!process.waitFor(DRIVER_DIAGNOSTIC_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
                 process.destroy()
-                Logger.w(TAG, "Timed out while checking $driverPath")
+                Log.warn("Timed out while checking $driverPath")
                 return
             }
             if (process.exitValue() == STATUS_DLL_NOT_FOUND.toInt()) {
                 notifyMissingDriverDependency(driverPath)
             }
         } catch (error: Exception) {
-            Logger.w(TAG, "Failed to check $driverPath: ${error.message}")
+            Log.warn("Failed to check $driverPath: ${error.message}")
         }
     }
 
@@ -157,7 +157,7 @@ internal class XMakeDebugAdapterDescriptor(
     }
 
     private companion object {
-        const val TAG = "XMakeDebugAdapterDescriptor"
+        private val Log = logger<XMakeDebugAdapterDescriptor>()
         const val DRIVER_DIAGNOSTIC_TIMEOUT_MS = 1_500L
 
         /** Windows exit code STATUS_DLL_NOT_FOUND (0xC0000135): the driver failed to load a required DLL. */
