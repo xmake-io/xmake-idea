@@ -17,6 +17,7 @@
 package io.xmake.project.profile
 
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.State
@@ -174,7 +175,7 @@ class XMakeBuildProfileManager(private val project: Project) :
         if (application.isDispatchThread) {
             publish.run()
         } else {
-            application.invokeLater(publish)
+            application.invokeLater(publish, ModalityState.any())
         }
     }
 

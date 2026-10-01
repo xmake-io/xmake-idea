@@ -1,6 +1,7 @@
 package io.xmake.project
 
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.options.SearchableConfigurable
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
@@ -32,6 +33,8 @@ class XMakeSettingsConfigurable(private val project: Project) : SearchableConfig
     private var toolkitList: JBList<ToolkitListItem>? = null
     private var myPanel: DialogPanel? = null
 
+    private val pendingToolkitRemovals = mutableSetOf<String>()
+
     override fun createComponent(): JComponent {
         val toolkitList = JBList(toolkitListModel).apply {
             cellRenderer = object : ColoredListCellRenderer<ToolkitListItem>() {
@@ -62,15 +65,17 @@ class XMakeSettingsConfigurable(private val project: Project) : SearchableConfig
         val projectDirectoryPanel = XMakeProjectDirectoryPanel(project)
         this.projectDirectoryPanel = projectDirectoryPanel
 
+        // createComponent may run again on this configurable, so an earlier connection is released first.
+        messageBusConnection?.disconnect()
         messageBusConnection = project.messageBus.connect().apply {
             subscribe(
                 ToolkitListener.TOPIC,
                 object : ToolkitListener {
                     override fun toolkitsChanged() {
-                        ApplicationManager.getApplication().invokeLater {
+                        ApplicationManager.getApplication().invokeLater({
                             refreshToolkitList()
                             projectDirectoryPanel.refreshToolkits()
-                        }
+                        }, ModalityState.any())
                     }
                 },
             )
@@ -87,7 +92,7 @@ class XMakeSettingsConfigurable(private val project: Project) : SearchableConfig
                     Messages.getQuestionIcon()
                 ) == Messages.YES
             ) {
-                toolkitManager.unregister(toolkit.id)
+                pendingToolkitRemovals += toolkit.id
                 toolkitListModel.removeElement(toolkitList.selectedValue)
             }
         }
@@ -126,9 +131,11 @@ class XMakeSettingsConfigurable(private val project: Project) : SearchableConfig
     private fun refreshToolkitList() {
         val selectedId = (toolkitList?.selectedValue as? ToolkitListItem.Entry)?.id
         toolkitListModel.clear()
-        toolkitManager.registeredToolkits(project).forEach { toolkit ->
-            toolkitListModel.addElement(ToolkitListItem.Entry(toolkit))
-        }
+        toolkitManager.registeredToolkits(project)
+            .filter { toolkit -> toolkit.id !in pendingToolkitRemovals }
+            .forEach { toolkit ->
+                toolkitListModel.addElement(ToolkitListItem.Entry(toolkit))
+            }
         if (selectedId != null) {
             val selectedIndex = (0 until toolkitListModel.size)
                 .firstOrNull { index -> toolkitListModel.getElementAt(index).id == selectedId }
@@ -145,17 +152,29 @@ class XMakeSettingsConfigurable(private val project: Project) : SearchableConfig
     }
 
     override fun isModified(): Boolean {
-        return projectDirectoryPanel?.isModified == true || myPanel?.isModified() == true
+        return pendingToolkitRemovals.isNotEmpty() ||
+                projectDirectoryPanel?.isModified == true ||
+                myPanel?.isModified() == true
     }
 
     override fun apply() {
+        pendingToolkitRemovals.forEach(toolkitManager::unregister)
+        pendingToolkitRemovals.clear()
         projectDirectoryPanel?.apply()
         myPanel?.apply()
     }
 
     override fun reset() {
+        pendingToolkitRemovals.clear()
+        refreshToolkitList()
         projectDirectoryPanel?.reset()
         myPanel?.reset()
+    }
+
+    override fun cancel() {
+        // Cancelling a modified page does not run reset on this platform.
+        pendingToolkitRemovals.clear()
+        refreshToolkitList()
     }
 
     override fun getDisplayName() = "XMake"

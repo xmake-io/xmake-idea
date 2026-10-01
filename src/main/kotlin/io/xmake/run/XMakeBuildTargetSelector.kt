@@ -62,6 +62,7 @@ class XMakeBuildTargetSelector(
         get() = buildTargetModel.selectedItem?.toString() ?: DEFAULT_BUILD_TARGET
 
     init {
+        Disposer.register(parentDisposable, component)
         Disposer.register(parentDisposable) { scope.cancel() }
         scope.launch {
             targetRequests.consumeAsFlow()

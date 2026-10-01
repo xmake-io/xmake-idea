@@ -21,6 +21,7 @@
 package io.xmake.project.toolkit
 
 import com.intellij.execution.wsl.WslDistributionManager
+import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.RoamingType
@@ -32,7 +33,6 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManager
 import com.intellij.openapi.project.ProjectManagerListener
 import com.intellij.util.xmlb.annotations.XCollection
-import com.intellij.util.messages.MessageBusConnection
 import io.xmake.project.toolkit.ToolkitHostType.LOCAL
 import io.xmake.project.toolkit.ToolkitHostType.SSH
 import io.xmake.project.toolkit.ToolkitHostType.WSL
@@ -48,7 +48,9 @@ import kotlinx.coroutines.launch
 /** Application service coordinating toolkit persistence, scanning, registration, and change publication. */
 @Service
 @State(name = "toolkits", storages = [Storage("xmakeToolkits.xml", roamingType = RoamingType.DISABLED)])
-class ToolkitManager(private val scope: CoroutineScope) : PersistentStateComponent<ToolkitManager.State> {
+class ToolkitManager(private val scope: CoroutineScope) :
+    PersistentStateComponent<ToolkitManager.State>,
+    Disposable {
 
     /** Persisted XML shape of toolkit registrations. */
     class State {
@@ -69,9 +71,8 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
     private val scanJobLock = Any()
     private val scanJobs = mutableMapOf<Project?, Job>()
 
-    @Suppress("unused")
-    private val projectCloseConnection: MessageBusConnection =
-        ApplicationManager.getApplication().messageBus.connect().apply {
+    init {
+        ApplicationManager.getApplication().messageBus.connect(this).apply {
             subscribe(ProjectManager.TOPIC, object : ProjectManagerListener {
                 override fun projectClosed(project: Project) {
                     synchronized(scanJobLock) {
@@ -80,6 +81,11 @@ class ToolkitManager(private val scope: CoroutineScope) : PersistentStateCompone
                 }
             })
         }
+    }
+
+    override fun dispose() {
+        // The message bus connection is parented to this service and disposed with it.
+    }
 
     internal var defaultToolkitId: String?
         get() = synchronized(lock) { registry.defaultToolkitId }
