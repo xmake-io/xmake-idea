@@ -57,4 +57,4 @@ internal suspend fun XMakeCommandFactory.executeInfoQuery(
 
 private val Log = Logger.getInstance("io.xmake.run.command.XMakeProfileCommands")
 
-internal const val DEFAULT_BUILD_TARGET = "default"
+const val DEFAULT_BUILD_TARGET = "default"
