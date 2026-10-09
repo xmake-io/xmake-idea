@@ -34,6 +34,7 @@ import com.intellij.util.EnvironmentUtil
 import com.jetbrains.cidr.execution.debugger.breakpoints.CidrExceptionBreakpointType
 import com.jetbrains.cidr.execution.debugger.breakpoints.CidrLineBreakpointType
 import io.xmake.debug.DapDriverDetector
+import io.xmake.debug.XMakeDebugDriver
 import io.xmake.debug.XMakeDebugLaunch
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
@@ -43,13 +44,13 @@ internal class XMakeDebugAdapterDescriptor(
     private val project: Project,
 ) : DebugAdapterDescriptor<XMakeDebugAdapterId>() {
 
-    private var launch: XMakeDebugLaunch? = null
+    private var state: XMakeDapLaunchState? = null
 
     override val id: XMakeDebugAdapterId
         get() = XMakeDebugAdapterId
 
     override fun configureProfileState(environment: ExecutionEnvironment, state: RunProfileState) {
-        launch = (state as? XMakeDapLaunchState)?.launch
+        this.state = state as? XMakeDapLaunchState
             ?: throw ExecutionException("XMake DAP requires XMakeDapLaunchState, got ${state::class.java.name}")
     }
 
@@ -58,9 +59,9 @@ internal class XMakeDebugAdapterDescriptor(
         executionResult: ExecutionResult?,
         sessionId: String,
     ): DebugAdapterHandle {
-        val launch = this.launch
+        val state = this.state
             ?: throw ExecutionException("XMake DAP launch is not resolved; the debug state was not prepared.")
-        val commandLine = createDriverCommandLine(launch)
+        val commandLine = createDriverCommandLine(state.launch, state.driver)
         diagnoseWindowsDriver(commandLine)
         return CommandLineDebugAdapterHandle(commandLine)
     }
@@ -68,15 +69,15 @@ internal class XMakeDebugAdapterDescriptor(
     @Suppress("DEPRECATION")
     override val breakpointsDescription: DapBreakpointsDescription = createBreakpointsDescription()
 
-    private fun createDriverCommandLine(launch: XMakeDebugLaunch): GeneralCommandLine =
-        baseDriverCommandLine(launch).apply {
-            if (launch.driver.type == DapDriverDetector.DapDriverType.GDB_DAP) {
+    private fun createDriverCommandLine(launch: XMakeDebugLaunch, driver: XMakeDebugDriver.Dap): GeneralCommandLine =
+        baseDriverCommandLine(launch, driver).apply {
+            if (driver.info.type == DapDriverDetector.DapDriverType.GDB_DAP) {
                 addParameters("-i", "dap")
             }
         }
 
-    private fun baseDriverCommandLine(launch: XMakeDebugLaunch): GeneralCommandLine {
-        val driverPath = launch.driver.path
+    private fun baseDriverCommandLine(launch: XMakeDebugLaunch, driver: XMakeDebugDriver.Dap): GeneralCommandLine {
+        val driverPath = driver.info.path
         val driverDirectory = File(driverPath).absoluteFile.parent
         val environment = EnvironmentUtil.getEnvironmentMap().toMutableMap().apply {
             putAll(launch.environment)
