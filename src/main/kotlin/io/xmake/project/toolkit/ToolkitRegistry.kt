@@ -67,16 +67,14 @@ internal class ToolkitRegistry {
         return RegistrationResult(refreshed, changed = true)
     }
 
-    /** Marks registrations unavailable when a successful scan omits their executable paths. */
     fun markUnavailablePaths(hostId: ToolkitHost.Id, executablePaths: Set<String>): List<Toolkit> {
         return entries.values
             .filter { toolkit ->
                 toolkit.host.id == hostId && toolkit.path !in executablePaths
             }
-            .mapNotNull(::markUnavailable)
+            .mapNotNull(::markUnavailablePath)
     }
 
-    /** Marks registrations unavailable when current provider results omit their hosts. */
     fun markUnavailableHosts(
         hostsByType: Map<ToolkitHostType, List<ToolkitHost>>,
     ): List<Toolkit> {
@@ -88,7 +86,7 @@ internal class ToolkitRegistry {
                 toolkit.host.type in hostIdsByType &&
                         toolkit.host.id !in hostIdsByType.getValue(toolkit.host.type)
             }
-            .mapNotNull(::markUnavailable)
+            .mapNotNull(::markUnavailableHost)
     }
 
     fun updateHost(id: String, host: ToolkitHost): Toolkit? {
@@ -132,7 +130,14 @@ internal class ToolkitRegistry {
         return entries.values.toList()
     }
 
-    private fun markUnavailable(toolkit: Toolkit): Toolkit? {
+    private fun markUnavailablePath(toolkit: Toolkit): Toolkit? {
+        if (!toolkit.isAvailable) return null
+        val unavailable = toolkit.copy(isAvailable = false)
+        entries[unavailable.id] = unavailable
+        return unavailable
+    }
+
+    private fun markUnavailableHost(toolkit: Toolkit): Toolkit? {
         if (!toolkit.isAvailable && !toolkit.host.hasBackend) return null
         val unavailable = toolkit.copy(host = toolkit.host.toPersistedHost(), isAvailable = false)
         entries[unavailable.id] = unavailable
