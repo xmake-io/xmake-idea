@@ -65,6 +65,10 @@ class XMakeInfoManager(
     var xmakeInfo: XMakeInfo = XMakeInfo()
         private set
 
+    private var probedToolkitId: String? = null
+
+    private var cachedApisKey: Pair<String, String?>? = null
+
     private val messageBusConnection = project.messageBus.connect(this)
     private val probeRequests = Channel<XMakeBuildProfile>(Channel.CONFLATED)
 
@@ -135,10 +139,9 @@ class XMakeInfoManager(
                 if (!project.hasXMakeProjectDirectorySource && !project.hasRootXMakeLua) {
                     return@withContext
                 }
-project.withProfileCommands(profile) { executionService ->
+                project.withProfileCommands(profile) { executionService ->
                     configureBestEffort(executionService)
 
-                    // A failed query yields null; the field then keeps its previous value.
                     suspend fun <T> queryOrNull(queryName: String, parse: (String) -> T): T? =
                         try {
                             parse(executeInfoQuery(queryName, executionService))
@@ -149,7 +152,10 @@ project.withProfileCommands(profile) { executionService ->
                             null
                         }
 
-                    val previous = xmakeInfo
+                    val previous = if (profile.toolkitId == probedToolkitId) xmakeInfo else XMakeInfo()
+                    probedToolkitId = profile.toolkitId
+                    val apisKey = apisCacheKey(profile)
+                    val apisCached = apisKey != null && apisKey == cachedApisKey && xmakeInfo.apis.isNotEmpty()
                     val info = XMakeInfo(
                         architectures = queryOrNull("architectures", XMakeInfo::parseArchitectures)
                             ?: previous.architectures,
@@ -157,8 +163,15 @@ project.withProfileCommands(profile) { executionService ->
                         platforms = queryOrNull("platforms", XMakeInfo::parsePlatforms) ?: previous.platforms,
                         targets = queryOrNull("targets", XMakeInfo::parseTargets) ?: previous.targets,
                         toolchains = queryOrNull("toolchains", XMakeInfo::parseToolchains) ?: previous.toolchains,
-                        apis = queryOrNull("apis", XMakeInfo::parseApis) ?: previous.apis,
+                        apis = if (apisCached) {
+                            xmakeInfo.apis
+                        } else {
+                            queryOrNull("apis", XMakeInfo::parseApis) ?: previous.apis
+                        },
                     )
+                    if (info.apis.isNotEmpty()) {
+                        cachedApisKey = apisKey
+                    }
                     xmakeInfo = info
                     project.xmakeBuildProfileOptionsCache.put(
                         profile,
@@ -185,6 +198,9 @@ project.withProfileCommands(profile) { executionService ->
     override fun dispose() {
         messageBusConnection.disconnect()
     }
+
+    private fun apisCacheKey(profile: XMakeBuildProfile): Pair<String, String?>? =
+        profile.toolkitId?.let { id -> id to profile.resolveToolkit(project)?.version }
 
     companion object {
         private val PROBE_DEBOUNCE = 300.milliseconds
