@@ -44,16 +44,27 @@ data class XMakeInfo(
             output: String,
             decode: (String) -> T,
             fromLines: (List<String>) -> T,
-        ): T = try {
-            decode(output)
-        } catch (_: Exception) {
-            fromLines(showEntryLines(output))
+        ): T {
+            val payload = output.lineSequence().map(String::trim)
+                .lastOrNull { it.startsWith("[") || it.startsWith("{") }
+            if (payload != null) {
+                try {
+                    return decode(payload)
+                } catch (_: Exception) {
+                }
+            }
+            return fromLines(showEntryLines(output))
         }
 
         private fun showEntryLines(output: String): List<String> =
             output.lineSequence().map(String::trim)
                 .filter(String::isNotEmpty)
+                .filterNot { it.startsWith("[") || it.startsWith("{") }
+                .filterNot { DIAGNOSTIC_PREFIX.containsMatchIn(it) }
                 .toList()
+
+        private val DIAGNOSTIC_PREFIX =
+            Regex("""(?i)^\s*(note|warning|error|checking|stack traceback)\s*[: ]""")
 
         fun parseArchitectures(output: String): XMakeArchitectures =
             parseShowOutput(
