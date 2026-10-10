@@ -46,6 +46,10 @@ import io.xmake.run.state.XMakeDebugState
 import io.xmake.run.state.XMakeRunState
 import io.xmake.run.command.DEFAULT_BUILD_TARGET
 import io.xmake.run.target.findXMakeBuildProfileFor
+import java.io.File
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import org.jdom.Element
 
 class XMakeRunConfiguration(
@@ -134,6 +138,19 @@ class XMakeRunConfiguration(
                 (target.isEmpty() || target == DEFAULT_BUILD_TARGET || target == "all")
         if (needsConcreteTarget) {
             throw RuntimeConfigurationError("Program arguments require a concrete run target, got '$target'")
+        }
+        if (useDapDriver && !dapDriverAutoDetect) {
+            val driverPath = dapDriverPath.trim()
+            if (driverPath.isEmpty() || !File(driverPath).canExecute()) {
+                throw RuntimeConfigurationError("DAP driver path does not point to an executable: '$driverPath'")
+            }
+        }
+        if (launchConfiguration.isNotBlank()) {
+            try {
+                Json.decodeFromString<JsonObject>(launchConfiguration)
+            } catch (error: SerializationException) {
+                throw RuntimeConfigurationError("Launch configuration is not a valid JSON object: ${error.message}")
+            }
         }
     }
 
