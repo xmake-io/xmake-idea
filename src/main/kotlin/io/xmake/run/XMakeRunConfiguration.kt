@@ -56,7 +56,7 @@ class XMakeRunConfiguration(
     RunConfigurationWithSuppressedDefaultDebugAction,
     XMakeProfileRunConfiguration {
 
-    @OptionTag(tag = "target")
+    @OptionTag(tag = "runTarget")
     override var runTarget: String = DEFAULT_BUILD_TARGET
 
     @OptionTag(tag = "arguments")
@@ -98,19 +98,31 @@ class XMakeRunConfiguration(
     }
 
     override fun readExternal(element: Element) {
+        val legacyTarget = takeLegacyTargetTag(element)
         super.readExternal(element)
 
         XmlSerializer.deserializeInto(this, element)
+        normalizeDeserializedStrings()
+        if (runTarget == DEFAULT_BUILD_TARGET && !legacyTarget.isNullOrBlank()) runTarget = legacyTarget
         runEnvironment = EnvironmentVariablesData.readExternal(element)
-        val migratedBuildSettings = readLegacyBuildSettings(element, name)
-        val hasResolvableProfile = preferredBuildProfileId?.let(project.xmakeBuildProfiles::findProfile) != null
-        if (migratedBuildSettings != null) {
-            migratedBuildSettings.legacyProjectDirectory?.let { legacyProjectDirectory ->
-                project.xmakeProjectDirectories.migrateLegacyProjectDirectories(listOf(legacyProjectDirectory))
-            }
-            if (!hasResolvableProfile) {
-                preferredBuildProfileId = project.xmakeBuildProfiles.importMigratedProfile(migratedBuildSettings.profile).id
-            }
+        migrateLegacyBuildSettings(element)
+    }
+
+    private fun takeLegacyTargetTag(element: Element): String? {
+        val legacyTarget = element.getChildren("target")
+            .firstOrNull { it.getAttributeValue("name") == "runTarget" }
+            ?.getAttributeValue("value")
+        element.removeChildren("target")
+        return legacyTarget
+    }
+
+    private fun migrateLegacyBuildSettings(element: Element) {
+        val migrated = readLegacyBuildSettings(element, name) ?: return
+        migrated.legacyProjectDirectory?.let { legacyProjectDirectory ->
+            project.xmakeProjectDirectories.migrateLegacyProjectDirectories(listOf(legacyProjectDirectory))
+        }
+        if (preferredBuildProfileId?.let(project.xmakeBuildProfiles::findProfile) == null) {
+            preferredBuildProfileId = project.xmakeBuildProfiles.importMigratedProfile(migrated.profile).id
         }
     }
 
@@ -123,6 +135,16 @@ class XMakeRunConfiguration(
         if (needsConcreteTarget) {
             throw RuntimeConfigurationError("Program arguments require a concrete run target, got '$target'")
         }
+    }
+
+    /** The XML serializer can leave a non-null String null; restore every default. */
+    @Suppress("USELESS_ELVIS")
+    private fun normalizeDeserializedStrings() {
+        runTarget = runTarget ?: DEFAULT_BUILD_TARGET
+        runArguments = runArguments ?: ""
+        launchWorkingDirectory = launchWorkingDirectory ?: ""
+        dapDriverPath = dapDriverPath ?: ""
+        launchConfiguration = launchConfiguration ?: getDefaultLaunchConfigJson()
     }
 
     override fun canRunOn(target: ExecutionTarget): Boolean = project.findXMakeBuildProfileFor(target) != null
