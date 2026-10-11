@@ -45,7 +45,7 @@ internal class XMakeBuildTask(
 }
 
 private fun XMakeCommand.hasSameExecutionContextAs(other: XMakeCommand): Boolean =
-    toolkit === other.toolkit &&
+    toolkit.location == other.toolkit.location &&
         workingDirectory == other.workingDirectory &&
         configurationDirectory == other.configurationDirectory
 

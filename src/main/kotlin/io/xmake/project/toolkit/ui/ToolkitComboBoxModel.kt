@@ -53,7 +53,7 @@ internal class ToolkitComboBoxModel : SortedComboBoxModel<ToolkitListItem>(natur
             if (currentItem == null) {
                 add(ToolkitListItem.Entry(toolkit))
                 changed = true
-            } else if (!currentItem.toolkit.isSameSnapshotAs(toolkit)) {
+            } else if (!currentItem.toolkit.isSameResolvedToolkitAs(toolkit)) {
                 val wasSelected = selectedItem === currentItem
                 remove(currentItem)
                 val replacement = ToolkitListItem.Entry(toolkit)

@@ -85,7 +85,7 @@ internal class ToolkitScanner {
 
         val scannedToolkits = result.toolkits.map { scannedToolkit ->
             val existing = previous.firstOrNull { candidate -> candidate.location == scannedToolkit.location }
-            val next = existing?.takeIf { candidate -> candidate.isSameSnapshotAs(scannedToolkit) } ?: scannedToolkit
+            val next = existing?.takeIf { candidate -> candidate.isSameResolvedToolkitAs(scannedToolkit) } ?: scannedToolkit
             if (next !== existing) affected[next.id] = next
             next
         }
