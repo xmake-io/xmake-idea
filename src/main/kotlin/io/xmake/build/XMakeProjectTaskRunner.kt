@@ -95,7 +95,7 @@ class XMakeProjectTaskRunner : ProjectTaskRunner() {
                         progress.output(text, ProcessOutputType.fromKey(outputType))
                     },
                     onProblems = { problems ->
-                        progress.reportProblems(problems, command.toolkit.requiresBackend)
+                        progress.reportProblems(problems)
                     },
                 ).awaitSuccessfulCompletion()
             }
@@ -194,28 +194,24 @@ class XMakeProjectTaskRunner : ProjectTaskRunner() {
         }
     }
 
-    private fun BuildProgress<BuildProgressDescriptor>.reportProblems(
-        problems: List<XMakeProblem>,
-        remote: Boolean,
-    ) {
-        for (problem in problems) {
+    private fun BuildProgress<BuildProgressDescriptor>.reportProblems(problems: List<XMakeProblem>) {
+        problems.forEach { problem ->
+            val position = problem.filePosition()
             val kind = problem.messageKind()
-            val message = problem.message.orEmpty()
-            val position = problem.filePosition(remote)
+            val text = problem.message.orEmpty()
             if (position == null) {
-                message("XMake", message, kind, null)
+                message("XMake", text, kind, null)
             } else {
-                fileMessage(position.path?.fileName?.toString() ?: "XMake", message, kind, position)
+                fileMessage(position.path?.fileName?.toString() ?: "XMake", text, kind, position)
             }
         }
     }
 
-    private fun XMakeProblem.filePosition(remote: Boolean): FilePosition? {
-        if (remote) return null
-        val resolvedPath = resolvedFilePath ?: return null
+    private fun XMakeProblem.filePosition(): FilePosition? {
+        val path = navigablePath ?: return null
         val sourceLine = line?.toIntOrNull()?.minus(1)?.coerceAtLeast(0) ?: 0
         val sourceColumn = column?.toIntOrNull()?.minus(1)?.coerceAtLeast(0) ?: 0
-        return FilePosition(resolvedPath.normalize(), sourceLine, sourceColumn)
+        return FilePosition(path.normalize(), sourceLine, sourceColumn)
     }
 
     private fun XMakeProblem.messageKind(): MessageEvent.Kind = when {

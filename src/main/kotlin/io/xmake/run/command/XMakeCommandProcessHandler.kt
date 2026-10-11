@@ -46,6 +46,8 @@ internal class XMakeCommandProcessHandler(
 ) {
     val processHandler: ProcessHandler = createProcessHandler()
 
+    private val remotePathMapper = RemotePathMapper.forToolkit(command.toolkit, command.workingDirectory, project)
+
     suspend fun awaitSuccessfulCompletion() {
         suspendCancellableCoroutine { continuation ->
             val completed = AtomicBoolean()
@@ -146,6 +148,13 @@ internal class XMakeCommandProcessHandler(
         }
         return plainOutput.split(LINE_BREAK_REGEX)
             .mapNotNull { parseProblem(it.trim(), path) }
+            .map(::withNavigablePath)
+    }
+
+    private fun withNavigablePath(problem: XMakeProblem): XMakeProblem {
+        val remote = problem.resolvedPath ?: return problem
+        val navigable = remotePathMapper.toLocal(remote) ?: return problem
+        return problem.copy(navigablePath = navigable)
     }
 
     private companion object {
