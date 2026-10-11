@@ -23,6 +23,7 @@ import io.xmake.run.command.XMAKE_CONFIG_DIRECTORY_ENV
 /** A platform build task whose commands already belong to one configuration. */
 internal class XMakeBuildTask(
     private val presentableName: String,
+    val fetchOnSuccess: String? = null,
     commands: List<XMakeCommand>,
 ) : ProjectTask {
     val commands: List<XMakeCommand> = commands.toList()

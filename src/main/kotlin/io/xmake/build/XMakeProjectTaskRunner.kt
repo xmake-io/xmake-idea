@@ -27,10 +27,12 @@ import com.intellij.openapi.project.Project
 import com.intellij.task.ProjectTask
 import com.intellij.task.ProjectTaskContext
 import com.intellij.task.ProjectTaskRunner
+import io.xmake.project.directory.xmakeProjectDirectories
 import io.xmake.run.command.XMakeCommandProcessHandler
 import io.xmake.run.command.XMakeConsoleOptions
 import io.xmake.run.command.xmakeExecutionService
 import io.xmake.shared.XMakeProblem
+import io.xmake.utils.execute.fetchGeneratedFile
 import kotlinx.coroutines.CancellationException
 import org.jetbrains.concurrency.Promise
 import org.jetbrains.concurrency.toPromiseWithoutLogError
@@ -96,6 +98,21 @@ class XMakeProjectTaskRunner : ProjectTaskRunner() {
                         progress.reportProblems(problems, command.toolkit.requiresBackend)
                     },
                 ).awaitSuccessfulCompletion()
+            }
+            task.fetchOnSuccess?.let { generatedPath ->
+                val lastCommand = task.commands.last()
+                try {
+                    fetchGeneratedFile(
+                        project, lastCommand.toolkit, lastCommand.workingDirectory,
+                        project.xmakeProjectDirectories.resolveLocalSyncDirectory(), generatedPath)
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    progress.output(
+                        "Failed to fetch $generatedPath: ${error.message ?: error.toString()}\n",
+                        ProcessOutputType.STDERR,
+                    )
+                }
             }
         }
 
