@@ -20,17 +20,12 @@
  */
 package io.xmake.utils.info
 
-import com.intellij.openapi.diagnostic.logger
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
 
-private val Log = logger<XMakeInfo>()
 
 data class XMakeInfo(
     val architectures: XMakeArchitectures = emptyMap(),
@@ -45,140 +40,92 @@ data class XMakeInfo(
 
         private val json = Json { ignoreUnknownKeys = true }
 
-        fun parseArchitectures(archString: String): XMakeArchitectures {
-            try {
-                return json.decodeFromString<XMakeArchitectures>(archString)
-            } catch (e: Exception) {
-                // Fallthrough to text parsing
-            }
-
-            return try {
-                val architectures = mutableMapOf<String, List<String>>()
-                archString.split("\n").forEach { line ->
-                    val parts = line.split(":")
-                    if (parts.size == 2) {
-                        val platform = parts[0].trim()
-                        val archs = parts[1].split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                        architectures[platform] = archs
-                    }
-                }
-                architectures
-            } catch (e: Exception) {
-                // Expected when the show output is not valid JSON; the text fallback handles it.
-                Log.warn("Failed to parse architectures: $e\n$archString")
-                emptyMap()
-            }
+        private fun <T> parseShowOutput(
+            output: String,
+            decode: (String) -> T,
+            fromLines: (List<String>) -> T,
+        ): T = try {
+            decode(output)
+        } catch (_: Exception) {
+            fromLines(showEntryLines(output))
         }
 
-        fun parseBuildModes(buildModeString: String): XMakeBuildModes {
-            try {
-                return json.decodeFromString<XMakeBuildModes>(buildModeString)
-            } catch (e: Exception) {
-                // Fallthrough
-            }
+        private fun showEntryLines(output: String): List<String> =
+            output.lineSequence().map(String::trim)
+                .filter(String::isNotEmpty)
+                .toList()
 
-            return try {
-                val modes = buildModeString.split("\n").map { it.trim() }.filter { it.isNotEmpty() }
-                modes
-            } catch (e: Exception) {
-                // Expected when the show output is not valid JSON; the text fallback handles it.
-                Log.warn("Failed to parse buildmodes: $e\n$buildModeString")
-                emptyList()
-            }
-        }
-
-        fun parsePlatforms(platformString: String): XMakePlatforms {
-            try {
-                return json.decodeFromString<XMakePlatforms>(platformString)
-            } catch (e: Exception) {
-                // Fallthrough
-            }
-
-            return try {
-                val platforms = platformString.split("\n").map { it.trim() }.filter { it.isNotEmpty() }
-                platforms
-            } catch (e: Exception) {
-                // Expected when the show output is not valid JSON; the text fallback handles it.
-                Log.warn("Failed to parse platforms: $e\n$platformString")
-                emptyList()
-            }
-        }
-
-        fun parseTargets(targetString: String): XMakeTargets {
-            try {
-                return json.decodeFromString<XMakeTargets>(targetString)
-            } catch (e: Exception) {
-                // Fallthrough
-            }
-
-            return try {
-                val targets = targetString.split("\n").map { it.trim() }.filter { it.isNotEmpty() }
-                targets
-            } catch (e: Exception) {
-                Log.warn("Failed to parse targets: $e\n$targetString")
-                emptyList()
-            }
-        }
-
-        fun parseToolchains(toolchainString: String): XMakeToolchains {
-            try {
-                val element = json.decodeFromString<JsonElement>(toolchainString)
-                if (element is JsonArray) {
-                    val toolchains = mutableMapOf<String, String>()
-                    for (item in element) {
-                        if (item is JsonObject) {
-                            val name = item["name"]?.jsonPrimitive?.content ?: continue
-                            val desc = item["description"]?.jsonPrimitive?.content ?: ""
-                            toolchains[name] = desc
-                        } else if (item is kotlinx.serialization.json.JsonPrimitive) {
-                            toolchains[item.content] = ""
+        fun parseArchitectures(output: String): XMakeArchitectures =
+            parseShowOutput(
+                output,
+                { json.decodeFromString(it) },
+                { lines ->
+                    buildMap {
+                        lines.forEach { line ->
+                            line.split(":").takeIf { it.size == 2 }?.let { (platform, archs) ->
+                                put(platform.trim(), archs.split(",").map(String::trim).filter(String::isNotEmpty))
+                            }
                         }
                     }
-                    return toolchains
-                }
-            } catch (e: Exception) {
-                // Not JSON or failed to parse, fall through to text parsing
-            }
+                },
+            )
 
-            return try {
-                // Fallback to text parsing
-                 toolchainString.split("\n").mapNotNull { line ->
-                     val parts = line.trim().split(Regex("\\s+"), limit = 2)
-                     if (parts.isNotEmpty() && parts[0].isNotEmpty()) {
-                         val name = parts[0].replace(Regex("\u001B\\[[0-9;]*[A-Za-z]"), "")
-                         val desc = if (parts.size > 1) parts[1] else ""
-                         name to desc
-                     } else null
-                 }.associate { it }
-            } catch (e: Exception) {
-                Log.warn("Failed to parse toolchains: $e\n$toolchainString")
-                emptyMap()
-            }
-        }
+        fun parseBuildModes(output: String): XMakeBuildModes =
+            parseShowOutput(output, { json.decodeFromString(it) }, { it })
 
-        fun parseApis(apiString: String): XMakeApis {
-            try {
-                val element = json.decodeFromString<JsonElement>(apiString)
-                if (element is JsonObject) {
-                    val apis = mutableSetOf<String>()
-                    val keysToInclude = listOf("description_builtin_apis", "script_builtin_apis", "description_scope_apis")
-                    for (key in keysToInclude) {
-                        element[key]?.jsonArray?.forEach {
-                            val content = it.jsonPrimitive.content
-                            content.split(".").forEach { part ->
-                                if (part.isNotEmpty()) {
-                                    apis.add(part)
+        fun parsePlatforms(output: String): XMakePlatforms =
+            parseShowOutput(output, { json.decodeFromString(it) }, { it })
+
+        fun parseTargets(output: String): XMakeTargets =
+            parseShowOutput(output, { json.decodeFromString(it) }, { it })
+
+        fun parseToolchains(output: String): XMakeToolchains =
+            parseShowOutput(
+                output,
+                { payload ->
+                    val element = json.parseToJsonElement(payload)
+                    buildMap {
+                        (element as? JsonArray)?.forEach { item ->
+                            when (item) {
+                                is JsonObject -> {
+                                    val name = item["name"]?.jsonPrimitive?.content ?: return@forEach
+                                    put(name, item["description"]?.jsonPrimitive?.content ?: "")
+                                }
+                                is kotlinx.serialization.json.JsonPrimitive -> put(item.content, "")
+                                else -> {}
+                            }
+                        }
+                    }
+                },
+                { lines ->
+                    buildMap {
+                        lines.forEach { line ->
+                            val parts = line.split(Regex("\\s+"), limit = 2)
+                            val name = parts.firstOrNull()?.replace(ANSI_ESCAPE, "") ?: return@forEach
+                            put(name, parts.getOrNull(1) ?: "")
+                        }
+                    }
+                },
+            )
+
+        fun parseApis(output: String): XMakeApis =
+            parseShowOutput(
+                output,
+                { payload ->
+                    val element = json.parseToJsonElement(payload)
+                    buildSet {
+                        (element as? JsonObject)?.let { obj ->
+                            for (key in listOf("description_builtin_apis", "script_builtin_apis", "description_scope_apis")) {
+                                obj[key]?.jsonArray?.forEach { item ->
+                                    item.jsonPrimitive.content.split(".").filter(String::isNotEmpty).forEach(::add)
                                 }
                             }
                         }
                     }
-                    return apis
-                }
-            } catch (e: Exception) {
-                Log.warn("Failed to parse apis: $e\n$apiString")
-            }
-            return emptySet()
-        }
+                },
+                { emptySet() },
+            )
+
+        private val ANSI_ESCAPE = Regex("\u001B\\[[0-9;]*[A-Za-z]")
     }
 }
-
