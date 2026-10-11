@@ -170,4 +170,4 @@ class XMakeToolWindowProblemPanel(project: Project) : SimpleToolWindowPanel(fals
     }
 }
 
-internal fun resolveProblemPath(problem: XMakeProblem): Path? = problem.resolvedFilePath
+internal fun resolveProblemPath(problem: XMakeProblem): Path? = problem.navigablePath

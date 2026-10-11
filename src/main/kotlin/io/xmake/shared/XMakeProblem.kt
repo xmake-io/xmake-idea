@@ -23,15 +23,16 @@ package io.xmake.shared
 import java.nio.file.InvalidPathException
 import java.nio.file.Path
 
-class XMakeProblem(
+data class XMakeProblem(
     val file: String? = null,
     val line: String? = "0",
     val column: String? = "0",
     val kind: String? = "error",
     val message: String? = "",
     val workingDirectory: Path? = null,
+    val navigablePath: Path? = null,
 ) {
-    internal val resolvedFilePath: Path?
+    internal val resolvedPath: Path?
         get() {
             val filePath = file?.takeIf(String::isNotBlank) ?: return null
             val path = try {
