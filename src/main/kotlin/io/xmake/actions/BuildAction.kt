@@ -41,5 +41,8 @@ open class BuildAction : XMakeBuildAction() {
                 add(commandFactory.createUpdateCompileCommands())
             }
         },
+        fetchOnSuccess = if (project.xmakeSettings.state.autoUpdateCompileCommands) {
+            commandFactory.compileCommandsGeneratedPath
+        } else null,
     )
 }
