@@ -22,7 +22,7 @@ import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.project.Project
 import io.xmake.build.XMakeBuildTask
-import io.xmake.build.runXMakeBuildTask
+import io.xmake.build.XMakeBuildTaskExecution
 import io.xmake.run.command.XMakeExecutionService
 import io.xmake.run.state.XMakeDebugState
 import kotlinx.coroutines.Dispatchers
@@ -36,7 +36,7 @@ import java.io.File
  */
 internal suspend fun prepareXMakeDebugBuild(project: Project, state: XMakeDebugState) {
     warnAboutBuildMode(project, state.buildMode)
-    runXMakeBuildTask(
+    XMakeBuildTaskExecution.run(
         project,
         XMakeBuildTask(
             presentableName = "Build '${state.targetName}'",

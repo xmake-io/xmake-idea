@@ -29,6 +29,7 @@ import com.intellij.execution.executors.DefaultRunExecutor
 import com.intellij.execution.process.ProcessHandler
 import com.intellij.execution.runners.AsyncProgramRunner
 import com.intellij.execution.runners.ExecutionEnvironment
+import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.execution.runners.showRunContent
 import com.intellij.execution.ui.RunContentDescriptor
 import com.intellij.openapi.application.EDT
@@ -126,9 +127,7 @@ class XMakeRunner : AsyncProgramRunner<RunnerSettings>() {
                 .startSession()
             session.runContentDescriptor ?: run {
                 val error = ExecutionException("Failed to create the XMake debug descriptor")
-                runCatching { session.session.stop() }
-                    .exceptionOrNull()
-                    ?.let(error::addSuppressed)
+                suppressCleanupError(error) { session.session.stop() }
                 throw error
             }
         }
@@ -152,10 +151,20 @@ class XMakeRunner : AsyncProgramRunner<RunnerSettings>() {
 
     private fun ProcessHandler.stopAfterFailedStart(failure: Throwable) {
         if (!isStartNotified) {
-            runCatching { startNotify() }.exceptionOrNull()?.let(failure::addSuppressed)
+            suppressCleanupError(failure) { startNotify() }
         }
         if (!isProcessTerminated && !isProcessTerminating) {
-            runCatching { destroyProcess() }.exceptionOrNull()?.let(failure::addSuppressed)
+            suppressCleanupError(failure) { destroyProcess() }
         }
+    }
+}
+
+private inline fun suppressCleanupError(primary: Throwable, cleanup: () -> Unit) {
+    try {
+        cleanup()
+    } catch (error: ProcessCanceledException) {
+        throw error
+    } catch (error: Throwable) {
+        primary.addSuppressed(error)
     }
 }

@@ -18,26 +18,39 @@ package io.xmake.build
 
 import com.intellij.execution.ExecutionException
 import com.intellij.openapi.application.EDT
+import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
 import com.intellij.task.ProjectTaskManager
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 
-internal suspend fun runXMakeBuildTask(project: Project, task: XMakeBuildTask) {
-    if (project.isDisposed) {
-        throw ExecutionException("Project was disposed before XMake could start")
-    }
-    val result = withContext(Dispatchers.EDT) {
-        FileDocumentManager.getInstance().saveAllDocuments()
-        suspendCancellableCoroutine { continuation ->
-            val promise = ProjectTaskManager.getInstance(project).run(task)
-            promise.onSuccess { result -> continuation.resumeWith(Result.success(result)) }
-            promise.onError { error -> continuation.resumeWith(Result.failure(error)) }
+internal object XMakeBuildTaskExecution {
+
+    private val Log = logger<XMakeBuildTaskExecution>()
+
+    suspend fun run(project: Project, task: XMakeBuildTask) {
+        if (project.isDisposed) {
+            throw ExecutionException("Project was disposed before XMake could start")
         }
-    }
-    if (result.isAborted || result.hasErrors()) {
-        throw ExecutionException("${task.getPresentableName()} failed")
+        val result = withContext(Dispatchers.EDT) {
+            FileDocumentManager.getInstance().saveAllDocuments()
+            suspendCancellableCoroutine { continuation ->
+                val promise = ProjectTaskManager.getInstance(project).run(task)
+                promise.onSuccess { result -> continuation.resumeWith(Result.success(result)) }
+                promise.onError { error -> continuation.resumeWith(Result.failure(error)) }
+                continuation.invokeOnCancellation {
+                    Log.debug("XMake build task ${task.getPresentableName()} continues after the awaiter was cancelled")
+                }
+            }
+        }
+        if (result.isAborted) {
+            throw CancellationException("${task.getPresentableName()} was aborted")
+        }
+        if (result.hasErrors()) {
+            throw ExecutionException("${task.getPresentableName()} failed")
+        }
     }
 }
