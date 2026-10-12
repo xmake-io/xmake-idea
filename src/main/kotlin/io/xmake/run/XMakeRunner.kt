@@ -115,7 +115,7 @@ class XMakeRunner : AsyncProgramRunner<RunnerSettings>() {
         environment: ExecutionEnvironment,
     ): RunContentDescriptor {
         val debugSupport = XMakeDebugSupport.find()
-            ?: throw ExecutionException("XMake debug support is not available in this IDE")
+            ?: throw ExecutionException("XMake debugging requires the CLion debugger integration")
         val launch = prepareXMakeDebugLaunch(state, environment.project, execution)
 
         return withContext(Dispatchers.EDT) {

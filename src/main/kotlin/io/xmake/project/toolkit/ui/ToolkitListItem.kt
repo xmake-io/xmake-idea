@@ -50,7 +50,7 @@ sealed class ToolkitListItem(
         text = toolkit.path,
         secondaryText = toolkit.name,
         tertiaryText = if (!toolkit.isAvailable) {
-            "Unavailable"
+            unavailableReason(toolkit)
         } else {
             // XMake appends build metadata after `+`; list labels need only the release version.
             toolkit.version.substringBefore('+').trim()
@@ -73,3 +73,6 @@ sealed class ToolkitListItem(
         }
     }
 }
+
+private fun unavailableReason(toolkit: Toolkit): String =
+    if (toolkit.requiresBackend && !toolkit.host.hasBackend) "${toolkit.host.type} host not configured" else "Unavailable"

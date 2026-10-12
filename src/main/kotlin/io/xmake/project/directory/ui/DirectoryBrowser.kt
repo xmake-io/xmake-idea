@@ -25,6 +25,7 @@ import com.intellij.execution.wsl.ui.browseWslPath
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.TextComponentAccessor
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import io.xmake.project.toolkit.Toolkit
@@ -86,22 +87,33 @@ class DirectoryBrowser(
         val listener = when (host.type) {
             LOCAL -> createLocalBrowseListener()
 
-            WSL -> {
-                val distribution = host.wslDistribution ?: return
-                createWslBrowseListener(distribution)
-            }
+            WSL -> host.wslDistribution?.let(::createWslBrowseListener)
+                ?: unavailableBackendListener("the WSL distribution is not available")
 
-            SSH -> {
-                if (!host.hasBackend) return
-                val extension = ToolkitHostExtension.forHostType(host.type) ?: return
-                extension.createBrowseListener(this, host)
-            }
+            SSH -> sshBrowseListener(host)
         }
 
         addActionListener(listener)
         listeners += listener
         setButtonEnabled(true)
         Log.debug("Added directory browser listener for ${host.type}")
+    }
+
+    private fun sshBrowseListener(host: ToolkitHost): ActionListener {
+        val extension = ToolkitHostExtension.forHostType(host.type)
+            ?: return unavailableBackendListener("the SSH support plugin is disabled")
+        if (!host.hasBackend) {
+            return unavailableBackendListener("SSH host '${host.migratedBackendId ?: "?"}' is not configured")
+        }
+        return extension.createBrowseListener(this, host)
+    }
+
+    private fun unavailableBackendListener(reason: String): ActionListener = ActionListener {
+        Messages.showErrorDialog(
+            this,
+            "Browsing is unavailable: $reason.",
+            browseTitle,
+        )
     }
 
     private fun removeBrowseListeners() {
