@@ -52,7 +52,7 @@ data class Toolkit(
         get() = host.type == ToolkitHostType.WSL || host.type == ToolkitHostType.SSH
 
     /** Equal persisted state backed by the same resolved runtime instance. */
-    internal fun isSameSnapshotAs(other: Toolkit): Boolean =
+    internal fun isSameResolvedToolkitAs(other: Toolkit): Boolean =
         this == other &&
                 host.backend === other.host.backend
 

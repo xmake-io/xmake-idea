@@ -109,7 +109,7 @@ class ToolkitComboBox(
         val selectionChanged = when {
             previousToolkit === resolvedToolkit -> false
             previousToolkit == null || resolvedToolkit == null -> true
-            else -> !previousToolkit.isSameSnapshotAs(resolvedToolkit)
+            else -> !previousToolkit.isSameResolvedToolkitAs(resolvedToolkit)
         }
         val itemsChanged = withSelectionHandlingSuppressed {
             toolkitModel.synchronizeWith(visibleToolkits, selectedToolkit?.id)
