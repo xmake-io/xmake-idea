@@ -22,8 +22,8 @@ package io.xmake.utils
 
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.util.SystemInfo
-import com.intellij.openapi.vfs.VirtualFile
 import io.xmake.shared.XMakeProblem
+import java.util.concurrent.ConcurrentHashMap
 import java.io.File
 import java.nio.file.Path
 import java.util.regex.Pattern
@@ -32,6 +32,14 @@ object SystemUtils {
     
     private val Log = logger<SystemUtils>()
 
+    private val extractedResources = ConcurrentHashMap<String, File>()
+
+    private val GCC_STYLE = Pattern.compile("^(error: )?(.*?):([0-9]*):([0-9]*): (.*?): (.*)$")
+    private val MSVC_FAMILY = Pattern.compile("^(.*?)\\(([0-9]+)(?:,([0-9]+))?\\): (.*?): (.*)$")
+    private val ARM_CC_STYLE = Pattern.compile("^\"(.*)\", line ([0-9]+): (.*?): (.*)$")
+    private val IAR_STYLE = Pattern.compile("^\"(.*)\",([0-9]+)\\s+(Error|Warning)\\[Pe[0-9]+]: (.*)$")
+    private val LINE_ONLY = Pattern.compile("^(.*?):([0-9]+): (error|warning|fatal error|note)(?: [0-9]+)?: (.*)$")
+
     // get platform
     fun platform(): String = when {
         SystemInfo.isWindows -> "windows"
@@ -39,18 +47,19 @@ object SystemUtils {
         else -> "linux"
     }
 
-    // parse problems for the given line
-    fun parseProblem(info: String, workingDirectory: Path? = null): XMakeProblem? {
-        // xmake diagnostics follow one of the common compiler formats below, on any host OS
-        parseGccStyleProblem(info, workingDirectory)?.let { return it }
-        parseMsvcFamilyProblem(info, workingDirectory)?.let { return it }
-        parseArmCcStyleProblem(info, workingDirectory)?.let { return it }
-        parseIarProblem(info, workingDirectory)?.let { return it }
-        return parseLineOnlyProblem(info, workingDirectory)
-    }
+    private val problemParsers = listOf(
+        ::parseGccStyleProblem,
+        ::parseMsvcFamilyProblem,
+        ::parseArmCcStyleProblem,
+        ::parseIarProblem,
+        ::parseLineOnlyProblem,
+    )
+
+    fun parseProblem(info: String, workingDirectory: Path? = null): XMakeProblem? =
+        problemParsers.firstNotNullOfOrNull { parser -> parser(info, workingDirectory) }
 
     private fun parseGccStyleProblem(info: String, workingDirectory: Path?): XMakeProblem? {
-        val pattern = Pattern.compile("^(error: )?(.*?):([0-9]*):([0-9]*): (.*?): (.*)$")
+        val pattern = GCC_STYLE
         val matcher = pattern.matcher(info)
         if (!matcher.find()) return null
         return XMakeProblem(
@@ -65,7 +74,7 @@ object SystemUtils {
 
     // Matches MSVC, clang-cl, and Keil C51 diagnostics: file(line[,column]): kind [Cxxxx]: message
     private fun parseMsvcFamilyProblem(info: String, workingDirectory: Path?): XMakeProblem? {
-        val pattern = Pattern.compile("^(.*?)\\(([0-9]+)(?:,([0-9]+))?\\): (.*?): (.*)$")
+        val pattern = MSVC_FAMILY
         val matcher = pattern.matcher(info)
         if (!matcher.find()) return null
         return XMakeProblem(
@@ -80,7 +89,7 @@ object SystemUtils {
 
     // Matches ARM Compiler 5 and TI diagnostics: "file", line N: kind: message
     private fun parseArmCcStyleProblem(info: String, workingDirectory: Path?): XMakeProblem? {
-        val pattern = Pattern.compile("^\"(.*)\", line ([0-9]+): (.*?): (.*)$")
+        val pattern = ARM_CC_STYLE
         val matcher = pattern.matcher(info)
         if (!matcher.find()) return null
         return XMakeProblem(
@@ -95,7 +104,7 @@ object SystemUtils {
 
     // Matches IAR diagnostics that include a file reference: "file",line  Error[PeNNNN]: message
     private fun parseIarProblem(info: String, workingDirectory: Path?): XMakeProblem? {
-        val pattern = Pattern.compile("^\"(.*)\",([0-9]+)\\s+(Error|Warning)\\[Pe[0-9]+\\]: (.*)$")
+        val pattern = IAR_STYLE
         val matcher = pattern.matcher(info)
         if (!matcher.find()) return null
         return XMakeProblem(
@@ -110,7 +119,7 @@ object SystemUtils {
 
     // Matches line-only formats (TCC, SDCC, ...): file:line: kind [code]: message
     private fun parseLineOnlyProblem(info: String, workingDirectory: Path?): XMakeProblem? {
-        val pattern = Pattern.compile("^(.*?):([0-9]+): (error|warning|fatal error|note)(?: [0-9]+)?: (.*)$")
+        val pattern = LINE_ONLY
         val matcher = pattern.matcher(info)
         if (!matcher.find()) return null
         return XMakeProblem(
@@ -137,8 +146,9 @@ object SystemUtils {
                     Log.error("Failed to get resource path from file URI", e)
                 }
             } else if (url.protocol == "jar") {
-                // Extract from JAR to temp file
                 try {
+                    val cached = extractedResources[resourcePath]
+                    if (cached != null) return cached.absolutePath
                     val tempFile = File.createTempFile("xmake_resource_", "_$resourceName")
                     tempFile.deleteOnExit()
                     SystemUtils::class.java.getResourceAsStream(resourcePath)?.use { input ->
@@ -146,6 +156,7 @@ object SystemUtils {
                             input.copyTo(output)
                         }
                     }
+                    extractedResources[resourcePath] = tempFile
                     return tempFile.absolutePath
                 } catch (e: Exception) {
                     Log.error("Failed to extract resource from JAR", e)
@@ -157,6 +168,8 @@ object SystemUtils {
         try {
             val stream = SystemUtils::class.java.getResourceAsStream(resourcePath)
             if (stream != null) {
+                val cached = extractedResources[resourcePath]
+                if (cached != null) return cached.absolutePath
                 val tempFile = File.createTempFile("xmake_resource_stream_", "_$resourceName")
                 tempFile.deleteOnExit()
                 stream.use { input ->
@@ -164,6 +177,7 @@ object SystemUtils {
                         input.copyTo(output)
                     }
                 }
+                extractedResources[resourcePath] = tempFile
                 return tempFile.absolutePath
             }
         } catch (e: Exception) {
