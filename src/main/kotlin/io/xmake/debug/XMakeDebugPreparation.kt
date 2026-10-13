@@ -52,8 +52,8 @@ internal suspend fun prepareXMakeDebugLaunch(
 ): XMakeDebugLaunch {
     val output = execution.captureStandardOutput(state.targetPathCommand)
     val debugTarget = resolveDebugTarget(state, output)
-    // The native path takes no driver configuration at all; DAP settings are read only in DAP mode.
-    val driver = if (state.useDapDriver) resolveDapDriver(project, state) else XMakeDebugDriver.BundledLldb
+    // The native path takes its debugger from the active debug profile; DAP settings only apply in DAP mode.
+    val driver = if (state.useDapDriver) resolveDapDriver(project, state) else XMakeDebugDriver.Native
     return XMakeDebugLaunch(
         executablePath = debugTarget.executableFile.absolutePath,
         driver = driver,

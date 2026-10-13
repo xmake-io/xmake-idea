@@ -32,8 +32,8 @@ data class XMakeDebugLaunch(
 sealed interface XMakeDebugDriver {
     val displayName: String
 
-    data object BundledLldb : XMakeDebugDriver {
-        override val displayName: String = "CLion bundled LLDB"
+    data object Native : XMakeDebugDriver {
+        override val displayName: String = "CLion native debugger"
     }
 
     data class Dap(
