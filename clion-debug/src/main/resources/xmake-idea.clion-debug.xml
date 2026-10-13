@@ -16,4 +16,13 @@
         <debugAdapterSupportProvider implementation="io.xmake.debug.clion.dap.XMakeDebugAdapterProvider"/>
     </extensions>
 
+    <!-- The merged profile switcher, in the native switcher's toolbar groups; the platform's
+         target combobox steps aside while this module is loaded. -->
+    <actions>
+        <action id="XMakeProfileSwitcher"
+                class="io.xmake.debug.clion.XMakeProfileSwitcherAction">
+            <add-to-group group-id="ExecutionTargetsToolbarGroup"/>
+            <add-to-group group-id="ToolbarRunGroup" anchor="before" relative-to-action="RunConfiguration"/>
+        </action>
+    </actions>
 </idea-plugin>
