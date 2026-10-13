@@ -38,8 +38,13 @@ internal fun launchSelectedXMakeRunConfiguration(project: Project, executor: Exe
     ProgramRunnerUtil.executeConfiguration(settings, executor)
 }
 
-internal val Project.selectedXMakeRunConfiguration: XMakeRunConfiguration?
-    get() = selectedXMakeRunConfigurationSettings?.configuration as? XMakeRunConfiguration
+/** The selected XMake run configuration without creating the run manager; action updates run on
+ *  a background thread and must not trigger its initialization. */
+internal val Project.selectedXMakeRunConfigurationIfCreated: XMakeRunConfiguration?
+    get() = RunManager.getInstanceIfCreated(this)
+        ?.selectedConfiguration
+        ?.configuration
+        as? XMakeRunConfiguration
 
 private val Project.selectedXMakeRunConfigurationSettings: RunnerAndConfigurationSettings?
     get() = RunManager.getInstance(this).selectedConfiguration

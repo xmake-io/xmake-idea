@@ -25,8 +25,9 @@ class RunToolbarBuildAction : BuildAction() {
         if (!e.presentation.isEnabledAndVisible) return
 
         val project = e.project ?: return
-        val profile = project.activeOrSingleXMakeBuildProfile
         e.presentation.isEnabledAndVisible =
-            project.selectedXMakeRunConfiguration != null && profile?.canExecute(project) == true
+            !project.isDisposed &&
+            project.selectedXMakeRunConfigurationIfCreated != null &&
+            project.activeOrSingleXMakeBuildProfile?.canExecute(project) == true
     }
 }
