@@ -10,7 +10,6 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowManager
 import com.intellij.ui.content.Content
-import io.xmake.shared.XMakeProblem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -20,7 +19,6 @@ class XMakeConsole internal constructor(
     private val project: Project,
     private val toolWindow: ToolWindow,
     private val outputPanel: XMakeToolWindowOutputPanel,
-    private val problemPanel: XMakeToolWindowProblemPanel,
     private val outputContent: Content
 ) {
     internal val view: ConsoleView
@@ -47,16 +45,6 @@ class XMakeConsole internal constructor(
             }
         }
     }
-
-    fun updateProblems(problems: List<XMakeProblem>) {
-        if (project.isDisposed) return
-
-        ToolWindowManager.getInstance(project).invokeLater {
-            if (!project.isDisposed) {
-                problemPanel.problems = problems
-            }
-        }
-    }
 }
 
 @Service(Service.Level.PROJECT)
@@ -66,11 +54,10 @@ class XMakeConsoleService(private val project: Project) {
     internal fun register(
         toolWindow: ToolWindow,
         outputPanel: XMakeToolWindowOutputPanel,
-        problemPanel: XMakeToolWindowProblemPanel,
         outputContent: Content
     ) {
         check(ApplicationManager.getApplication().isDispatchThread)
-        console = XMakeConsole(project, toolWindow, outputPanel, problemPanel, outputContent)
+        console = XMakeConsole(project, toolWindow, outputPanel, outputContent)
     }
 
     fun whenReady(

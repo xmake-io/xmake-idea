@@ -34,12 +34,8 @@ class XMakeToolWindowFactory : ToolWindowFactory, DumbAware {
         outputTab.setDisposer(outputPanel)
         toolWindow.contentManager.addContent(outputTab)
 
-        val problemPanel = XMakeToolWindowProblemPanel(project)
-        val problemTab = ContentFactory.getInstance().createContent(problemPanel, "Problem", false)
-        toolWindow.contentManager.addContent(problemTab)
-
         toolWindow.contentManager.setSelectedContent(outputTab)
-        project.xmakeConsoleService.register(toolWindow, outputPanel, problemPanel, outputTab)
+        project.xmakeConsoleService.register(toolWindow, outputPanel, outputTab)
     }
 }
 
