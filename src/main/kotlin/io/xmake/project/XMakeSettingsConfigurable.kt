@@ -2,11 +2,11 @@ package io.xmake.project
 
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
+import com.intellij.openapi.options.BoundConfigurable
 import com.intellij.openapi.options.SearchableConfigurable
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.ui.DialogPanel
-import com.intellij.util.messages.MessageBusConnection
+import com.intellij.openapi.ui.Messages
 import com.intellij.ui.ColoredListCellRenderer
 import com.intellij.ui.SimpleTextAttributes
 import com.intellij.ui.ToolbarDecorator
@@ -24,18 +24,20 @@ import javax.swing.DefaultListModel
 import javax.swing.JComponent
 import javax.swing.JList
 
-class XMakeSettingsConfigurable(private val project: Project) : SearchableConfigurable {
+class XMakeSettingsConfigurable(private val project: Project) :
+    BoundConfigurable("XMake"), SearchableConfigurable {
+
     private val settings = XMakeSettings.getInstance(project)
     private var projectDirectoryPanel: XMakeProjectDirectoryPanel? = null
     private val toolkitManager = ToolkitManager.getInstance()
-    private var messageBusConnection: MessageBusConnection? = null
     private val toolkitListModel = DefaultListModel<ToolkitListItem>()
     private var toolkitList: JBList<ToolkitListItem>? = null
-    private var myPanel: DialogPanel? = null
 
     private val pendingToolkitRemovals = mutableSetOf<String>()
 
-    override fun createComponent(): JComponent {
+    override fun getId(): String = "XMakeSettings"
+
+    override fun createPanel(): DialogPanel {
         val toolkitList = JBList(toolkitListModel).apply {
             cellRenderer = object : ColoredListCellRenderer<ToolkitListItem>() {
                 override fun customizeCellRenderer(
@@ -65,21 +67,17 @@ class XMakeSettingsConfigurable(private val project: Project) : SearchableConfig
         val projectDirectoryPanel = XMakeProjectDirectoryPanel(project)
         this.projectDirectoryPanel = projectDirectoryPanel
 
-        // createComponent may run again on this configurable, so an earlier connection is released first.
-        messageBusConnection?.disconnect()
-        messageBusConnection = project.messageBus.connect().apply {
-            subscribe(
-                ToolkitListener.TOPIC,
-                object : ToolkitListener {
-                    override fun toolkitsChanged() {
-                        ApplicationManager.getApplication().invokeLater({
-                            refreshToolkitList()
-                            projectDirectoryPanel.refreshToolkits()
-                        }, ModalityState.any())
-                    }
-                },
-            )
-        }
+        project.messageBus.connect(disposable!!).subscribe(
+            ToolkitListener.TOPIC,
+            object : ToolkitListener {
+                override fun toolkitsChanged() {
+                    ApplicationManager.getApplication().invokeLater({
+                        refreshToolkitList()
+                        projectDirectoryPanel.refreshToolkits()
+                    }, ModalityState.any())
+                }
+            },
+        )
 
         val decorator = ToolbarDecorator.createDecorator(toolkitList)
         decorator.setRemoveAction {
@@ -97,7 +95,7 @@ class XMakeSettingsConfigurable(private val project: Project) : SearchableConfig
             }
         }
 
-        val panel = panel {
+        return panel {
             groupRowsRange("Project Directory") {
                 projectDirectoryPanel.attachTo(this)
             }
@@ -121,12 +119,10 @@ class XMakeSettingsConfigurable(private val project: Project) : SearchableConfig
                 }.resizableRow()
             }
         }
-        myPanel = panel
-        return panel
     }
 
     override fun getPreferredFocusedComponent(): JComponent? =
-        projectDirectoryPanel?.focusableComponent ?: myPanel
+        projectDirectoryPanel?.focusableComponent ?: super<BoundConfigurable>.getPreferredFocusedComponent()
 
     private fun refreshToolkitList() {
         val selectedId = (toolkitList?.selectedValue as? ToolkitListItem.Entry)?.id
@@ -144,31 +140,28 @@ class XMakeSettingsConfigurable(private val project: Project) : SearchableConfig
     }
 
     override fun disposeUIResources() {
-        messageBusConnection?.disconnect()
-        messageBusConnection = null
         toolkitList = null
-        myPanel = null
         projectDirectoryPanel = null
+        super<BoundConfigurable>.disposeUIResources()
     }
 
-    override fun isModified(): Boolean {
-        return pendingToolkitRemovals.isNotEmpty() ||
+    override fun isModified(): Boolean =
+        pendingToolkitRemovals.isNotEmpty() ||
                 projectDirectoryPanel?.isModified == true ||
-                myPanel?.isModified() == true
-    }
+                super<BoundConfigurable>.isModified()
 
     override fun apply() {
+        projectDirectoryPanel?.apply()
+        super<BoundConfigurable>.apply()
         pendingToolkitRemovals.forEach(toolkitManager::unregister)
         pendingToolkitRemovals.clear()
-        projectDirectoryPanel?.apply()
-        myPanel?.apply()
     }
 
     override fun reset() {
         pendingToolkitRemovals.clear()
         refreshToolkitList()
         projectDirectoryPanel?.reset()
-        myPanel?.reset()
+        super<BoundConfigurable>.reset()
     }
 
     override fun cancel() {
@@ -176,8 +169,4 @@ class XMakeSettingsConfigurable(private val project: Project) : SearchableConfig
         pendingToolkitRemovals.clear()
         refreshToolkitList()
     }
-
-    override fun getDisplayName() = "XMake"
-
-    override fun getId(): String = "XMakeSettings"
 }
