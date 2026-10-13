@@ -27,10 +27,12 @@ import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.xmakeSettings
 import io.xmake.utils.SystemUtils
 
-/** Builds commands from one project-owned build profile captured at construction time. */
+/** Builds commands from one project-owned build profile captured at construction time. The toolkit
+ *  is optional; a preview may pass a selected installation before it is registered. */
 internal class XMakeCommandFactory(
     private val project: Project,
     profile: XMakeBuildProfile,
+    selectedToolkit: Toolkit? = null,
 ) {
     private val profileSnapshot = profile.copy()
     private val compileCommandsPath = project.xmakeSettings.state.compileCommandsPath
@@ -51,8 +53,10 @@ internal class XMakeCommandFactory(
             parsedArgs(profileSnapshot.configureArguments)
         }
     }
-    /** The toolkit every command from this factory runs on. */
-    val toolkit: Toolkit = profileSnapshot.resolveToolkit(project)
+    /** The toolkit every command from this factory runs on; a preview may pass a selected
+     *  installation before it is registered. */
+    val toolkit: Toolkit = selectedToolkit
+        ?: profileSnapshot.resolveToolkit(project)
         ?: throw RuntimeConfigurationError(
             "XMake toolkit is not set, is unavailable in this project, or is no longer registered",
         )

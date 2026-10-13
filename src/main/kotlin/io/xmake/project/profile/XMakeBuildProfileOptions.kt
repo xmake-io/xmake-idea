@@ -17,6 +17,7 @@
 package io.xmake.project.profile
 
 import com.intellij.openapi.project.Project
+import io.xmake.project.toolkit.Toolkit
 import io.xmake.run.command.configureBestEffort
 import io.xmake.run.command.executeInfoQuery
 import io.xmake.run.command.withProfileCommands
@@ -31,13 +32,15 @@ internal data class XMakeBuildProfileOptions(
     val toolchains: Map<String, String> = emptyMap(),
 )
 
-/** Queries the XMake option choices available in one build profile's command context. */
+/** Queries the XMake option choices available in one build profile's command context. The toolkit
+ *  is optional; a preview may run a selected installation before it is registered. */
 internal suspend fun Project.queryXMakeBuildProfileOptions(
     profile: XMakeBuildProfile,
+    toolkit: Toolkit? = null,
 ): XMakeBuildProfileOptions {
     xmakeBuildProfileOptionsCache.get(profile)?.let { return it }
     val options = withContext(Dispatchers.IO) {
-        withProfileCommands(profile) { executionService ->
+        withProfileCommands(profile, toolkit) { executionService ->
             configureBestEffort(executionService)
             XMakeBuildProfileOptions(
                 architectures = XMakeInfo.parseArchitectures(executeInfoQuery("architectures", executionService)),
