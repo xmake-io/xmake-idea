@@ -37,13 +37,15 @@ class XMakeProjectDirectoryManager(private val project: Project) :
 
     /** Replaces the state from the settings page or the project wizard. */
     fun replaceState(state: XMakeProjectDirectoryState) {
-        updateState(state)
+        updateState { state }
     }
 
-    private fun updateState(replacement: XMakeProjectDirectoryState) {
-        val normalized = replacement.normalized()
+    private fun updateState(transform: (XMakeProjectDirectoryState) -> XMakeProjectDirectoryState) {
         val changed = synchronized(stateLock) {
-            if (currentState == normalized) false else {
+            val normalized = transform(currentState).normalized()
+            if (currentState == normalized) {
+                false
+            } else {
                 currentState = normalized
                 true
             }
@@ -79,7 +81,7 @@ class XMakeProjectDirectoryManager(private val project: Project) :
     /** Imports directories previously owned by build profiles. First-wins: migration never
      *  overwrites a directory configured after the upgrade. */
     fun migrateLegacyProjectDirectories(legacyDirectories: List<LegacyProjectDirectory>) {
-        updateState(current.migrateLegacyDirectories(legacyDirectories))
+        updateState { state -> state.migrateLegacyDirectories(legacyDirectories) }
     }
 
     companion object {
