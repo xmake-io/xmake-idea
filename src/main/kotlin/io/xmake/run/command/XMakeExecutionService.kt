@@ -23,7 +23,6 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
 import io.xmake.project.console.XMakeConsole
-import io.xmake.shared.XMakeProblem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
@@ -67,7 +66,6 @@ internal class XMakeExecutionService(
         onTextAvailable = { text, outputType ->
             console.print(text, ConsoleViewContentType.getConsoleViewType(outputType))
         },
-        onProblems = console::updateProblems,
         beforeStart = { if (options.showConsole) console.showOutput() },
     )
 
@@ -90,7 +88,6 @@ internal class XMakeExecutionService(
         command: XMakeCommand,
         options: XMakeConsoleOptions = XMakeConsoleOptions(),
         onTextAvailable: (String, Key<*>) -> Unit = { _, _ -> },
-        onProblems: (List<XMakeProblem>) -> Unit = {},
         beforeStart: () -> Unit = {},
     ) {
         if (project.isDisposed) {
@@ -98,7 +95,7 @@ internal class XMakeExecutionService(
         }
 
         beforeStart()
-        XMakeCommandProcessHandler(project, command, options, onTextAvailable, onProblems)
+        XMakeCommandProcessHandler(project, command, options, onTextAvailable)
             .awaitSuccessfulCompletion()
     }
 }

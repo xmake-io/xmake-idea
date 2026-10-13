@@ -20,6 +20,8 @@
  */
 package io.xmake.project.console
 
+import com.intellij.execution.filters.Filter
+import com.intellij.execution.filters.OpenFileHyperlinkInfo
 import com.intellij.execution.filters.TextConsoleBuilderFactory
 import com.intellij.execution.ui.ConsoleView
 import com.intellij.openapi.Disposable
@@ -29,6 +31,8 @@ import com.intellij.openapi.actionSystem.DefaultActionGroup
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.SimpleToolWindowPanel
 import com.intellij.openapi.util.Disposer
+import com.intellij.openapi.vfs.LocalFileSystem
+import java.io.File
 
 class XMakeToolWindowOutputPanel(project: Project) : SimpleToolWindowPanel(false), Disposable {
 
@@ -46,6 +50,7 @@ class XMakeToolWindowOutputPanel(project: Project) : SimpleToolWindowPanel(false
     val consoleView: ConsoleView = run {
         val builder = TextConsoleBuilderFactory.getInstance().createBuilder(project)
         builder.setViewer(true)
+        builder.addFilter(FileReferenceFilter(project))
         builder.console
     }
 
@@ -64,5 +69,36 @@ class XMakeToolWindowOutputPanel(project: Project) : SimpleToolWindowPanel(false
 
     // dispose
     override fun dispose() {
+    }
+}
+
+/**
+ * Links `file:line:col` references in console output, resolving relative paths against the
+ * project base. Remote host paths stay plain text here; the Build view links those.
+ */
+private class FileReferenceFilter(private val project: Project) : Filter {
+
+    override fun applyFilter(line: String, entireLength: Int): Filter.Result? {
+        val match = PATTERN.find(line) ?: return null
+        val file = resolve(match.groupValues[1]) ?: return null
+        val virtualFile = LocalFileSystem.getInstance().findFileByIoFile(file) ?: return null
+        val lineNumber = match.groupValues[2].toIntOrNull()?.minus(1)?.coerceAtLeast(0) ?: return null
+        val columnNumber = match.groupValues[3].toIntOrNull()?.minus(1)?.coerceAtLeast(0) ?: 0
+        return Filter.Result(
+            match.range.first,
+            match.range.last + 1,
+            OpenFileHyperlinkInfo(project, virtualFile, lineNumber, columnNumber),
+        )
+    }
+
+    private fun resolve(path: String): File? {
+        val file = File(path)
+        if (file.isAbsolute) return file
+        val basePath = project.basePath ?: return null
+        return File(basePath, path)
+    }
+
+    private companion object {
+        val PATTERN = Regex("""((?:[A-Za-z]:)?[^\s:()]*[/\\][^\s:()]*):(\d+)(?::(\d+))?""")
     }
 }

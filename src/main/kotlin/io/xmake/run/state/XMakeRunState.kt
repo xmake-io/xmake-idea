@@ -22,7 +22,6 @@ import com.intellij.execution.Executor
 import com.intellij.execution.configurations.CommandLineState
 import com.intellij.execution.process.ProcessHandler
 import com.intellij.execution.runners.ExecutionEnvironment
-import io.xmake.project.console.xmakeConsoleService
 import io.xmake.run.XMakeRunConfiguration
 import io.xmake.run.command.XMakeCommand
 import io.xmake.run.command.XMakeCommandFactory
@@ -36,19 +35,12 @@ internal class XMakeRunState private constructor(
     private val runCommand: XMakeCommand,
 ) : CommandLineState(environment) {
 
-    public override fun startProcess(): ProcessHandler {
-        val project = environment.project
-        return XMakeCommandProcessHandler(
-            project,
+    public override fun startProcess(): ProcessHandler =
+        XMakeCommandProcessHandler(
+            environment.project,
             runCommand,
-            XMakeConsoleOptions(showProblems = true, showExitCode = true),
-            onProblems = { problems ->
-                project.xmakeConsoleService.whenReady { console ->
-                    console.updateProblems(problems)
-                }
-            },
+            XMakeConsoleOptions(showExitCode = true),
         ).processHandler
-    }
 
     internal fun createExecutionResult(
         executor: Executor,
