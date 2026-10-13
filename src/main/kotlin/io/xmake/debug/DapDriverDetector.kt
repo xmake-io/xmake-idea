@@ -172,12 +172,9 @@ object DapDriverDetector {
     /**
      * Get default search paths for DAP drivers
      */
-    fun getDefaultSearchPaths(): List<String> {
-        val paths = mutableListOf<String>()
-        
-        if (SystemInfo.isMac) {
-            // macOS paths
-            paths.addAll(listOf(
+    fun getDefaultSearchPaths(): List<String> = buildList {
+        when {
+            SystemInfo.isMac -> addAll(listOf(
                 "/Applications/Xcode.app/Contents/Developer/usr/bin/lldb-dap",
                 "/usr/local/opt/llvm/bin/lldb-dap",
                 "/opt/homebrew/opt/llvm/bin/lldb-dap",
@@ -186,70 +183,58 @@ object DapDriverDetector {
                 "/usr/local/opt/llvm/bin/gdb",
                 "/opt/homebrew/opt/llvm/bin/gdb",
                 "/usr/bin/gdb",
-                "/usr/local/bin/gdb"
+                "/usr/local/bin/gdb",
             ))
-        } else if (SystemInfo.isLinux) {
-            // Linux paths
-            paths.addAll(listOf(
+
+            SystemInfo.isLinux -> addAll(listOf(
                 "/usr/bin/lldb-dap",
                 "/usr/local/bin/lldb-dap",
                 "/usr/bin/gdb",
                 "/usr/local/bin/gdb",
                 "/snap/bin/gdb",
-                "/snap/bin/gdb-dap"
+                "/snap/bin/gdb-dap",
             ))
-        } else if (SystemInfo.isWindows) {
-            // Windows paths
-            paths.addAll(listOf(
+
+            SystemInfo.isWindows -> addAll(listOf(
                 "C:\\Program Files\\LLVM\\bin\\lldb-dap.exe",
                 "C:\\Program Files (x86)\\LLVM\\bin\\lldb-dap.exe",
                 "C:\\msys64\\mingw64\\bin\\lldb-dap.exe",
                 "C:\\msys64\\mingw64\\bin\\gdb.exe",
-                "C:\\Program Files\\GDB\\bin\\gdb.exe"
+                "C:\\Program Files\\GDB\\bin\\gdb.exe",
             ))
         }
-        
-        return paths
     }
     
     /**
      * Find all available DAP drivers
      */
-    fun findAvailableDrivers(): List<DapDriverInfo> {
-        val drivers = mutableListOf<DapDriverInfo>()
-        
-        for (path in getDefaultSearchPaths()) {
-            val file = File(path)
-            if (file.exists() && file.canExecute()) {
-                val type = detectDriverType(path)
-                if (type != DapDriverType.UNKNOWN) {
-                    if (type == DapDriverType.GDB_DAP) {
-                        val capability = getGdbDapCapability(path)
-                        // The label states the version requirement only when the parsed version
-                        // confirms it; an unverified probe stays neutral instead of guessing.
-                        val displayName = when {
-                            capability.dapCapable -> type.displayName
-                            capability.unsupportedConfirmed -> "${type.displayName} (need 14.1+)"
-                            else -> "${type.displayName} (unavailable)"
-                        }
-                        drivers.add(
-                            DapDriverInfo(
-                                path = path,
-                                type = type,
-                                displayName = displayName,
-                                dapCapable = capability.dapCapable,
-                                diagnostics = capability.diagnostics ?: capability.versionText,
-                                unsupportedConfirmed = capability.unsupportedConfirmed
-                            )
-                        )
-                    } else {
-                        drivers.add(DapDriverInfo(path, type, type.displayName, dapCapable = true))
-                    }
-                }
-            }
+    fun findAvailableDrivers(): List<DapDriverInfo> =
+        getDefaultSearchPaths().asSequence()
+            .filter { path -> File(path).let { it.exists() && it.canExecute() } }
+            .mapNotNull(::detectDriver)
+            .toList()
+
+    private fun detectDriver(path: String): DapDriverInfo? = when (val type = detectDriverType(path)) {
+        DapDriverType.UNKNOWN -> null
+        DapDriverType.GDB_DAP -> detectGdbDriver(path, type)
+        DapDriverType.LLDB_DAP -> DapDriverInfo(path, type, type.displayName)
+    }
+
+    private fun detectGdbDriver(path: String, type: DapDriverType): DapDriverInfo {
+        val capability = getGdbDapCapability(path)
+        val displayName = when {
+            capability.dapCapable -> type.displayName
+            capability.unsupportedConfirmed -> "${type.displayName} (need 14.1+)"
+            else -> "${type.displayName} (unavailable)"
         }
-        
-        return drivers
+        return DapDriverInfo(
+            path = path,
+            type = type,
+            displayName = displayName,
+            dapCapable = capability.dapCapable,
+            diagnostics = capability.diagnostics ?: capability.versionText,
+            unsupportedConfirmed = capability.unsupportedConfirmed,
+        )
     }
     
     /**
@@ -272,31 +257,7 @@ object DapDriverDetector {
         if (!file.exists() || !file.canExecute()) {
             return null
         }
-        
-        val type = detectDriverType(path)
-        return if (type != DapDriverType.UNKNOWN) {
-            if (type == DapDriverType.GDB_DAP) {
-                val capability = getGdbDapCapability(path)
-                // Mirrors the discovery label: state the requirement only when confirmed.
-                val displayName = when {
-                    capability.dapCapable -> type.displayName
-                    capability.unsupportedConfirmed -> "${type.displayName} (need 14.1+)"
-                    else -> "${type.displayName} (unavailable)"
-                }
-                DapDriverInfo(
-                    path = path,
-                    type = type,
-                    displayName = displayName,
-                    dapCapable = capability.dapCapable,
-                    diagnostics = capability.diagnostics ?: capability.versionText,
-                    unsupportedConfirmed = capability.unsupportedConfirmed
-                )
-            } else {
-                DapDriverInfo(path, type, type.displayName, dapCapable = true)
-            }
-        } else {
-            null
-        }
+        return detectDriver(path)
     }
 
     private const val PROBE_TIMEOUT_MS = 1_500L
