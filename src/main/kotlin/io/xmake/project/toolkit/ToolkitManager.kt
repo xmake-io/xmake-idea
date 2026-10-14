@@ -24,7 +24,6 @@ import com.intellij.execution.wsl.WslDistributionManager
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.PersistentStateComponent
-import com.intellij.openapi.components.RoamingType
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
@@ -47,7 +46,7 @@ import kotlinx.coroutines.launch
 
 /** Application service coordinating toolkit persistence, scanning, registration, and change publication. */
 @Service
-@State(name = "toolkits", storages = [Storage("xmakeToolkits.xml", roamingType = RoamingType.DISABLED)])
+@State(name = "toolkits", storages = [Storage("xmakeToolkits.xml")])
 class ToolkitManager(private val scope: CoroutineScope) :
     PersistentStateComponent<ToolkitManager.State>,
     Disposable {
