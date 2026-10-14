@@ -20,6 +20,7 @@ import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import io.xmake.project.profile.XMakeBuildProfile
 import kotlinx.coroutines.CancellationException
+import java.util.concurrent.ConcurrentHashMap
 
 /** Runs a command operation in the context of one build profile, without interleaving. */
 internal suspend fun <T> Project.withProfileCommands(
@@ -49,11 +50,31 @@ internal suspend fun XMakeCommandFactory.configureBestEffort(executionService: X
     }
 }
 
-/** Runs one `xmake show -l <name> --json` query and returns the captured standard output. */
+/** Runs one `xmake show -l <name>` query. Older xmake versions reject the `--json` flag, so a
+ *  failed query retries the plain listing, and that version keeps using the plain form. */
 internal suspend fun XMakeCommandFactory.executeInfoQuery(
     queryName: String,
     executionService: XMakeExecutionService,
-): String = executionService.captureStandardOutput(createInfoQuery(queryName))
+): String {
+    if (toolkit.version in PLAIN_LISTING_VERSIONS) {
+        return executionService.captureStandardOutput(createInfoQuery(queryName, jsonOutput = false))
+    }
+    return try {
+        executionService.captureStandardOutput(createInfoQuery(queryName, jsonOutput = true))
+    } catch (error: CancellationException) {
+        throw error
+    } catch (error: Exception) {
+        Log.debug("XMake ${toolkit.version} info query '$queryName' failed, retrying without --json", error)
+        // A failed retry surfaces its own error: the plain listing is the one this version keeps
+        // using, so its failure is the diagnostic one.
+        val plain = executionService.captureStandardOutput(createInfoQuery(queryName, jsonOutput = false))
+        PLAIN_LISTING_VERSIONS.add(toolkit.version)
+        Log.warn("XMake ${toolkit.version} has no --json listings, using plain output")
+        plain
+    }
+}
+
+private val PLAIN_LISTING_VERSIONS = ConcurrentHashMap.newKeySet<String>()
 
 private val Log = Logger.getInstance("io.xmake.run.command.XMakeProfileCommands")
 

@@ -66,6 +66,11 @@ data class XMakeInfo(
         private val DIAGNOSTIC_PREFIX =
             Regex("""(?i)^\s*(note|warning|error|checking|stack traceback)\s*[: ]""")
 
+        private val WHITESPACE = Regex("\\s+")
+
+        private fun plainTokens(line: String): List<String> =
+            line.replace(',', ' ').split(WHITESPACE).filter(String::isNotEmpty)
+
         fun parseArchitectures(output: String): XMakeArchitectures =
             parseShowOutput(
                 output,
@@ -73,19 +78,24 @@ data class XMakeInfo(
                 { lines ->
                     buildMap {
                         lines.forEach { line ->
-                            line.split(":").takeIf { it.size == 2 }?.let { (platform, archs) ->
-                                put(platform.trim(), archs.split(",").map(String::trim).filter(String::isNotEmpty))
+                            // Plain listings print "platform arch arch ..."; older text used "platform: arch, arch".
+                            val (platform, archs) = if (':' in line) {
+                                line.substringBefore(':').trim() to line.substringAfter(':')
+                            } else {
+                                line.substringBefore(' ').trim() to line.substringAfter(' ', "")
                             }
+                            val names = plainTokens(archs)
+                            if (platform.isNotEmpty() && names.isNotEmpty()) put(platform, names)
                         }
                     }
                 },
             )
 
         fun parseBuildModes(output: String): XMakeBuildModes =
-            parseShowOutput(output, { json.decodeFromString(it) }, { it })
+            parseShowOutput(output, { json.decodeFromString(it) }, { lines -> lines.flatMap(::plainTokens) })
 
         fun parsePlatforms(output: String): XMakePlatforms =
-            parseShowOutput(output, { json.decodeFromString(it) }, { it })
+            parseShowOutput(output, { json.decodeFromString(it) }, { lines -> lines.flatMap(::plainTokens) })
 
         fun parseTargets(output: String): XMakeTargets =
             parseShowOutput(output, { json.decodeFromString(it) }, { it })

@@ -51,7 +51,8 @@ internal class XMakeCommandFactory(
             parsedArgs(profileSnapshot.configureArguments)
         }
     }
-    private val toolkit: Toolkit = profileSnapshot.resolveToolkit(project)
+    /** The toolkit every command from this factory runs on. */
+    val toolkit: Toolkit = profileSnapshot.resolveToolkit(project)
         ?: throw RuntimeConfigurationError(
             "XMake toolkit is not set, is unavailable in this project, or is no longer registered",
         )
@@ -141,10 +142,11 @@ internal class XMakeCommandFactory(
         }
     }
 
-    fun createInfoQuery(queryName: String): XMakeCommand {
+    fun createInfoQuery(queryName: String, jsonOutput: Boolean = true): XMakeCommand {
         require(INFO_QUERY_PATTERN.matches(queryName)) { "Invalid XMake info query: $queryName" }
         return createCommand(environmentOverrides = QUERY_ENVIRONMENT) {
-            args("show", "-l", queryName, "--json")
+            args("show", "-l", queryName)
+            if (jsonOutput) args("--json")
         }
     }
 
