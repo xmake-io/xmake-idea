@@ -22,21 +22,20 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.LocalFileSystem
 import java.io.File
 
-/**
- * Links `file:line:col` references in console output, resolving relative paths against the
- * project base. Remote host paths stay plain text here; the Build view links those.
- */
 class FileReferenceFilter(private val project: Project) : Filter {
 
     override fun applyFilter(line: String, entireLength: Int): Filter.Result? {
-        val match = PATTERN.find(line) ?: return null
-        val file = resolve(match.groupValues[1]) ?: return null
-        val virtualFile = LocalFileSystem.getInstance().findFileByIoFile(file) ?: return null
-        val lineNumber = match.groupValues[2].toIntOrNull()?.minus(1)?.coerceAtLeast(0) ?: return null
-        val columnNumber = match.groupValues[3].toIntOrNull()?.minus(1)?.coerceAtLeast(0) ?: 0
+        val match = PATTERNS.firstNotNullOfOrNull { it.find(line) } ?: return null
+        val file = resolve(match.group("path") ?: return null) ?: return null
+        val virtualFile = LocalFileSystem.getInstance().findFileByIoFile(file)
+            ?.takeUnless { it.isDirectory } ?: return null
+        val lineNumber = zeroBased(match.group("line")) ?: return null
+        val columnNumber = zeroBased(match.group("column")) ?: 0
+        // The result spans the whole document, so the match is rebased onto the line's start.
+        val lineStart = entireLength - line.length
         return Filter.Result(
-            match.range.first,
-            match.range.last + 1,
+            lineStart + match.range.first,
+            lineStart + match.range.last + 1,
             OpenFileHyperlinkInfo(project, virtualFile, lineNumber, columnNumber),
         )
     }
@@ -44,11 +43,17 @@ class FileReferenceFilter(private val project: Project) : Filter {
     private fun resolve(path: String): File? {
         val file = File(path)
         if (file.isAbsolute) return file
-        val basePath = project.basePath ?: return null
-        return File(basePath, path)
+        return project.basePath?.let { File(it, path) }
     }
 
+    private fun zeroBased(number: String?): Int? =
+        number?.toIntOrNull()?.minus(1)?.coerceAtLeast(0)
+
+    private fun MatchResult.group(name: String): String? = groups[name]?.value
+
     private companion object {
-        val PATTERN = Regex("""((?:[A-Za-z]:)?[^\s:()]*[/\\][^\s:()]*):(\d+)(?::(\d+))?""")
+        val GCC_STYLE = Regex("""(?<path>(?:[A-Za-z]:)?[^\s:()]+):(?<line>\d+)(?::(?<column>\d+))?""")
+        val MSVC_FAMILY = Regex("""(?<path>(?:[A-Za-z]:)?[^\s:()]+)\((?<line>\d+)(?:,(?<column>\d+))?\)""")
+        val PATTERNS = listOf(GCC_STYLE, MSVC_FAMILY)
     }
 }
