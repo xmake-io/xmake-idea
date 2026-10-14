@@ -27,13 +27,13 @@ import com.intellij.execution.configurations.RunConfiguration
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.Disposable
-import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.application.EDT
+import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity
 import com.intellij.task.ProjectTaskManager
-import com.intellij.util.messages.MessageBusConnection
+import com.intellij.util.messages.SimpleMessageBusConnection
 import io.xmake.build.XMakeBuildTask
 import io.xmake.project.profile.XMakeBuildProfileManager
 import io.xmake.project.profile.xmakeBuildProfiles
@@ -41,10 +41,17 @@ import io.xmake.project.directory.XMakeProjectDirectoryManager
 import io.xmake.project.directory.XMakeProjectDirectoryResolutionService
 import io.xmake.run.XMakeProfileRunConfiguration
 import io.xmake.run.command.XMakeCommandFactory
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+private val Log = logger<XMakeExecutionTargetSyncService>()
 
 /** Keeps the run toolbar target and each XMake run configuration's profile reference in sync. */
 @Service(Service.Level.PROJECT)
@@ -52,7 +59,7 @@ class XMakeExecutionTargetSyncService(
     private val project: Project,
     private val scope: CoroutineScope,
 ) : Disposable {
-    private var connection: MessageBusConnection? = null
+    private var connection: SimpleMessageBusConnection? = null
     private var started = false
 
     fun start() {
@@ -64,14 +71,16 @@ class XMakeExecutionTargetSyncService(
             withContext(Dispatchers.EDT) {
                 if (project.isDisposed) return@withContext
 
-                val synchronizer = TargetSynchronizer(project, runManager)
+                val synchronizer = TargetSynchronizer(project, runManager, scope)
 
                 fun refreshTargets() {
                     ExecutionTargetManager.update(project)
                     synchronizer.syncTargetFromConfiguration(runManager.selectedConfiguration)
                 }
 
-                val connection = project.messageBus.connect(this@XMakeExecutionTargetSyncService).also {
+                // Tied to the service's coroutine scope: the connection then closes with the scope,
+                // so a concurrent service release degrades into cancellation instead of a dispose race.
+                val connection = project.messageBus.connect(scope).also {
                     this@XMakeExecutionTargetSyncService.connection = it
                 }
                 connection.subscribe(
@@ -120,13 +129,15 @@ class XMakeExecutionTargetSyncActivity : ProjectActivity {
 private class TargetSynchronizer(
     private val project: Project,
     private val runManager: RunManager,
+    private val scope: CoroutineScope,
 ) {
     private var trackedConfiguration: RunConfiguration? = null
     private var activeTargetUpdateDepth = 0
     private var lastProfileId: String? = null
 
+    /** The newest configure request; a request compares its own job against this. */
     @Volatile
-    private var latestConfigureRequest = 0
+    private var configureJob: Job? = null
 
     fun syncTargetFromConfiguration(settings: RunnerAndConfigurationSettings?) {
         val selectedConfiguration = settings?.configuration
@@ -167,30 +178,55 @@ private class TargetSynchronizer(
 
     private fun autoConfigure(profileId: String) {
         val profile = project.xmakeBuildProfiles.findProfile(profileId) ?: return
-        val request = ++latestConfigureRequest
-        ApplicationManager.getApplication().executeOnPooledThread {
-            if (request != latestConfigureRequest) return@executeOnPooledThread
+        configureJob?.cancel()
+        // LAZY: the body must not run before `configureJob` is assigned, otherwise the fast-failure
+        // path could compare against the previous job and swallow its notification.
+        val job = scope.launch(start = CoroutineStart.LAZY) {
+            val request = currentCoroutineContext().job
             val task = try {
-                XMakeBuildTask(
-                    presentableName = "Configure '${profile.name}'",
-                    commands = listOf(XMakeCommandFactory(project, profile).createConfigure()),
-                )
+                // The factory resolves the toolkit and the project directory, so it stays off the EDT.
+                withContext(Dispatchers.IO) {
+                    XMakeBuildTask(
+                        presentableName = "Configure '${profile.name}'",
+                        commands = listOf(XMakeCommandFactory(project, profile).createConfigure()),
+                    )
+                }
+            } catch (error: CancellationException) {
+                throw error
             } catch (error: Exception) {
-                if (request == latestConfigureRequest) {
+                if (configureJob === request) {
                     notifyConfigureFailed(profile.name, error.message)
+                } else {
+                    Log.info("Superseded configure for '${profile.name}' could not be prepared: ${error.message}")
                 }
-                return@executeOnPooledThread
+                return@launch
             }
-            ApplicationManager.getApplication().invokeLater {
-                if (!project.isDisposed && request == latestConfigureRequest) {
-                    ProjectTaskManager.getInstance(project).run(task)
-                        .onSuccess { result ->
-                            if (result.hasErrors()) notifyConfigureFailed(profile.name, null)
+            withContext(Dispatchers.EDT) {
+                if (project.isDisposed || !request.isActive) return@withContext
+                // A dispatched configure cannot be aborted from here: the promise has no usable
+                // cancel and the xmake process is only stoppable from the Build window. Superseding
+                // therefore prevents a new dispatch, nothing more.
+                ProjectTaskManager.getInstance(project).run(task)
+                    .onSuccess { result ->
+                        if (result.hasErrors()) {
+                            if (configureJob === request) {
+                                notifyConfigureFailed(profile.name, null)
+                            } else {
+                                Log.info("Superseded configure for '${profile.name}' finished with errors")
+                            }
                         }
-                        .onError { error -> notifyConfigureFailed(profile.name, error.message) }
-                }
+                    }
+                    .onError { error ->
+                        if (configureJob === request) {
+                            notifyConfigureFailed(profile.name, error.message)
+                        } else {
+                            Log.info("Superseded configure for '${profile.name}' failed: ${error.message}")
+                        }
+                    }
             }
         }
+        configureJob = job
+        job.start()
     }
 
     private fun notifyConfigureFailed(profileName: String, details: String?) {
