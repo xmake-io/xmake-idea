@@ -27,6 +27,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.task.ProjectTask
 import com.intellij.task.ProjectTaskContext
 import com.intellij.task.ProjectTaskRunner
+import io.xmake.project.console.FileReferenceFilter
 import io.xmake.project.directory.xmakeProjectDirectories
 import io.xmake.run.command.XMakeCommandProcessHandler
 import io.xmake.run.command.XMakeConsoleOptions
@@ -182,6 +183,8 @@ class XMakeProjectTaskRunner : ProjectTaskRunner() {
             System.currentTimeMillis(),
         ).apply {
             isActivateToolWindowWhenAdded = context.runConfiguration == null
+            withExecutionFilter(FileReferenceFilter(project))
+            // The filter rides on the descriptor above; this overload still requires a consumer.
             withProcessHandler(processHandler) { }
         }
         val progressDescriptor = object : BuildProgressDescriptor {

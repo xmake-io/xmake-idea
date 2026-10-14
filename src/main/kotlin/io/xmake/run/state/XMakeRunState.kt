@@ -22,6 +22,7 @@ import com.intellij.execution.Executor
 import com.intellij.execution.configurations.CommandLineState
 import com.intellij.execution.process.ProcessHandler
 import com.intellij.execution.runners.ExecutionEnvironment
+import io.xmake.project.console.FileReferenceFilter
 import io.xmake.run.XMakeRunConfiguration
 import io.xmake.run.command.XMakeCommand
 import io.xmake.run.command.XMakeCommandFactory
@@ -41,6 +42,10 @@ internal class XMakeRunState private constructor(
             runCommand,
             XMakeConsoleOptions(showExitCode = true),
         ).processHandler
+
+    init {
+        addConsoleFilters(FileReferenceFilter(environment.project))
+    }
 
     internal fun createExecutionResult(
         executor: Executor,

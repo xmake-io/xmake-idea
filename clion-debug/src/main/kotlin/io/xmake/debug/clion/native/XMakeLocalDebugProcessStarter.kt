@@ -22,6 +22,7 @@ import com.intellij.xdebugger.XDebugProcessStarter
 import com.intellij.xdebugger.XDebugSession
 import com.jetbrains.cidr.execution.debugger.CidrLocalDebugProcess
 import io.xmake.debug.XMakeDebugLaunch
+import io.xmake.project.console.FileReferenceFilter
 
 internal class XMakeLocalDebugProcessStarter(
     private val launch: XMakeDebugLaunch,
@@ -29,6 +30,7 @@ internal class XMakeLocalDebugProcessStarter(
 
     override fun start(session: XDebugSession): XDebugProcess {
         val consoleBuilder = TextConsoleBuilderFactory.getInstance().createBuilder(session.project)
+        consoleBuilder.addFilter(FileReferenceFilter(session.project))
         return CidrLocalDebugProcess(XMakeRunParameters(launch), session, consoleBuilder).apply {
             start()
         }
