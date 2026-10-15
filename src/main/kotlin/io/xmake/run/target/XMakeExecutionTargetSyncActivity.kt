@@ -32,8 +32,10 @@ import com.intellij.openapi.application.EDT
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity
+import com.intellij.task.ProjectTaskContext
 import com.intellij.task.ProjectTaskManager
 import com.intellij.util.messages.SimpleMessageBusConnection
+import io.xmake.build.BUILD_STOP_HANDLE
 import io.xmake.build.XMakeBuildTask
 import io.xmake.project.profile.XMakeBuildProfileManager
 import io.xmake.project.profile.xmakeBuildProfiles
@@ -139,6 +141,10 @@ private class TargetSynchronizer(
     @Volatile
     private var configureJob: Job? = null
 
+    /** The stop handle of the dispatched configure, invoked when a newer switch replaces it. */
+    @Volatile
+    private var configureStop: (() -> Unit)? = null
+
     fun syncTargetFromConfiguration(settings: RunnerAndConfigurationSettings?) {
         val selectedConfiguration = settings?.configuration
         trackedConfiguration = selectedConfiguration
@@ -179,6 +185,8 @@ private class TargetSynchronizer(
     private fun autoConfigure(profileId: String) {
         val profile = project.xmakeBuildProfiles.findProfile(profileId) ?: return
         configureJob?.cancel()
+        configureStop?.invoke()
+        configureStop = null
         // LAZY: the body must not run before `configureJob` is assigned, otherwise the fast-failure
         // path could compare against the previous job and swallow its notification.
         val job = scope.launch(start = CoroutineStart.LAZY) {
@@ -203,10 +211,8 @@ private class TargetSynchronizer(
             }
             withContext(Dispatchers.EDT) {
                 if (project.isDisposed || !request.isActive) return@withContext
-                // A dispatched configure cannot be aborted from here: the promise has no usable
-                // cancel and the xmake process is only stoppable from the Build window. Superseding
-                // therefore prevents a new dispatch, nothing more.
-                ProjectTaskManager.getInstance(project).run(task)
+                val context = ProjectTaskContext()
+                ProjectTaskManager.getInstance(project).run(context, task)
                     .onSuccess { result ->
                         if (result.hasErrors()) {
                             if (configureJob === request) {
@@ -223,6 +229,7 @@ private class TargetSynchronizer(
                             Log.info("Superseded configure for '${profile.name}' failed: ${error.message}")
                         }
                     }
+                configureStop = context.getUserData(BUILD_STOP_HANDLE)
             }
         }
         configureJob = job
