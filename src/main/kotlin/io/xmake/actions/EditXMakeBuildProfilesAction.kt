@@ -51,7 +51,7 @@ class EditXMakeBuildProfilesAction : AnAction() {
         e.presentation.isVisible = true
         if (e.place == EXECUTION_TARGETS_COMBO_ACTION_PLACE) {
             e.presentation.isVisible =
-                RunManager.getInstance(project).selectedConfiguration?.configuration is XMakeRunConfiguration
+                RunManager.getInstanceIfCreated(project)?.selectedConfiguration?.configuration is XMakeRunConfiguration
         }
         e.presentation.isEnabled = true
         e.presentation.text = if (hasDirectorySource) {
