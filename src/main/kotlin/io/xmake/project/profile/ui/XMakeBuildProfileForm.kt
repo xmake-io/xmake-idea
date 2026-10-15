@@ -40,7 +40,6 @@ import io.xmake.project.directory.XMakeProjectDirectoryResolutionService
 import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.project.profile.XMakeBuildProfileOptions
 import io.xmake.project.profile.queryXMakeBuildProfileOptions
-import io.xmake.project.directory.canResolveXMakeProjectDirectory
 import io.xmake.project.directory.xmakeProjectDirectories
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ui.ToolkitComboBox
@@ -73,7 +72,7 @@ internal class XMakeBuildProfileForm(
     private var profileOptions = XMakeBuildProfileOptions()
     private var loadedOptionsProfile: XMakeBuildProfile? = null
     private var loadedOptionsToolkitId: String? = null
-    private val optionRequests = Channel<XMakeBuildProfile>(Channel.CONFLATED)
+    private val optionRequests = Channel<Pair<XMakeBuildProfile, Toolkit>>(Channel.CONFLATED)
     private var isResetting = false
     private var isUpdatingOptions = false
     private val projectDirectoryConnection = project.messageBus.connect(this)
@@ -162,9 +161,9 @@ internal class XMakeBuildProfileForm(
     init {
         scope.launch {
             optionRequests.consumeAsFlow()
-                .transformLatest { requestedProfile ->
+                .transformLatest { (requestedProfile, toolkit) ->
                     val options = try {
-                        project.queryXMakeBuildProfileOptions(requestedProfile)
+                        project.queryXMakeBuildProfileOptions(requestedProfile, toolkit)
                     } catch (error: CancellationException) {
                         throw error
                     } catch (error: Exception) {
@@ -189,8 +188,8 @@ internal class XMakeBuildProfileForm(
                 requestProfileOptions()
             },
         )
-        // The cached resolvability answer may still reflect the pre-apply state when the topic
-        // above fires; re-query once the background resolution catches up.
+        // A background directory change (for example an xmake.lua appearing) does not fire the
+        // topic above; re-query once the resolution catches up.
         projectDirectoryConnection.subscribe(
             XMakeProjectDirectoryResolutionService.TOPIC,
             XMakeProjectDirectoryResolutionService.Listener { requestProfileOptions() },
@@ -252,6 +251,10 @@ internal class XMakeBuildProfileForm(
         configureArguments = configureArguments.text,
     )
 
+    /** Commits the toolkit selection; the profile editor calls this on the Settings apply path
+     *  before taking the snapshot. */
+    fun commitToolkitSelection(): Toolkit? = toolkitComboBox.commitSelection()
+
     override fun dispose() {
         component.removeHierarchyListener(profileOptionsVisibilityListener)
         scope.cancel()
@@ -287,7 +290,7 @@ internal class XMakeBuildProfileForm(
         }
         if (loadedOptionsProfile == requestedProfile) return
 
-        optionRequests.trySend(requestedProfile)
+        optionRequests.trySend(requestedProfile to toolkit)
     }
 
     private fun applyProfileOptions(requestedProfile: XMakeBuildProfile, options: XMakeBuildProfileOptions) {
@@ -299,11 +302,12 @@ internal class XMakeBuildProfileForm(
     }
 
     private fun profileForOptionQuery(selectedToolkit: Toolkit): XMakeBuildProfile? {
+        // The cached resolvability answer covers registered toolkits only; the query itself
+        // validates the directory for unregistered selections.
         if (
             !selectedToolkit.isAvailable ||
             selectedToolkit.path.isBlank() ||
-            selectedToolkit.requiresBackend && !selectedToolkit.host.hasBackend ||
-            !project.canResolveXMakeProjectDirectory(selectedToolkit)
+            selectedToolkit.requiresBackend && !selectedToolkit.host.hasBackend
         ) {
             return null
         }

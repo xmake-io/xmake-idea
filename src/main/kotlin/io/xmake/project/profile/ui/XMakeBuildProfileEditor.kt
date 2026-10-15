@@ -78,6 +78,7 @@ internal class XMakeBuildProfileEditor(
 
     override fun apply() {
         profileName = profileName.trim()
+        form.commitToolkitSelection()
         appliedProfile = form.createProfileSnapshot(profileName)
         treeUpdater.run()
     }

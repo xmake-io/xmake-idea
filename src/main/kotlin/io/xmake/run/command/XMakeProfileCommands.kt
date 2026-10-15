@@ -19,17 +19,19 @@ package io.xmake.run.command
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import io.xmake.project.profile.XMakeBuildProfile
+import io.xmake.project.toolkit.Toolkit
 import kotlinx.coroutines.CancellationException
 import java.util.concurrent.ConcurrentHashMap
 
 /** Runs a command operation in the context of one build profile, without interleaving. */
 internal suspend fun <T> Project.withProfileCommands(
     profile: XMakeBuildProfile,
+    toolkit: Toolkit? = null,
     action: suspend XMakeCommandFactory.(XMakeExecutionService) -> T,
 ): T {
     val executionService = xmakeExecutionService
     return executionService.runExclusive {
-        val commandFactory = XMakeCommandFactory(this@withProfileCommands, profile)
+        val commandFactory = XMakeCommandFactory(this@withProfileCommands, profile, toolkit)
         commandFactory.action(executionService)
     }
 }

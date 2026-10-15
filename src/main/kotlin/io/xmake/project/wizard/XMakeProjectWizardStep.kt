@@ -180,7 +180,7 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
             onApply {
                 context.projectName = name
                 context.setProjectFileDirectory(Path.of(path).resolve(name), false)
-                toolkitManager.defaultToolkitId = toolkit?.id
+                toolkitManager.defaultToolkitId = toolkitComboBox.commitSelection()?.id
 
                 Log.info("wizard apply base data: ${baseData?.name}, ${baseData?.path}")
                 Log.info(
@@ -196,7 +196,9 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
 
     override fun setupProject(project: Project) {
         if (context.isCreatingNewProject) {
+            // The wizard's listener order is not guaranteed; registering here is the main guarantee.
             val selectedToolkit = toolkit
+                ?.let { current -> toolkitManager.register(current.id, context.project) ?: current }
                 ?: throw IllegalStateException("An XMake toolkit must be selected to create a project")
             val hostDirectory =
                 if (!selectedToolkit.requiresBackend) File(contentEntryPath).path
