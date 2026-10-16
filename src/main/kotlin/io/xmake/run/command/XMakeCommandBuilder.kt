@@ -35,6 +35,7 @@ internal class XMakeCommandBuilder private constructor(
     private val parameters: List<String> = emptyList(),
     private val environmentVariables: EnvironmentVariablesData = EnvironmentVariablesData.DEFAULT,
     private val environmentOverrides: Map<String, String> = emptyMap(),
+    private val configurationDirectory: String,
 ) {
 
     fun parameters(values: Iterable<String>): XMakeCommandBuilder =
@@ -54,20 +55,28 @@ internal class XMakeCommandBuilder private constructor(
             .withRedirectErrorStream(false)
 
         environmentVariables.configureCommandLine(commandLine, true)
-        commandLine.withEnvironment(environmentOverrides)
-        return XMakeCommand(commandLine, toolkit, workingDirectory)
+        // Must stay after configureCommandLine: these overrides win over user environment variables.
+        commandLine.environment.putAll(environmentOverrides)
+        return XMakeCommand(
+            commandLine = commandLine,
+            toolkit = toolkit,
+            workingDirectory = workingDirectory,
+            configurationDirectory = configurationDirectory,
+        )
     }
 
     private fun copy(
         parameters: List<String> = this.parameters,
         environmentVariables: EnvironmentVariablesData = this.environmentVariables,
         environmentOverrides: Map<String, String> = this.environmentOverrides,
+        configurationDirectory: String = this.configurationDirectory,
     ): XMakeCommandBuilder = XMakeCommandBuilder(
         toolkit,
         workingDirectory,
         parameters,
         environmentVariables,
         environmentOverrides,
+        configurationDirectory,
     )
 
     companion object {
@@ -80,7 +89,7 @@ internal class XMakeCommandBuilder private constructor(
             require(XMakeBuildProfile.isValidId(profileId)) {
                 "Invalid XMake build profile ID: $profileId"
             }
-            val configurationRoot = hostPath(
+            val configurationDirectory = hostPath(
                 toolkit.host.type,
                 workingDirectory,
                 ".idea/xmake/profiles/$profileId/${configurationHash(toolkit, workingDirectory, configureArguments)}",
@@ -88,7 +97,9 @@ internal class XMakeCommandBuilder private constructor(
             return XMakeCommandBuilder(
                 toolkit,
                 workingDirectory,
-                environmentOverrides = mapOf(XMAKE_CONFIG_DIRECTORY_ENV to configurationRoot),
+                // The env copy is for the xmake process; the field is the plugin-side truth.
+                environmentOverrides = mapOf(XMAKE_CONFIG_DIRECTORY_ENV to configurationDirectory),
+                configurationDirectory = configurationDirectory,
             )
         }
 

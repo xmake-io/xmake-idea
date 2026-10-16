@@ -18,7 +18,6 @@ package io.xmake.build
 
 import com.intellij.task.ProjectTask
 import io.xmake.run.command.XMakeCommand
-import io.xmake.run.command.XMAKE_CONFIG_DIRECTORY_ENV
 
 /** A platform build task whose commands already belong to one configuration. */
 internal class XMakeBuildTask(
@@ -48,6 +47,3 @@ private fun XMakeCommand.hasSameExecutionContextAs(other: XMakeCommand): Boolean
     toolkit.location == other.toolkit.location &&
         workingDirectory == other.workingDirectory &&
         configurationDirectory == other.configurationDirectory
-
-private val XMakeCommand.configurationDirectory: String
-    get() = commandLine.environment[XMAKE_CONFIG_DIRECTORY_ENV].orEmpty()

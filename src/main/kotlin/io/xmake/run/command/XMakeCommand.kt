@@ -26,14 +26,15 @@ internal const val XMAKE_CONFIG_DIRECTORY_ENV = "XMAKE_CONFIGDIR"
 /**
  * A prepared XMake invocation together with the host context that produced it.
  *
- * Keeping the toolkit and resolved working directory beside the command line lets
- * later execution and file-sync stages reuse the same context without consulting
- * mutable project or run-manager state.
+ * Keeping the toolkit, resolved working directory, and configuration directory
+ * beside the command line lets later execution and file-sync stages reuse the
+ * same context without consulting mutable project or run-manager state.
  */
 internal class XMakeCommand(
     val commandLine: GeneralCommandLine,
     val toolkit: Toolkit,
     val workingDirectory: String,
+    val configurationDirectory: String,
 ) {
     fun createProcess(project: Project): Process =
         commandLine.createProcess(toolkit, project, workingDirectory)
