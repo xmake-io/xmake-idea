@@ -24,6 +24,7 @@ import com.intellij.build.progress.BuildProgress
 import com.intellij.build.progress.BuildProgressDescriptor
 import com.intellij.execution.process.ProcessOutputType
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Key
 import com.intellij.task.ProjectTask
 import com.intellij.task.ProjectTaskContext
 import com.intellij.task.ProjectTaskRunner
@@ -68,6 +69,7 @@ class XMakeProjectTaskRunner : ProjectTaskRunner() {
         }
         val promise = operation.toPromiseWithoutLogError()
         processHandler.bind(operation)
+        context.putUserData(BUILD_STOP_HANDLE, processHandler::destroyProcess)
         promise.onError { error ->
             if (error is CancellationException) {
                 cancel(progress, processHandler, completed, title)
@@ -234,3 +236,7 @@ class XMakeProjectTaskRunner : ProjectTaskRunner() {
         const val CANCELED_EXIT_CODE = 130
     }
 }
+
+/** The stop handle of the running build, put on every run context; invoking it stops that build
+ *  on the same path as the Build view stop button. */
+val BUILD_STOP_HANDLE: Key<() -> Unit> = Key.create("XMake.Build.Stop")
