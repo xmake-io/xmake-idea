@@ -148,7 +148,7 @@ class XMakeLuaLexer : LexerBase() {
             tokenEnd++
             while (tokenEnd < endOffset) {
                 if (buffer[tokenEnd] == '\\') {
-                    tokenEnd += 2
+                    tokenEnd = (tokenEnd + 2).coerceAtMost(endOffset)
                     continue
                 }
                 if (buffer[tokenEnd] == quote) {
