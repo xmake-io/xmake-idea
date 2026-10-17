@@ -123,12 +123,10 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
         "Objc++",
     ).associateWith { it.lowercase() }
 
-    // the module kinds
     private val kindsModel = DefaultComboBoxModel<String>().apply {
         kindOptions.keys.forEach { addElement(it) }
     }
 
-    // the module languages
     private val languagesModel = DefaultComboBoxModel<String>().apply {
         languageOptions.keys.forEach { addElement(it) }
     }
@@ -230,9 +228,24 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
                 )
             ).withCharset(Charsets.UTF_8)
 
-            // setupProject runs on the EDT inside the wizard commit: the modal progress keeps
-            // the IDE responsive and cancellable, and a failed creation aborts the setup via
-            // IOException, which the wizard reports without opening a half-built project.
+            if (!selectedToolkit.requiresBackend) {
+                val leftover = File(generationDirectory)
+                if (leftover.exists() && !leftover.deleteRecursively()) {
+                    throw IOException(
+                        "Failed to remove the leftover temp directory $generationDirectory from an earlier attempt",
+                    )
+                }
+                // xmake create refuses a non-empty directory; the copy step would
+                // overwrite same-named files.
+                if (File(hostDirectory).list()?.isNotEmpty() == true) {
+                    throw IOException(
+                        "$hostDirectory is not empty; pick an empty directory or remove its contents first",
+                    )
+                }
+            }
+
+            // setupProject runs on the EDT inside the wizard commit; a failed creation aborts
+            // via IOException, which the wizard reports without opening a half-built project.
             runWithModalProgressBlocking(project, "Creating XMake project") {
                 val result = try {
                     commandLine.createProcess(selectedToolkit).awaitBounded(XMAKE_CREATE_TIMEOUT)
@@ -257,16 +270,19 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
                     LOCAL -> {
                         val tempDirectory = File(generationDirectory)
                         if (tempDirectory.exists()) {
-                            val copied = tempDirectory.copyRecursively(File(hostDirectory), true)
-                            val deleted = tempDirectory.deleteRecursively()
-                            if (!copied) {
+                            try {
+                                tempDirectory.copyRecursively(File(hostDirectory), true)
+                            } catch (error: IOException) {
+                                // A leftover temp directory would block the next xmake create.
+                                val cleaned = tempDirectory.deleteRecursively()
                                 throw IOException(
-                                    "Failed to move the generated XMake project from $tempDirectory to $hostDirectory" +
-                                            if (deleted) "" else " (leftover kept in $tempDirectory)"
+                                    "Failed to move the generated XMake project to $hostDirectory, which may hold a partial copy" +
+                                            (if (cleaned) "" else "; delete the temp directory $tempDirectory before retrying"),
+                                    error,
                                 )
                             }
-                            if (!deleted) {
-                                Log.warn("Failed to clean up the temporary XMake project directory $tempDirectory")
+                            if (!tempDirectory.deleteRecursively()) {
+                                Log.warn("Failed to clean up the wizard temp directory $tempDirectory")
                             }
                         }
                     }
