@@ -27,7 +27,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.openapi.vfs.newvfs.BulkFileListener
 import com.intellij.openapi.vfs.newvfs.events.VFileEvent
-import io.xmake.file.highlight.XMakeLuaLexer
+import io.xmake.file.highlight.XMakeApiRegistry
 import io.xmake.project.directory.XMakeProjectDirectoryManager
 import io.xmake.project.directory.XMakeProjectDirectoryResolutionService
 import io.xmake.project.directory.hasRootXMakeLua
@@ -184,7 +184,7 @@ class XMakeInfoManager(
                     )
 
                     if (info.apis.isNotEmpty()) {
-                        XMakeLuaLexer.updateApis(info.apis)
+                        XMakeApiRegistry.update(info.apis)
                     }
                 }
             }
