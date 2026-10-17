@@ -63,12 +63,13 @@ data class ToolkitHost(
     internal val sshConfig: SshConfig?
         get() = (backend as? Backend.SSH)?.config
 
-    /** Presentable name derived from the resolved backend. */
     internal val displayName: String
         get() = when (type) {
             LOCAL -> LOCAL_DISPLAY_NAME
             WSL -> wslDistribution?.presentableName ?: type.name
-            SSH -> sshConfig?.presentableShortName ?: type.name
+            SSH -> sshConfig?.presentableShortName
+                ?: backendId?.takeIf(::isEndpointKey)
+                ?: type.name
         }
 
     internal val hasBackend: Boolean
@@ -111,14 +112,31 @@ data class ToolkitHost(
     companion object {
         private val LOCAL_DISPLAY_NAME = System.getProperty("os.name").orEmpty().ifBlank { "Local" }
 
+        /** A configuration without a port reports -1 and means the default one. */
+        internal fun sshEndpoint(config: SshConfig): String {
+            val port = config.port.takeIf { it > 0 } ?: SshConfig.DEFAULT_PORT
+            return "${config.username}@${config.host}:$port"
+        }
+
+        /** Parses the endpoint persisted in a legacy toolkit name, or null when it carries none. */
+        internal fun parseSshEndpoint(persistedName: String): String? {
+            val match = ENDPOINT_PATTERN.matchEntire(persistedName.trim()) ?: return null
+            val (username, host, port) = match.destructured
+            return "$username@$host:${port.ifEmpty { SshConfig.DEFAULT_PORT.toString() }}"
+        }
+
+        internal fun isEndpointKey(backendId: String): Boolean = '@' in backendId
+
         internal fun wsl(distribution: WSLDistribution): ToolkitHost =
             ToolkitHost(type = WSL, backendId = distribution.id).apply {
                 backend = Backend.WSL(distribution)
             }
 
         internal fun ssh(config: SshConfig): ToolkitHost =
-            ToolkitHost(type = SSH, backendId = config.id).apply {
+            ToolkitHost(type = SSH, backendId = sshEndpoint(config)).apply {
                 backend = Backend.SSH(config)
             }
+
+        private val ENDPOINT_PATTERN = Regex("([^@]+)@([^:]+)(?::(\\d+))?")
     }
 }

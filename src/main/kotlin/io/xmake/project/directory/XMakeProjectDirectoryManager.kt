@@ -9,6 +9,8 @@ import com.intellij.openapi.components.Storage
 import com.intellij.openapi.project.Project
 import com.intellij.util.messages.Topic
 import io.xmake.project.toolkit.Toolkit
+import io.xmake.project.toolkit.ToolkitHostType
+import io.xmake.utils.extension.ToolkitHostExtension
 
 /** Owns the persisted XMake project directory and publishes changes. Resolution policy lives in
  *  [XMakeProjectDirectoryResolver]. */
@@ -76,7 +78,33 @@ class XMakeProjectDirectoryManager(private val project: Project) :
 
     fun resolveLocalSyncDirectory(): String = resolver().resolveLocalSyncDirectory()
 
-    private fun resolver() = XMakeProjectDirectoryResolver(project, current)
+    private fun resolver(): XMakeProjectDirectoryResolver {
+        migrateSshHostIds()
+        return XMakeProjectDirectoryResolver(project, current)
+    }
+
+    /** Rewrites entries persisted with a configuration id to the endpoint key.
+     *  Idempotent; entries whose configuration is gone retry on the next resolution. */
+    private fun migrateSshHostIds() {
+        if (!current.hostDirectories.any { needsSshIdMigration(it.hostId) }) return
+        val endpointByConfigId = ToolkitHostExtension.forHostType(ToolkitHostType.SSH)
+            ?.getHosts(project).orEmpty()
+            .filter { host -> host.type == ToolkitHostType.SSH && host.sshConfig != null && host.backendId != null }
+            .associate { host -> host.sshConfig!!.id to host.backendId!! }
+        if (endpointByConfigId.isEmpty()) return
+        updateState { state ->
+            state.copy(
+                hostDirectories = state.hostDirectories.map { entry ->
+                    val backendId = entry.hostId.removePrefix("${ToolkitHostType.SSH}:")
+                    val endpoint = endpointByConfigId[backendId] ?: return@map entry
+                    entry.copy(hostId = "${ToolkitHostType.SSH}:$endpoint")
+                }.toMutableList(),
+            )
+        }
+    }
+
+    private fun needsSshIdMigration(hostId: String): Boolean =
+        hostId.startsWith("${ToolkitHostType.SSH}:") && '@' !in hostId
 
     /** Imports directories previously owned by build profiles. First-wins: migration never
      *  overwrites a directory configured after the upgrade. */

@@ -174,7 +174,13 @@ internal class XMakeProjectDirectoryPanel(private val project: Project) {
         toolkit: Toolkit,
     ) {
         val hostId = toolkit.host.id.canonical
-        val displayName = "${toolkit.host.type}: ${toolkit.host.displayName}"
+
+        // The host name falls back to the type while unresolved; the toolkit name still identifies the host.
+        val hostType = toolkit.host.type.name
+        val hostName = listOf(toolkit.host.displayName, toolkit.name)
+            .firstOrNull { name -> name != hostType && name.isNotBlank() }
+        val displayName = if (hostName == null) hostType else "$hostType: $hostName"
+
         val directoryBrowser = DirectoryBrowser(
             project,
             browseTitle = "XMake Project Directory",

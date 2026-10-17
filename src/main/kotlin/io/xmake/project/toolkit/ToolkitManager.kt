@@ -204,20 +204,23 @@ class ToolkitManager(private val scope: CoroutineScope) :
         sshHostsById: Map<ToolkitHost.Id, ToolkitHost>,
     ): List<Toolkit> =
         buildMap {
-            scanner.toolkits.forEach { scanned ->
-                val host = visibleHost(scanned.host, sshHostsById) ?: return@forEach
-                val registered = registry.findByLocation(scanned.location)
-                put(
-                    scanned.id,
-                    scanned.copy(
-                        host = host.toRuntimeHost(),
-                        isRegistered = registered != null,
-                    ),
-                )
-            }
             registry.registeredToolkits.forEach { registered ->
                 val resolved = resolve(registered, sshHostsById)
                 put(resolved.id, resolved)
+            }
+            // Registrations publish first so a scanned copy never duplicates a registered location.
+            scanner.toolkits.forEach { scanned ->
+                if (values.none { published -> published.location == scanned.location }) {
+                    val host = visibleHost(scanned.host, sshHostsById) ?: return@forEach
+                    val registered = registry.findByLocation(scanned.location)
+                    put(
+                        scanned.id,
+                        scanned.copy(
+                            host = host.toRuntimeHost(),
+                            isRegistered = registered != null,
+                        ),
+                    )
+                }
             }
         }.values.toList()
 
@@ -225,26 +228,45 @@ class ToolkitManager(private val scope: CoroutineScope) :
         toolkit: Toolkit,
         sshHostsById: Map<ToolkitHost.Id, ToolkitHost>,
     ): Toolkit {
-        val host = visibleHost(toolkit.host, sshHostsById)
-            ?: return toolkit.copy(
+        val attached = attachSshHost(toolkit, sshHostsById)
+        val host = visibleHost(attached.host, sshHostsById)
+            ?: return attached.copy(
                 isRegistered = true,
                 isAvailable = false,
             )
 
-        val scannedToolkit = scanner.findByLocation(toolkit.location)
+        val scannedToolkit = scanner.findByLocation(attached.location)
         return scannedToolkit
             ?.let { scanned ->
-                toolkit.copy(
+                attached.copy(
                     host = host.toRuntimeHost(),
                     isRegistered = true,
                     isAvailable = scanned.isAvailable,
                 )
             }
-            ?: toolkit.copy(
+            ?: attached.copy(
                 host = host.toRuntimeHost(),
                 isRegistered = true,
-                isAvailable = isPathAvailable(toolkit),
+                isAvailable = isPathAvailable(attached),
             )
+    }
+
+    /** Translates a registration persisted with a configuration id, or nothing but the
+     *  toolkit name, to the endpoint key. Already-keyed registrations and names without
+     *  coordinates are returned unchanged; a name-derived key identifies the host even
+     *  before a configuration for it exists. */
+    private fun attachSshHost(toolkit: Toolkit, sshHostsById: Map<ToolkitHost.Id, ToolkitHost>): Toolkit {
+        if (toolkit.host.type != SSH) return toolkit
+        val backendId = toolkit.host.migratedBackendId
+        if (backendId != null && ToolkitHost.isEndpointKey(backendId)) return toolkit
+        val host = backendId?.let { persistedId ->
+            sshHostsById.values.singleOrNull { it.sshConfig?.id == persistedId }
+        } ?: ToolkitHost.parseSshEndpoint(toolkit.name)?.let { endpoint ->
+            sshHostsById[ToolkitHost.Id(SSH, endpoint)] ?: ToolkitHost(SSH, endpoint)
+        } ?: return toolkit
+        val updated = registry.attachHost(toolkit.id, host) ?: return toolkit
+        Log.info("Attached SSH toolkit ${toolkit.id} to ${host.id.canonical}")
+        return updated
     }
 
     private fun visibleHost(
