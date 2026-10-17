@@ -105,6 +105,14 @@ internal class ToolkitRegistry {
         return updated
     }
 
+    fun attachHost(id: String, host: ToolkitHost): Toolkit? {
+        val toolkit = entries[id] ?: return null
+        if (toolkit.host.type != host.type) return null
+        val attached = toolkit.copy(host = host.toPersistedHost())
+        entries[id] = attached
+        return attached
+    }
+
     fun toState(): ToolkitManager.State = ToolkitManager.State().apply {
         defaultToolkitId = this@ToolkitRegistry.defaultToolkitId
         entries.values.mapTo(registeredToolkits) { toolkit -> toolkit.toPersistedToolkit() }
