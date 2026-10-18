@@ -138,44 +138,47 @@ internal class ToolkitScanner {
             hostsByType[LOCAL] = listOf(ToolkitHost(LOCAL))
 
             if (WSLUtil.isSystemCompatible()) {
-                try {
-                    hostsByType[WSL] = WslDistributionManager.getInstance().installedDistributions
+                runCancellable {
+                    WslDistributionManager.getInstance().installedDistributions
                         .map { distribution -> ToolkitHost.wsl(distribution) }
                         .onEach { host -> Log.info("read WSL host: $host") }
-                } catch (error: CancellationException) {
-                    throw error
-                } catch (error: Exception) {
-                    Log.warn("Failed to read WSL distributions", error)
                 }
+                    .onSuccess { hosts -> hostsByType[WSL] = hosts }
+                    .onFailure { error -> Log.warn("Failed to read WSL distributions", error) }
             } else {
                 hostsByType[WSL] = emptyList()
             }
 
             val hostExtension = ToolkitHostExtension.forHostType(SSH)
             if (hostExtension != null) {
-                try {
-                    hostsByType[SSH] = hostExtension.getHosts(project)
+                runCancellable {
+                    hostExtension.getHosts(project)
                         .onEach { host -> Log.info("read SSH host: $host") }
-                } catch (error: CancellationException) {
-                    throw error
-                } catch (error: Exception) {
-                    Log.warn("Failed to read SSH hosts", error)
                 }
+                    .onSuccess { hosts -> hostsByType[SSH] = hosts }
+                    .onFailure { error -> Log.warn("Failed to read SSH hosts", error) }
             }
 
             hostsByType.mapValues { (_, hosts) -> hosts.distinctBy(ToolkitHost::id) }
         }
 
-    private suspend fun scanHost(project: Project?, host: ToolkitHost): ScanResult? = try {
+    private inline fun <T> runCancellable(block: () -> T): Result<T> =
+        try {
+            Result.success(block())
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            Result.failure(error)
+        }
+
+    private suspend fun scanHost(project: Project?, host: ToolkitHost): ScanResult? = runCancellable {
         val executablePaths = locateExecutables(project, host)
         ScanResult(
             host = host,
             toolkits = probeToolkits(project, host, executablePaths),
             executablePaths = executablePaths.toSet(),
         )
-    } catch (error: CancellationException) {
-        throw error
-    } catch (error: Exception) {
+    }.getOrElse { error ->
         Log.warn("Keeping previous toolkits for ${host.id.canonical}: ${error.message ?: "scan failed"}")
         null
     }
@@ -187,11 +190,9 @@ internal class ToolkitScanner {
     ): List<Toolkit> {
         return executablePaths.map { path ->
             Log.info("probing version: host: $host, path: $path")
-            try {
+            runCancellable {
                 createToolkit(host, path, probeVersion(project, host, path))
-            } catch (error: CancellationException) {
-                throw error
-            } catch (error: Exception) {
+            }.getOrElse { error ->
                 Log.warn(
                     "Marking XMake installation at $path on ${host.id.canonical} unavailable: " +
                             (error.message ?: "version probe failed"),
