@@ -1,13 +1,12 @@
 package io.xmake.project.directory
 
-import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.State
 import com.intellij.openapi.components.Storage
 import com.intellij.openapi.project.Project
 import com.intellij.util.messages.Topic
+import io.xmake.utils.publish
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHostType
 import io.xmake.utils.extension.ToolkitHostExtension
@@ -55,19 +54,8 @@ class XMakeProjectDirectoryManager(private val project: Project) :
         if (changed) publishDirectoryChanged()
     }
 
-    private fun publishDirectoryChanged() {
-        val publish = Runnable {
-            if (!project.isDisposed) {
-                project.messageBus.syncPublisher(TOPIC).projectDirectoryChanged()
-            }
-        }
-        val application = ApplicationManager.getApplication()
-        if (application.isDispatchThread) {
-            publish.run()
-        } else {
-            application.invokeLater(publish, ModalityState.any())
-        }
-    }
+    private fun publishDirectoryChanged() =
+        project.publish(TOPIC) { projectDirectoryChanged() }
 
     /** Whether a directory source exists; resolution is delegated to the stateless resolver. */
     fun hasDirectorySource(): Boolean = resolver().hasDirectorySource()
