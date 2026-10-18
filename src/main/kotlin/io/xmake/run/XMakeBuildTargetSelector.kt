@@ -16,8 +16,6 @@
  */
 package io.xmake.run
 
-import com.intellij.execution.ExecutionTargetListener
-import com.intellij.execution.ExecutionTargetManager
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.ModalityState
@@ -25,9 +23,7 @@ import com.intellij.openapi.application.asContextElement
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
-import io.xmake.project.directory.XMakeProjectDirectoryManager
 import io.xmake.project.profile.XMakeBuildProfile
-import io.xmake.project.profile.XMakeBuildProfileManager
 import io.xmake.project.profile.xmakeBuildProfiles
 import io.xmake.project.target.discoverXMakeBuildTargets
 import io.xmake.run.command.DEFAULT_BUILD_TARGET
@@ -87,15 +83,9 @@ class XMakeBuildTargetSelector(
         }
         replaceBuildTargetChoices(DEFAULT_BUILD_TARGET, emptyList())
         val connection = project.messageBus.connect(parentDisposable)
-        connection.subscribe(ExecutionTargetManager.TOPIC, ExecutionTargetListener {
+        connection.subscribeToContextChanges {
             editedConfiguration?.let(::refreshBuildTargets)
-        })
-        connection.subscribe(XMakeBuildProfileManager.TOPIC, XMakeBuildProfileManager.Listener {
-            editedConfiguration?.let(::refreshBuildTargets)
-        })
-        connection.subscribe(XMakeProjectDirectoryManager.TOPIC, XMakeProjectDirectoryManager.Listener {
-            editedConfiguration?.let(::refreshBuildTargets)
-        })
+        }
     }
 
     fun reset(configuration: XMakeProfileRunConfiguration) {
