@@ -228,7 +228,7 @@ internal class ToolkitScanner {
     }
 
     private suspend fun probeVersion(project: Project?, host: ToolkitHost, path: String): String {
-        val command = probeXmakeVersionCommand.withExePath(path)
+        val command = probeXmakeVersionCommand(path)
         val result = execute(project, host, command)
         val output = decode(result.stdOut)
         val version = XMAKE_VERSION_PATTERN.find(output)?.groupValues?.get(1).orEmpty()

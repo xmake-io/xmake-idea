@@ -21,35 +21,30 @@
 package io.xmake.utils.execute
 
 import com.intellij.execution.configurations.GeneralCommandLine
-import com.intellij.util.containers.map2Array
 
-val predefinedPath = mapOf(
-    "windows" to arrayOf(),
-    "unix" to arrayOf(
-        // Todo: Add more paths
-        "\${HOME}/.local/bin",
-        "/usr/local/bin",
-        "/usr/bin",
-        "/opt/homebrew/bin"
-    )
+private val unixProbePaths = listOf(
+    // Todo: Add more paths
+    "\${HOME}/.local/bin",
+    "/usr/local/bin",
+    "/usr/bin",
+    "/opt/homebrew/bin"
 )
 
 val probeXmakeLocCommandOnWin = GeneralCommandLine("where.exe")
     .withParameters("xmake")
     .withCharset(Charsets.UTF_8)
 
-fun probeXmakeLocCommand(home: String?): GeneralCommandLine = GeneralCommandLine("which")
-    .withParameters(*arrayOf("xmake")
-        .plus(
-            predefinedPath["unix"]?.map2Array { path ->
-                val resolved = home?.let { path.replace("\${HOME}", it) } ?: path
-                "$resolved/xmake"
-            } ?: emptyArray()
-        )
-    )
-    .withCharset(Charsets.UTF_8)
+fun probeXmakeLocCommand(home: String?): GeneralCommandLine {
+    val args = (listOf("xmake") + unixProbePaths.map { path ->
+        val resolved = home?.let { path.replace("\${HOME}", it) } ?: path
+        "$resolved/xmake"
+    }).toTypedArray()
+    return GeneralCommandLine("which")
+        .withParameters(*args)
+        .withCharset(Charsets.UTF_8)
+}
 
-val probeXmakeVersionCommand
-    get() = GeneralCommandLine()
+fun probeXmakeVersionCommand(xmakePath: String): GeneralCommandLine =
+    GeneralCommandLine(xmakePath)
         .withParameters("--version")
         .withCharset(Charsets.UTF_8)
