@@ -23,15 +23,36 @@ package io.xmake.debug
 import com.intellij.openapi.util.SystemInfo
 import java.io.File
 
-/**
- * DAP driver path detection utility
- */
-object DapDriverDetector {
+internal object DapDriverDetector {
 
-    /**
-     * Detect DAP driver type based on file name and content
-     */
-    fun detectDriverType(path: String): DapDriverType? {
+    fun findBestDriver(): DapDriverInfo? {
+        val drivers = detectDrivers()
+        return drivers.find { it.type == DapDriverType.LLDB }
+            ?: drivers.find { it.type == DapDriverType.GDB && it.support is DapSupport.Supported }
+    }
+
+    fun resolve(path: String): DapDriverInfo? {
+        val file = File(path)
+        if (!file.exists() || !file.canExecute()) return null
+        return detectDriver(path)
+    }
+
+    private fun detectDrivers(): List<DapDriverInfo> =
+        candidateDriverPaths().asSequence()
+            .filter { path -> File(path).let { it.exists() && it.canExecute() } }
+            .mapNotNull(::detectDriver)
+            .toList()
+
+    private fun detectDriver(path: String): DapDriverInfo? {
+        val type = detectDriverType(path) ?: return null
+        val support = when (type) {
+            DapDriverType.GDB -> GdbSupportDetector.detect(path)
+            DapDriverType.LLDB -> DapSupport.Supported
+        }
+        return DapDriverInfo(path, type, support)
+    }
+
+    private fun detectDriverType(path: String): DapDriverType? {
         val file = File(path)
         if (!file.exists()) {
             return null
@@ -53,10 +74,7 @@ object DapDriverDetector {
         }
     }
 
-    /**
-     * Get default search paths for DAP drivers
-     */
-    fun getDefaultSearchPaths(): List<String> = buildList {
+    private fun candidateDriverPaths(): List<String> = buildList {
         when {
             SystemInfo.isMac -> addAll(listOf(
                 "/Applications/Xcode.app/Contents/Developer/usr/bin/lldb-dap",
@@ -87,44 +105,5 @@ object DapDriverDetector {
                 "C:\\Program Files\\GDB\\bin\\gdb.exe",
             ))
         }
-    }
-
-    /**
-     * Find all available DAP drivers
-     */
-    fun findAvailableDrivers(): List<DapDriverInfo> =
-        getDefaultSearchPaths().asSequence()
-            .filter { path -> File(path).let { it.exists() && it.canExecute() } }
-            .mapNotNull(::detectDriver)
-            .toList()
-
-    private fun detectDriver(path: String): DapDriverInfo? {
-        val type = detectDriverType(path) ?: return null
-        return when (type) {
-            DapDriverType.GDB -> DapDriverInfo(path, type, GdbSupportDetector.detect(path))
-            DapDriverType.LLDB -> DapDriverInfo(path, type, DapSupport.Supported)
-        }
-    }
-
-    /**
-     * Find best available DAP driver (prefer LLDB over GDB)
-     */
-    fun findBestDriver(): DapDriverInfo? {
-        val drivers = findAvailableDrivers()
-
-        // Prefer LLDB over GDB
-        return drivers.find { it.type == DapDriverType.LLDB }
-            ?: drivers.find { it.type == DapDriverType.GDB && it.support is DapSupport.Supported }
-    }
-
-    /**
-     * Validate a custom DAP driver path
-     */
-    fun validateDriverPath(path: String): DapDriverInfo? {
-        val file = File(path)
-        if (!file.exists() || !file.canExecute()) {
-            return null
-        }
-        return detectDriver(path)
     }
 }

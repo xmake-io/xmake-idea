@@ -118,7 +118,7 @@ private suspend fun resolveDapDriver(project: Project, state: XMakeDebugState): 
             "or specify a custom path in the debug configuration.",
         )
     }
-    val info = DapDriverDetector.validateDriverPath(driverPath)
+    val info = DapDriverDetector.resolve(driverPath)
         ?: throw ExecutionException("Invalid DAP driver path: $driverPath")
     if (info.type == DapDriverType.GDB && info.support !is DapSupport.Supported) {
         notifyGdbDapUnavailable(project, info)
