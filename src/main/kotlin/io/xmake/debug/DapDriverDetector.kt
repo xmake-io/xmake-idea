@@ -60,7 +60,11 @@ object DapDriverDetector {
         val versionText: String?,
         val diagnostics: String?,
         val unsupportedConfirmed: Boolean = false,
-    )
+    ) {
+        /** A launch failure or a timeout is not a verdict, so it is not cached. */
+        val definite: Boolean
+            get() = dapCapable || unsupportedConfirmed
+    }
 
     /** The cache key includes the binary's timestamp and size, so an upgrade invalidates it. */
     private data class DriverIdentity(val path: String, val lastModified: Long, val size: Long) {
@@ -150,7 +154,9 @@ object DapDriverDetector {
         val dapCapable = probeDiagnostics == null
 
         val capability = GdbDapCapability(dapCapable, versionText, probeDiagnostics)
-        gdbCapabilityCache[identity] = capability
+        if (capability.definite) {
+            gdbCapabilityCache[identity] = capability
+        }
         return capability
     }
     
