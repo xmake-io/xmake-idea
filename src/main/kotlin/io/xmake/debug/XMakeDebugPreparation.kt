@@ -107,7 +107,7 @@ private fun resolveDebugTarget(state: XMakeDebugState, output: String): DebugTar
 }
 
 private suspend fun resolveDapDriver(project: Project, state: XMakeDebugState): XMakeDebugDriver.Dap {
-    val driverPath = if (!state.autoDetectDapDriver) {
+    val driverPath = if (!state.dapDriverAutoDetect) {
         state.configuredDapDriverPath.trim()
     } else {
         DapDriverDetector.findBestDriver()?.path.orEmpty()
