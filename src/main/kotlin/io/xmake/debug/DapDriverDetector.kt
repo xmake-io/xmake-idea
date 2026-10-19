@@ -59,10 +59,24 @@ object DapDriverDetector {
         val dapCapable: Boolean,
         val versionText: String?,
         val diagnostics: String?,
-        val unsupportedConfirmed: Boolean = false
-    )
+        val unsupportedConfirmed: Boolean = false,
+    ) {
+        /** A launch failure or a timeout is not a verdict, so it is not cached. */
+        val definite: Boolean
+            get() = dapCapable || unsupportedConfirmed
+    }
 
-    private val gdbCapabilityCache: MutableMap<String, GdbDapCapability> = mutableMapOf()
+    /** The cache key includes the binary's timestamp and size, so an upgrade invalidates it. */
+    private data class DriverIdentity(val path: String, val lastModified: Long, val size: Long) {
+        companion object {
+            fun of(path: String): DriverIdentity {
+                val file = File(path)
+                return DriverIdentity(path, file.lastModified(), file.length())
+            }
+        }
+    }
+
+    private val gdbCapabilityCache: MutableMap<DriverIdentity, GdbDapCapability> = mutableMapOf()
 
     /** Synchronous probe helper; must be called off the EDT. [CapturingProcessHandler] reads
      *  both streams concurrently, so a full pipe can never fake a timeout. */
@@ -99,7 +113,8 @@ object DapDriverDetector {
 
     @Synchronized
     private fun getGdbDapCapability(path: String): GdbDapCapability {
-        gdbCapabilityCache[path]?.let { return it }
+        val identity = DriverIdentity.of(path)
+        gdbCapabilityCache[identity]?.let { return it }
 
         val versionResult = runProcess(path, listOf("--version"))
         val versionText = versionResult.output.lineSequence().firstOrNull()?.trim()
@@ -117,7 +132,7 @@ object DapDriverDetector {
                     unsupportedConfirmed = true
                 )
             }
-            gdbCapabilityCache[path] = capability
+            gdbCapabilityCache[identity] = capability
             return capability
         }
 
@@ -139,7 +154,9 @@ object DapDriverDetector {
         val dapCapable = probeDiagnostics == null
 
         val capability = GdbDapCapability(dapCapable, versionText, probeDiagnostics)
-        gdbCapabilityCache[path] = capability
+        if (capability.definite) {
+            gdbCapabilityCache[identity] = capability
+        }
         return capability
     }
     

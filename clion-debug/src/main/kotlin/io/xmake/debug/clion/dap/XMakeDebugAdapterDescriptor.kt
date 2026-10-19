@@ -122,7 +122,7 @@ internal class XMakeDebugAdapterDescriptor(
         // synchronous probe below never touches the EDT.
         if (!SystemInfo.isWindows) return
         val driverPath = commandLine.exePath
-        if (DIAGNOSTIC_CACHE.putIfAbsent(driverPath, true) != null) {
+        if (!DIAGNOSTIC_CACHE.add(driverPath)) {
             return
         }
 
@@ -134,6 +134,7 @@ internal class XMakeDebugAdapterDescriptor(
             val process = probe.createProcess()
             if (!process.waitFor(DRIVER_DIAGNOSTIC_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
                 process.destroy()
+                DIAGNOSTIC_CACHE.remove(driverPath)
                 Log.warn("Timed out while checking $driverPath")
                 return
             }
@@ -141,6 +142,7 @@ internal class XMakeDebugAdapterDescriptor(
                 notifyMissingDriverDependency(driverPath)
             }
         } catch (error: Exception) {
+            DIAGNOSTIC_CACHE.remove(driverPath)
             Log.warn("Failed to check $driverPath: ${error.message}")
         }
     }
@@ -164,7 +166,7 @@ internal class XMakeDebugAdapterDescriptor(
         /** Windows exit code STATUS_DLL_NOT_FOUND (0xC0000135): the driver failed to load a required DLL. */
         const val STATUS_DLL_NOT_FOUND = 0xC0000135L
 
-        /** Drivers are probed at most once per IDE session to avoid forking on every debug launch. */
-        val DIAGNOSTIC_CACHE = ConcurrentHashMap<String, Boolean>()
+        /** Drivers with a definite probe result are not probed again in this session. */
+        val DIAGNOSTIC_CACHE: MutableSet<String> = ConcurrentHashMap.newKeySet()
     }
 }
