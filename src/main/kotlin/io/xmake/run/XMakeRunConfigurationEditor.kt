@@ -33,6 +33,7 @@ import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.panel
 import io.xmake.debug.DapDriverDetector
+import io.xmake.debug.DapDriverType
 import io.xmake.project.directory.XMakeProjectDirectoryManager
 import io.xmake.project.directory.ui.DirectoryBrowser
 import io.xmake.project.profile.XMakeBuildProfileManager
@@ -224,7 +225,7 @@ class XMakeRunConfigurationEditor(
         launchWorkingDirectory.setToolkit(profile?.resolveToolkit(project))
     }
 
-    private fun replaceDefaultLaunchConfiguration(driverType: DapDriverDetector.DapDriverType) {
+    private fun replaceDefaultLaunchConfiguration(driverType: DapDriverType) {
         val currentLaunchConfiguration = launchConfiguration.text.trim()
         val gdbDefault = XMakeRunConfiguration.getDefaultGdbLaunchConfigJson()
         val lldbDefault = XMakeRunConfiguration.getDefaultLldbLaunchConfigJson()
@@ -235,10 +236,8 @@ class XMakeRunConfigurationEditor(
         ) return
 
         launchConfiguration.text = when (driverType) {
-            DapDriverDetector.DapDriverType.GDB_DAP -> gdbDefault
-            DapDriverDetector.DapDriverType.LLDB_DAP,
-            DapDriverDetector.DapDriverType.UNKNOWN,
-            -> lldbDefault
+            DapDriverType.GDB -> gdbDefault
+            DapDriverType.LLDB -> lldbDefault
         }
     }
 }

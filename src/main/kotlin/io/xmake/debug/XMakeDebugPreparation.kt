@@ -120,10 +120,10 @@ private suspend fun resolveDapDriver(project: Project, state: XMakeDebugState): 
     }
     val info = DapDriverDetector.validateDriverPath(driverPath)
         ?: throw ExecutionException("Invalid DAP driver path: $driverPath")
-    if (info.type == DapDriverDetector.DapDriverType.GDB_DAP && !info.dapCapable) {
+    if (info.type == DapDriverType.GDB && info.support !is DapSupport.Supported) {
         notifyGdbDapUnavailable(project, info)
         throw ExecutionException(
-            if (info.unsupportedConfirmed) {
+            if (info.support is DapSupport.Unsupported) {
                 "GDB does not support DAP: ${info.path}"
             } else {
                 "GDB DAP support could not be verified: ${info.path}"
@@ -135,23 +135,24 @@ private suspend fun resolveDapDriver(project: Project, state: XMakeDebugState): 
 
 private suspend fun notifyGdbDapUnavailable(
     project: Project,
-    driver: DapDriverDetector.DapDriverInfo,
+    driver: DapDriverInfo,
 ) = withContext(Dispatchers.EDT) {
     if (project.isDisposed) return@withContext
 
-    val detail = driver.diagnostics?.let { "<br/><br/>$it" }.orEmpty()
-    val (title, message) = if (driver.unsupportedConfirmed) {
-        "GDB does not support DAP" to (
+    val (title, message) = when (val support = driver.support) {
+        is DapSupport.Unsupported -> "GDB does not support DAP" to (
             "The selected GDB does not support Debug Adapter Protocol (DAP).<br/>" +
-                "Please install GDB 14.1+ or use lldb-dap, then retry.<br/><br/>" +
-                "driver=${driver.path}$detail"
+                "Please install GDB ${MIN_DAP_GDB_VERSION.toCompactString()}+ or use lldb-dap, then retry.<br/><br/>" +
+                "driver=${driver.path}<br/><br/>" +
+                "GDB ${support.version.toCompactString()} detected; " +
+                "DAP requires GDB ${MIN_DAP_GDB_VERSION.toCompactString()}+."
             )
-    } else {
-        "GDB DAP support could not be verified" to (
-            "The DAP support probe for the selected GDB failed or timed out.<br/>" +
+        is DapSupport.Unverified -> "GDB DAP support could not be verified" to (
+            "The DAP interpreter check for the selected GDB failed or timed out.<br/>" +
                 "Run '${driver.path} -i dap --version' in a terminal to check the driver directly.<br/><br/>" +
-                "driver=${driver.path}$detail"
+                "driver=${driver.path}<br/><br/>${support.diagnostics}"
             )
+        DapSupport.Supported -> return@withContext
     }
     NotificationGroupManager.getInstance()
         .getNotificationGroup("XMake.NotificationGroup")

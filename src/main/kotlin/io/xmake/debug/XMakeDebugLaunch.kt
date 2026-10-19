@@ -37,9 +37,9 @@ sealed interface XMakeDebugDriver {
     }
 
     data class Dap(
-        val info: DapDriverDetector.DapDriverInfo,
+        val info: DapDriverInfo,
         val launchConfiguration: String,
     ) : XMakeDebugDriver {
-        override val displayName: String get() = info.displayName
+        override val displayName: String get() = info.type.displayName
     }
 }
