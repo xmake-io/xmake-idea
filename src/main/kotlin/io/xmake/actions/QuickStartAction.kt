@@ -21,7 +21,6 @@
 package io.xmake.actions
 
 import com.intellij.execution.configurations.GeneralCommandLine
-import com.intellij.execution.process.CapturingProcessHandler
 import com.intellij.execution.process.ProcessOutput
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -37,8 +36,9 @@ import io.xmake.project.directory.hasRootXMakeLuaCached
 import io.xmake.project.directory.hasXMakeProjectDirectorySource
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitManager
-import io.xmake.utils.execute.createProcess
+import io.xmake.utils.execute.runProcessBlocking
 import io.xmake.utils.path.WorkingDirectoryResolver
+import kotlin.time.Duration.Companion.seconds
 
 class QuickStartAction : XMakeProjectAction() {
 
@@ -54,62 +54,61 @@ class QuickStartAction : XMakeProjectAction() {
 
     override fun execute(project: Project) {
         FileDocumentManager.getInstance().saveAllDocuments()
+        if (project.hasRootXMakeLuaCached) return
 
-        if (!project.hasRootXMakeLuaCached) {
-            val manager = ToolkitManager.getInstance()
-            val registeredToolkits = manager.registeredToolkits(project)
-            val toolkit = manager.defaultToolkitId
-                ?.let { id -> registeredToolkits.firstOrNull { toolkit -> toolkit.id == id } }
-                ?.takeUnless(Toolkit::requiresBackend)
-                ?: registeredToolkits.firstOrNull { !it.requiresBackend }
-                ?: Toolkit(path = "xmake")
-            val projectDirectoryPath = project.basePath ?: return
-            val resolvedProjectDirectoryPath = WorkingDirectoryResolver.resolve(project, projectDirectoryPath, toolkit)
-            val commandLine = GeneralCommandLine(toolkit.path, "create", "-P", ".")
-                .withWorkDirectory(resolvedProjectDirectoryPath)
+        val toolkit = resolveQuickStartToolkit(project)
+        val projectDirectoryPath = project.basePath ?: return
+        val resolvedProjectDirectoryPath = WorkingDirectoryResolver.resolve(project, projectDirectoryPath, toolkit)
+        val commandLine = GeneralCommandLine(toolkit.path, "create", "-P", ".")
+            .withWorkDirectory(resolvedProjectDirectoryPath)
+            .withCharset(Charsets.UTF_8)
 
-            ApplicationManager.getApplication().executeOnPooledThread {
-                try {
-                    val process = commandLine.createProcess(toolkit)
-                    val output = CapturingProcessHandler(process, Charsets.UTF_8, commandLine.commandLineString)
-                        .runProcess(CREATE_TIMEOUT_MS.toInt(), true)
-                    when {
-                        output.isTimeout -> project.notify("xmake create timed out and was terminated.${output.outputTail()}")
-
-                        output.exitCode == 0 -> {
-                            project.notify("XMake project created successfully!", NotificationType.INFORMATION)
-
-                            ToolWindowManager.getInstance(project).invokeLater {
-                                if (project.isDisposed) return@invokeLater
-
-                                project.basePath
-                                    ?.let(LocalFileSystem.getInstance()::findFileByPath)
-                                    ?.let { VfsUtil.markDirtyAndRefresh(true, true, true, it) }
-
-                                project.xmakeConsoleService.whenReady { console ->
-                                    console.showOutput()
-                                }
-                            }
-                        }
-
-                        else -> project.notify("xmake create failed (exit=${output.exitCode}).${output.outputTail()}")
-                    }
-                } catch (e: Exception) {
-                    project.notify("Failed to start xmake create: ${e.message}")
+        ApplicationManager.getApplication().executeOnPooledThread {
+            try {
+                val output = commandLine.runProcessBlocking(CREATE_TIMEOUT)
+                when {
+                    output.isTimeout -> project.notify(
+                        output.failureMessage("xmake create timed out and was terminated."),
+                    )
+                    output.exitCode == 0 -> onQuickStartCreated(project)
+                    else -> project.notify(
+                        output.failureMessage("xmake create failed (exit=${output.exitCode})."),
+                    )
                 }
+            } catch (e: Exception) {
+                project.notify("Failed to start xmake create: ${e.message}")
             }
         }
     }
 
+    private fun resolveQuickStartToolkit(project: Project): Toolkit {
+        val manager = ToolkitManager.getInstance()
+        val registeredToolkits = manager.registeredToolkits(project)
+        return manager.defaultToolkitId
+            ?.let { id -> registeredToolkits.firstOrNull { toolkit -> toolkit.id == id } }
+            ?.takeUnless(Toolkit::requiresBackend)
+            ?: registeredToolkits.firstOrNull { !it.requiresBackend }
+            ?: Toolkit(path = "xmake")
+    }
 
+    private fun onQuickStartCreated(project: Project) {
+        project.notify("XMake project created successfully!", NotificationType.INFORMATION)
+        ToolWindowManager.getInstance(project).invokeLater {
+            if (project.isDisposed) return@invokeLater
+            project.basePath
+                ?.let(LocalFileSystem.getInstance()::findFileByPath)
+                ?.let { VfsUtil.markDirtyAndRefresh(true, true, true, it) }
+            project.xmakeConsoleService.whenReady { console -> console.showOutput() }
+        }
+    }
 
     private companion object {
-        private const val CREATE_TIMEOUT_MS = 120_000L
+        private val CREATE_TIMEOUT = 120.seconds
     }
 }
 
-/** The captured tail keeps the failure notification diagnosable. */
-private fun ProcessOutput.outputTail(): String {
+/** Appends the captured tail so the failure notification stays diagnosable. */
+private fun ProcessOutput.failureMessage(summary: String): String {
     val text = (stdout + "\n" + stderr).trim()
-    return if (text.isEmpty()) "" else "\n${text.takeLast(1000)}"
+    return if (text.isEmpty()) summary else "$summary\n${text.takeLast(1000)}"
 }

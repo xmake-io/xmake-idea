@@ -21,6 +21,8 @@
 package io.xmake.utils.execute
 
 import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.execution.process.CapturingProcessHandler
+import com.intellij.execution.process.ProcessOutput
 import com.intellij.execution.processTools.ExecutionResult
 import com.intellij.execution.processTools.getBareExecutionResult
 import com.intellij.execution.wsl.WSLCommandLineOptions
@@ -32,6 +34,10 @@ import io.xmake.project.toolkit.ToolkitHost
 import io.xmake.project.toolkit.ToolkitHostType.*
 import io.xmake.utils.extension.ToolkitHostExtension
 import java.io.File
+import java.nio.ByteBuffer
+import java.nio.charset.CharacterCodingException
+import java.nio.charset.Charset
+import java.nio.charset.CodingErrorAction
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
 import kotlin.time.Duration
@@ -92,14 +98,44 @@ fun GeneralCommandLine.createProcess(
 class ProcessTimeoutException(message: String, cause: Throwable? = null) : RuntimeException(message, cause)
 
 /**
- * Collects the process's output with a hard time bound. The process is killed on timeout or
- * caller cancellation; killing an already terminated process is a documented no-op, so one
- * cleanup path covers every outcome.
+ * Waits for the process to exit and returns its captured output. A process that does not exit
+ * within [timeout] is killed and [ProcessTimeoutException] is thrown; caller cancellation takes
+ * the same cleanup path.
  */
-suspend fun Process.awaitBounded(timeout: Duration): ExecutionResult = try {
-    withTimeout(timeout) { getBareExecutionResult() }
-} catch (error: TimeoutCancellationException) {
-    throw ProcessTimeoutException("Process did not exit within $timeout", error)
-} finally {
-    runCatching { destroyForcibly() }
+suspend fun Process.awaitExit(timeout: Duration): ExecutionResult {
+    if (timeout <= Duration.ZERO) {
+        destroyForcibly()
+        throw IllegalArgumentException("Process timeout must be positive: $timeout")
+    }
+    return try {
+        withTimeout(timeout) { getBareExecutionResult() }
+    } catch (error: TimeoutCancellationException) {
+        throw ProcessTimeoutException("Process did not exit within $timeout", error)
+    } finally {
+        runCatching { destroyForcibly() }
+    }
+}
+
+/**
+ * Starts the command line as a local process, captures both streams, and blocks until it exits
+ * or [timeout] elapses. A timed-out process is killed, and the returned output carries
+ * [ProcessOutput.isTimeout]. The call blocks, so run it off the EDT.
+ */
+fun GeneralCommandLine.runProcessBlocking(timeout: Duration): ProcessOutput {
+    require(timeout > Duration.ZERO) { "Process timeout must be positive: $timeout" }
+    return CapturingProcessHandler(this).runProcess(timeout.inWholeMilliseconds.toInt(), true)
+}
+
+private val nativeProcessCharset: Charset =
+    System.getProperty("native.encoding")?.let(Charset::forName) ?: Charset.defaultCharset()
+
+/** Decodes process output as UTF-8, falling back to the native charset for invalid bytes. */
+internal fun ByteArray.decodeProcessText(): String = try {
+    Charsets.UTF_8.newDecoder()
+        .onMalformedInput(CodingErrorAction.REPORT)
+        .onUnmappableCharacter(CodingErrorAction.REPORT)
+        .decode(ByteBuffer.wrap(this))
+        .toString()
+} catch (_: CharacterCodingException) {
+    String(this, nativeProcessCharset)
 }

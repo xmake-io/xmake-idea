@@ -26,16 +26,13 @@ import com.intellij.openapi.project.Project
 import io.xmake.project.toolkit.ToolkitHostType.LOCAL
 import io.xmake.project.toolkit.ToolkitHostType.SSH
 import io.xmake.project.toolkit.ToolkitHostType.WSL
-import io.xmake.utils.execute.awaitBounded
+import io.xmake.utils.execute.awaitExit
 import io.xmake.utils.execute.createProcess
+import io.xmake.utils.execute.decodeProcessText
 import io.xmake.utils.execute.probeXmakeLocCommand
 import io.xmake.utils.execute.probeXmakeLocCommandOnWin
 import io.xmake.utils.execute.probeXmakeVersionCommand
 import io.xmake.utils.extension.ToolkitHostExtension
-import java.nio.ByteBuffer
-import java.nio.charset.CharacterCodingException
-import java.nio.charset.Charset
-import java.nio.charset.CodingErrorAction
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -210,7 +207,7 @@ internal class ToolkitScanner {
             else -> probeXmakeLocCommand(null)
         }
         val result = execute(project, host, command)
-        val output = decode(result.stdOut)
+        val output = result.stdOut.decodeProcessText()
         val paths = output
             .lineSequence()
             .filterNot(String::isBlank)
@@ -230,7 +227,7 @@ internal class ToolkitScanner {
     private suspend fun probeVersion(project: Project?, host: ToolkitHost, path: String): String {
         val command = probeXmakeVersionCommand(path)
         val result = execute(project, host, command)
-        val output = decode(result.stdOut)
+        val output = result.stdOut.decodeProcessText()
         val version = XMAKE_VERSION_PATTERN.find(output)?.groupValues?.get(1).orEmpty()
         Log.info("Host: ${host.type} ExitCode: ${result.exitCode} Version: $version")
 
@@ -244,7 +241,7 @@ internal class ToolkitScanner {
     }
 
     private fun executionFailure(result: ExecutionResult): ExecutionException {
-        val stderr = decode(result.stdErr).trim()
+        val stderr = result.stdErr.decodeProcessText().trim()
         val detail = stderr.takeIf(String::isNotEmpty)?.let { text -> ": $text" }.orEmpty()
         return ExecutionException(
             "Failed to query the XMake version with exit code ${result.exitCode}$detail",
@@ -257,17 +254,7 @@ internal class ToolkitScanner {
         command: GeneralCommandLine,
     ): ExecutionResult =
         runInterruptible(Dispatchers.IO) { command.createProcess(host, project) }
-            .awaitBounded(PROBE_TIMEOUT)
-
-    private fun decode(bytes: ByteArray): String = try {
-        Charsets.UTF_8.newDecoder()
-            .onMalformedInput(CodingErrorAction.REPORT)
-            .onUnmappableCharacter(CodingErrorAction.REPORT)
-            .decode(ByteBuffer.wrap(bytes))
-            .toString()
-    } catch (_: CharacterCodingException) {
-        String(bytes, nativeProcessCharset)
-    }
+            .awaitExit(PROBE_TIMEOUT)
 
     private fun createToolkit(host: ToolkitHost, path: String, version: String): Toolkit =
         Toolkit(
@@ -280,11 +267,8 @@ internal class ToolkitScanner {
     companion object {
         private val Log = logger<ToolkitScanner>()
 
-        /** Bounds every probe process; a hung SSH or WSL channel must not freeze a host's scan. */
+        /** Bounds every probe wait; a hung SSH or WSL channel must not freeze a host's scan. */
         private val PROBE_TIMEOUT = 15.seconds
-
-        private val nativeProcessCharset: Charset =
-            System.getProperty("native.encoding")?.let(Charset::forName) ?: Charset.defaultCharset()
 
         private val IS_WINDOWS_HOST = System.getProperty("os.name").orEmpty().startsWith("Windows", ignoreCase = true)
         private val XMAKE_VERSION_PATTERN = Regex("""xmake\s+(v[^,\s]+)""", RegexOption.IGNORE_CASE)

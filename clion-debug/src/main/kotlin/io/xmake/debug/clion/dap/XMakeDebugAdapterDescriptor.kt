@@ -34,10 +34,11 @@ import com.jetbrains.cidr.execution.debugger.breakpoints.CidrLineBreakpointType
 import io.xmake.debug.DapDriverType
 import io.xmake.debug.XMakeDebugDriver
 import io.xmake.debug.XMakeDebugLaunch
+import io.xmake.utils.execute.runProcessBlocking
 import io.xmake.utils.notify
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.TimeUnit
+import kotlin.time.Duration.Companion.seconds
 
 internal class XMakeDebugAdapterDescriptor(
     private val project: Project,
@@ -118,7 +119,7 @@ internal class XMakeDebugAdapterDescriptor(
 
     private fun diagnoseWindowsDriver(commandLine: GeneralCommandLine) {
         // Runs inside launchDebugAdapter, which the platform executes on Dispatchers.IO, so the
-        // synchronous probe below never touches the EDT.
+        // synchronous check below never touches the EDT.
         if (!SystemInfo.isWindows) return
         val driverPath = commandLine.exePath
         if (!DIAGNOSTIC_CACHE.add(driverPath)) {
@@ -130,14 +131,13 @@ internal class XMakeDebugAdapterDescriptor(
             .withEnvironment(commandLine.environment)
             .withParameters("--version")
         try {
-            val process = probe.createProcess()
-            if (!process.waitFor(DRIVER_DIAGNOSTIC_TIMEOUT_MS, TimeUnit.MILLISECONDS)) {
-                process.destroy()
+            val output = probe.runProcessBlocking(DRIVER_DIAGNOSTIC_TIMEOUT)
+            if (output.isTimeout) {
                 DIAGNOSTIC_CACHE.remove(driverPath)
                 Log.warn("Timed out while checking $driverPath")
                 return
             }
-            if (process.exitValue() == STATUS_DLL_NOT_FOUND.toInt()) {
+            if (output.exitCode == STATUS_DLL_NOT_FOUND.toInt()) {
                 notifyMissingDriverDependency(driverPath)
             }
         } catch (error: Exception) {
@@ -156,7 +156,7 @@ internal class XMakeDebugAdapterDescriptor(
 
     private companion object {
         private val Log = logger<XMakeDebugAdapterDescriptor>()
-        const val DRIVER_DIAGNOSTIC_TIMEOUT_MS = 1_500L
+        val DRIVER_DIAGNOSTIC_TIMEOUT = 1.5.seconds
 
         /** Windows exit code STATUS_DLL_NOT_FOUND (0xC0000135): the driver failed to load a required DLL. */
         const val STATUS_DLL_NOT_FOUND = 0xC0000135L
