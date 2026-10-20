@@ -21,6 +21,8 @@
 package io.xmake.utils.execute
 
 import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.execution.process.CapturingProcessHandler
+import com.intellij.execution.process.ProcessOutput
 import com.intellij.execution.processTools.ExecutionResult
 import com.intellij.execution.processTools.getBareExecutionResult
 import com.intellij.execution.wsl.WSLCommandLineOptions
@@ -102,4 +104,13 @@ suspend fun Process.awaitBounded(timeout: Duration): ExecutionResult = try {
     throw ProcessTimeoutException("Process did not exit within $timeout", error)
 } finally {
     runCatching { destroyForcibly() }
+}
+
+/**
+ * Runs the command with a hard time bound and returns the captured output. The process is killed
+ * on timeout; the call blocks, so it must run off the EDT.
+ */
+fun GeneralCommandLine.runProcessBlocking(timeout: Duration): ProcessOutput {
+    require(timeout > Duration.ZERO) { "Process timeout must be positive: $timeout" }
+    return CapturingProcessHandler(this).runProcess(timeout.inWholeMilliseconds.toInt(), true)
 }

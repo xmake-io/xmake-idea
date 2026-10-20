@@ -19,14 +19,16 @@
  */
 package io.xmake.debug
 
-import com.intellij.execution.process.CapturingProcessHandler
+import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.process.ProcessOutput
 import com.intellij.openapi.util.Version
+import io.xmake.utils.execute.runProcessBlocking
 import java.io.File
+import kotlin.time.Duration.Companion.seconds
 
 internal object GdbSupportDetector {
 
-    private const val DETECTION_TIMEOUT_MS = 1_500L
+    private val DETECTION_TIMEOUT = 1.5.seconds
 
     /** The cache key includes the binary's timestamp and size, so an upgrade invalidates it. */
     private data class DriverIdentity(val path: String, val lastModified: Long, val size: Long) {
@@ -92,14 +94,11 @@ internal object GdbSupportDetector {
         return "The DAP interpreter$owner failed to start: $detail."
     }
 
-    /** Synchronous detection helper; must be called off the EDT. [CapturingProcessHandler] reads
-     *  both streams concurrently, so a full pipe can never fake a timeout. */
     private fun runProcess(executable: String, args: List<String>): ProcessOutput =
-        CapturingProcessHandler(
-            ProcessBuilder(listOf(executable) + args).start(),
-            Charsets.UTF_8,
-            "$executable ${args.joinToString(" ")}",
-        ).runProcess(DETECTION_TIMEOUT_MS.toInt(), true)
+        GeneralCommandLine(executable)
+            .withParameters(args)
+            .withCharset(Charsets.UTF_8)
+            .runProcessBlocking(DETECTION_TIMEOUT)
 
     private fun ProcessOutput.combinedOutput(): String = (stdout + "\n" + stderr).trim()
 
