@@ -31,7 +31,7 @@ enum class DapDriverType(val displayName: String) {
 
 sealed interface DapSupport {
     data object Supported : DapSupport
-    data class Unsupported(val version: Version) : DapSupport
+    data class Unsupported(val reason: String) : DapSupport
     data class Unverified(val diagnostics: String) : DapSupport
 }
 

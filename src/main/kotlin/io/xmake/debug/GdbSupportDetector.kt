@@ -61,35 +61,35 @@ internal object GdbSupportDetector {
 
     private fun detectUncached(path: String): DapSupport {
         val version = parseGdbVersion(versionOutput(path))
-        if (version != null) {
-            return if (version >= MIN_DAP_GDB_VERSION) {
-                DapSupport.Supported
-            } else {
-                DapSupport.Unsupported(version)
-            }
+        if (version != null && version < MIN_DAP_GDB_VERSION) {
+            return DapSupport.Unsupported(
+                "GDB ${version.toCompactString()} detected; " +
+                    "DAP requires GDB ${MIN_DAP_GDB_VERSION.toCompactString()}+."
+            )
         }
 
+        // `--version` is answered before the interpreter initializes, so only starting the
+        // interpreter shows whether this build carries one.
         val check = try {
-            runProcess(path, listOf("-i", "dap", "--version"))
+            runProcess(path, listOf("-i", "dap", "-batch"))
         } catch (error: Throwable) {
             return DapSupport.Unverified(
                 "Failed to launch the DAP interpreter via $path: ${error.message ?: error.javaClass.simpleName}"
             )
         }
-        val output = truncateDiagnostics(check.combinedOutput())
         return when {
             check.isTimeout ->
-                DapSupport.Unverified("Timed out starting the DAP interpreter via $path -i dap --version")
-            check.exitCode != 0 ->
-                DapSupport.Unverified(
-                    if (output.isBlank()) {
-                        "Failed to start the DAP interpreter via $path -i dap --version, exit=${check.exitCode}"
-                    } else {
-                        "Failed to start the DAP interpreter, exit=${check.exitCode}: $output"
-                    }
-                )
-            else -> DapSupport.Supported
+                DapSupport.Unverified("Timed out starting the DAP interpreter via $path -i dap -batch")
+            check.exitCode == 0 -> DapSupport.Supported
+            else -> DapSupport.Unsupported(interpreterFailure(version, check))
         }
+    }
+
+    private fun interpreterFailure(version: Version?, check: ProcessOutput): String {
+        val owner = version?.let { " of GDB ${it.toCompactString()}" } ?: ""
+        val detail = check.combinedOutput().lineSequence().firstOrNull { it.isNotBlank() }?.take(600)
+            ?: "exit=${check.exitCode}"
+        return "The DAP interpreter$owner failed to start: $detail."
     }
 
     /** Synchronous detection helper; must be called off the EDT. [CapturingProcessHandler] reads
@@ -102,11 +102,6 @@ internal object GdbSupportDetector {
         ).runProcess(DETECTION_TIMEOUT_MS.toInt(), true)
 
     private fun ProcessOutput.combinedOutput(): String = (stdout + "\n" + stderr).trim()
-
-    private fun truncateDiagnostics(text: String, maxChars: Int = 600): String {
-        if (text.length <= maxChars) return text
-        return text.take(maxChars) + "…"
-    }
 
     private fun parseGdbVersion(output: String): Version? {
         val firstLine = output.lineSequence().firstOrNull()?.trim().orEmpty()

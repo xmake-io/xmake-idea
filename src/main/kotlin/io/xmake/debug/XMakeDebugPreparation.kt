@@ -142,14 +142,13 @@ private suspend fun notifyGdbDapUnavailable(
     val (title, message) = when (val support = driver.support) {
         is DapSupport.Unsupported -> "GDB does not support DAP" to (
             "The selected GDB does not support Debug Adapter Protocol (DAP).<br/>" +
-                "Please install GDB ${MIN_DAP_GDB_VERSION.toCompactString()}+ or use lldb-dap, then retry.<br/><br/>" +
-                "driver=${driver.path}<br/><br/>" +
-                "GDB ${support.version.toCompactString()} detected; " +
-                "DAP requires GDB ${MIN_DAP_GDB_VERSION.toCompactString()}+."
+                "${support.reason}<br/><br/>" +
+                "Please use a GDB build with DAP support or lldb-dap, then retry.<br/><br/>" +
+                "driver=${driver.path}"
             )
         is DapSupport.Unverified -> "GDB DAP support could not be verified" to (
-            "The DAP interpreter check for the selected GDB failed or timed out.<br/>" +
-                "Run '${driver.path} -i dap --version' in a terminal to check the driver directly.<br/><br/>" +
+            "Starting the DAP interpreter of the selected GDB failed or timed out.<br/>" +
+                "Run '${driver.path} -i dap -batch' in a terminal to check the driver directly.<br/><br/>" +
                 "driver=${driver.path}<br/><br/>${support.diagnostics}"
             )
         DapSupport.Supported -> return@withContext
