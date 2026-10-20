@@ -68,6 +68,7 @@ import io.xmake.utils.execute.ProcessTimeoutException
 import io.xmake.utils.execute.SyncDirection
 import io.xmake.utils.execute.awaitExit
 import io.xmake.utils.execute.createProcess
+import io.xmake.utils.execute.decodeProcessText
 import io.xmake.utils.execute.transferProjectFiles
 import java.io.File
 import java.io.IOException
@@ -257,10 +258,10 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
                 } catch (e: ProcessTimeoutException) {
                     throw IOException("xmake create timed out and was terminated", e)
                 }
-                val output = result.stdOut.toString(Charsets.UTF_8).trim()
+                val output = result.stdOut.decodeProcessText().trim()
                 Log.info("XMake project creation output: $output")
                 if (result.exitCode != 0) {
-                    val diagnostics = (output + result.stdErr.toString(Charsets.UTF_8)).trim().take(2000)
+                    val diagnostics = (output + result.stdErr.decodeProcessText()).trim().take(2000)
                     throw IOException("xmake create failed (exit=${result.exitCode}): $diagnostics")
                 }
             }

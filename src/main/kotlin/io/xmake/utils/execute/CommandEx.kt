@@ -34,6 +34,10 @@ import io.xmake.project.toolkit.ToolkitHost
 import io.xmake.project.toolkit.ToolkitHostType.*
 import io.xmake.utils.extension.ToolkitHostExtension
 import java.io.File
+import java.nio.ByteBuffer
+import java.nio.charset.CharacterCodingException
+import java.nio.charset.Charset
+import java.nio.charset.CodingErrorAction
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
 import kotlin.time.Duration
@@ -120,4 +124,18 @@ suspend fun Process.awaitExit(timeout: Duration): ExecutionResult {
 fun GeneralCommandLine.runProcessBlocking(timeout: Duration): ProcessOutput {
     require(timeout > Duration.ZERO) { "Process timeout must be positive: $timeout" }
     return CapturingProcessHandler(this).runProcess(timeout.inWholeMilliseconds.toInt(), true)
+}
+
+private val nativeProcessCharset: Charset =
+    System.getProperty("native.encoding")?.let(Charset::forName) ?: Charset.defaultCharset()
+
+/** Decodes process output as UTF-8, falling back to the native charset for invalid bytes. */
+internal fun ByteArray.decodeProcessText(): String = try {
+    Charsets.UTF_8.newDecoder()
+        .onMalformedInput(CodingErrorAction.REPORT)
+        .onUnmappableCharacter(CodingErrorAction.REPORT)
+        .decode(ByteBuffer.wrap(this))
+        .toString()
+} catch (_: CharacterCodingException) {
+    String(this, nativeProcessCharset)
 }
