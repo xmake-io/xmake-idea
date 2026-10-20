@@ -18,6 +18,7 @@ package io.xmake.project.toolkit
 
 import com.intellij.execution.ExecutionException
 import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.execution.processTools.ExecutionResult
 import com.intellij.execution.wsl.WSLUtil
 import com.intellij.execution.wsl.WslDistributionManager
 import com.intellij.openapi.diagnostic.logger
@@ -26,7 +27,7 @@ import io.xmake.project.toolkit.ToolkitHostType.LOCAL
 import io.xmake.project.toolkit.ToolkitHostType.SSH
 import io.xmake.project.toolkit.ToolkitHostType.WSL
 import io.xmake.utils.execute.awaitBounded
-import io.xmake.utils.execute.createWslProcess
+import io.xmake.utils.execute.createProcess
 import io.xmake.utils.execute.probeXmakeLocCommand
 import io.xmake.utils.execute.probeXmakeLocCommandOnWin
 import io.xmake.utils.execute.probeXmakeVersionCommand
@@ -138,44 +139,47 @@ internal class ToolkitScanner {
             hostsByType[LOCAL] = listOf(ToolkitHost(LOCAL))
 
             if (WSLUtil.isSystemCompatible()) {
-                try {
-                    hostsByType[WSL] = WslDistributionManager.getInstance().installedDistributions
+                runCancellable {
+                    WslDistributionManager.getInstance().installedDistributions
                         .map { distribution -> ToolkitHost.wsl(distribution) }
                         .onEach { host -> Log.info("read WSL host: $host") }
-                } catch (error: CancellationException) {
-                    throw error
-                } catch (error: Exception) {
-                    Log.warn("Failed to read WSL distributions", error)
                 }
+                    .onSuccess { hosts -> hostsByType[WSL] = hosts }
+                    .onFailure { error -> Log.warn("Failed to read WSL distributions", error) }
             } else {
                 hostsByType[WSL] = emptyList()
             }
 
             val hostExtension = ToolkitHostExtension.forHostType(SSH)
             if (hostExtension != null) {
-                try {
-                    hostsByType[SSH] = hostExtension.getHosts(project)
+                runCancellable {
+                    hostExtension.getHosts(project)
                         .onEach { host -> Log.info("read SSH host: $host") }
-                } catch (error: CancellationException) {
-                    throw error
-                } catch (error: Exception) {
-                    Log.warn("Failed to read SSH hosts", error)
                 }
+                    .onSuccess { hosts -> hostsByType[SSH] = hosts }
+                    .onFailure { error -> Log.warn("Failed to read SSH hosts", error) }
             }
 
             hostsByType.mapValues { (_, hosts) -> hosts.distinctBy(ToolkitHost::id) }
         }
 
-    private suspend fun scanHost(project: Project?, host: ToolkitHost): ScanResult? = try {
+    private inline fun <T> runCancellable(block: () -> T): Result<T> =
+        try {
+            Result.success(block())
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            Result.failure(error)
+        }
+
+    private suspend fun scanHost(project: Project?, host: ToolkitHost): ScanResult? = runCancellable {
         val executablePaths = locateExecutables(project, host)
         ScanResult(
             host = host,
             toolkits = probeToolkits(project, host, executablePaths),
             executablePaths = executablePaths.toSet(),
         )
-    } catch (error: CancellationException) {
-        throw error
-    } catch (error: Exception) {
+    }.getOrElse { error ->
         Log.warn("Keeping previous toolkits for ${host.id.canonical}: ${error.message ?: "scan failed"}")
         null
     }
@@ -187,11 +191,9 @@ internal class ToolkitScanner {
     ): List<Toolkit> {
         return executablePaths.map { path ->
             Log.info("probing version: host: $host, path: $path")
-            try {
+            runCancellable {
                 createToolkit(host, path, probeVersion(project, host, path))
-            } catch (error: CancellationException) {
-                throw error
-            } catch (error: Exception) {
+            }.getOrElse { error ->
                 Log.warn(
                     "Marking XMake installation at $path on ${host.id.canonical} unavailable: " +
                             (error.message ?: "version probe failed"),
@@ -208,7 +210,7 @@ internal class ToolkitScanner {
             else -> probeXmakeLocCommand(null)
         }
         val result = execute(project, host, command)
-        val output = result.stdout
+        val output = decode(result.stdOut)
         val paths = output
             .lineSequence()
             .filterNot(String::isBlank)
@@ -226,9 +228,9 @@ internal class ToolkitScanner {
     }
 
     private suspend fun probeVersion(project: Project?, host: ToolkitHost, path: String): String {
-        val command = probeXmakeVersionCommand.withExePath(path)
+        val command = probeXmakeVersionCommand(path)
         val result = execute(project, host, command)
-        val output = result.stdout
+        val output = decode(result.stdOut)
         val version = XMAKE_VERSION_PATTERN.find(output)?.groupValues?.get(1).orEmpty()
         Log.info("Host: ${host.type} ExitCode: ${result.exitCode} Version: $version")
 
@@ -241,35 +243,21 @@ internal class ToolkitScanner {
         return version
     }
 
-    private fun executionFailure(result: ProbeResult): ExecutionException {
-        val stderr = result.stderr.trim()
+    private fun executionFailure(result: ExecutionResult): ExecutionException {
+        val stderr = decode(result.stdErr).trim()
         val detail = stderr.takeIf(String::isNotEmpty)?.let { text -> ": $text" }.orEmpty()
         return ExecutionException(
             "Failed to query the XMake version with exit code ${result.exitCode}$detail",
         )
     }
 
-    private class ProbeResult(val exitCode: Int, val stdout: String, val stderr: String)
-
     private suspend fun execute(
         project: Project?,
         host: ToolkitHost,
         command: GeneralCommandLine,
-    ): ProbeResult {
-        val result = when (host.type) {
-            LOCAL -> runInterruptible(Dispatchers.IO) {
-                ProcessBuilder(command.getCommandLineList(command.exePath)).start()
-            }
-
-            WSL -> command.createWslProcess(
-                host.requireWslDistribution(),
-                project,
-            )
-
-            SSH -> ToolkitHostExtension.requireForHostType(SSH).startProcess(host, command)
-        }.awaitBounded(PROBE_TIMEOUT)
-        return ProbeResult(result.exitCode, decode(result.stdOut), decode(result.stdErr))
-    }
+    ): ExecutionResult =
+        runInterruptible(Dispatchers.IO) { command.createProcess(host, project) }
+            .awaitBounded(PROBE_TIMEOUT)
 
     private fun decode(bytes: ByteArray): String = try {
         Charsets.UTF_8.newDecoder()
