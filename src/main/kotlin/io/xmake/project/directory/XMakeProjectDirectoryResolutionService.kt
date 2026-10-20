@@ -1,8 +1,6 @@
 package io.xmake.project.directory
 
 import com.intellij.openapi.Disposable
-import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
@@ -11,6 +9,7 @@ import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.openapi.vfs.newvfs.BulkFileListener
 import com.intellij.openapi.vfs.newvfs.events.VFileEvent
 import com.intellij.util.messages.Topic
+import io.xmake.utils.publish
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitListener
 import io.xmake.project.toolkit.ToolkitManager
@@ -65,11 +64,7 @@ class XMakeProjectDirectoryResolutionService(
         )
         messageBusConnection.subscribe(
             ToolkitListener.TOPIC,
-            object : ToolkitListener {
-                override fun toolkitsChanged() {
-                    resolveAsync()
-                }
-            },
+            ToolkitListener { resolveAsync() },
         )
         messageBusConnection.subscribe(VirtualFileManager.VFS_CHANGES, object : BulkFileListener {
             override fun after(events: MutableList<out VFileEvent>) {
@@ -122,19 +117,8 @@ class XMakeProjectDirectoryResolutionService(
         initialResolution.complete(Unit)
     }
 
-    private fun publishResolutionUpdated() {
-        val publish = Runnable {
-            if (!project.isDisposed) {
-                project.messageBus.syncPublisher(TOPIC).projectDirectoryResolutionUpdated()
-            }
-        }
-        val application = ApplicationManager.getApplication()
-        if (application.isDispatchThread) {
-            publish.run()
-        } else {
-            application.invokeLater(publish, ModalityState.any())
-        }
-    }
+    private fun publishResolutionUpdated() =
+        project.publish(TOPIC) { projectDirectoryResolutionUpdated() }
 
     private data class DirectoryResolution(
         val hasDirectorySource: Boolean,

@@ -75,11 +75,7 @@ class XMakeInfoManager(
     init {
         messageBusConnection.subscribe(
             ToolkitListener.TOPIC,
-            object : ToolkitListener {
-                override fun toolkitsChanged() {
-                    refreshProfileInfo()
-                }
-            },
+            ToolkitListener { refreshProfileInfo() },
         )
         messageBusConnection.subscribe(
             XMakeBuildProfileManager.TOPIC,

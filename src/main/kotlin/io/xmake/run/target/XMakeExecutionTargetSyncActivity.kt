@@ -24,8 +24,6 @@ import com.intellij.execution.RunManager
 import com.intellij.execution.RunManagerListener
 import com.intellij.execution.RunnerAndConfigurationSettings
 import com.intellij.execution.configurations.RunConfiguration
-import com.intellij.notification.NotificationGroupManager
-import com.intellij.notification.NotificationType
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.application.EDT
@@ -35,6 +33,7 @@ import com.intellij.openapi.startup.ProjectActivity
 import com.intellij.task.ProjectTaskContext
 import com.intellij.task.ProjectTaskManager
 import com.intellij.util.messages.SimpleMessageBusConnection
+import io.xmake.utils.notify
 import io.xmake.build.BUILD_STOP_HANDLE
 import io.xmake.build.XMakeBuildTask
 import io.xmake.project.profile.XMakeBuildProfileManager
@@ -237,15 +236,11 @@ private class TargetSynchronizer(
     }
 
     private fun notifyConfigureFailed(profileName: String, details: String?) {
-        if (project.isDisposed) return
         val message = buildString {
             append("Configure failed for profile '").append(profileName).append("'")
             if (!details.isNullOrBlank()) append(": ").append(details)
         }
-        NotificationGroupManager.getInstance()
-            .getNotificationGroup("XMake.NotificationGroup")
-            .createNotification(message, NotificationType.ERROR)
-            .notify(project)
+        project.notify(message)
     }
 
     private fun switchActiveTarget(target: ExecutionTarget) {

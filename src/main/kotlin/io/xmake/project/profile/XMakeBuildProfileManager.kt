@@ -16,8 +16,6 @@
  */
 package io.xmake.project.profile
 
-import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.components.PersistentStateComponent
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.State
@@ -25,6 +23,7 @@ import com.intellij.openapi.components.Storage
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.util.messages.Topic
+import io.xmake.utils.publish
 import io.xmake.project.directory.xmakeProjectDirectories
 import io.xmake.project.toolkit.ToolkitManager
 import org.jdom.Element
@@ -167,19 +166,8 @@ class XMakeBuildProfileManager(private val project: Project) :
         migratePendingLegacyDirectories()
     }
 
-    private fun publishProfilesChanged() {
-        val publish = Runnable {
-            if (!project.isDisposed) {
-                project.messageBus.syncPublisher(TOPIC).profilesChanged()
-            }
-        }
-        val application = ApplicationManager.getApplication()
-        if (application.isDispatchThread) {
-            publish.run()
-        } else {
-            application.invokeLater(publish, ModalityState.any())
-        }
-    }
+    private fun publishProfilesChanged() =
+        project.publish(TOPIC) { profilesChanged() }
 
     fun interface Listener {
         fun profilesChanged()

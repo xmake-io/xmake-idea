@@ -17,16 +17,13 @@
 package io.xmake.debug
 
 import com.intellij.execution.ExecutionException
-import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
-import com.intellij.openapi.application.EDT
 import com.intellij.openapi.project.Project
+import io.xmake.utils.notify
 import io.xmake.build.XMakeBuildTask
 import io.xmake.build.XMakeBuildTaskExecution
 import io.xmake.run.command.XMakeExecutionService
 import io.xmake.run.state.XMakeDebugState
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
@@ -133,12 +130,10 @@ private suspend fun resolveDapDriver(project: Project, state: XMakeDebugState): 
     return XMakeDebugDriver.Dap(info, state.launchConfiguration)
 }
 
-private suspend fun notifyGdbDapUnavailable(
+private fun notifyGdbDapUnavailable(
     project: Project,
     driver: DapDriverInfo,
-) = withContext(Dispatchers.EDT) {
-    if (project.isDisposed) return@withContext
-
+) {
     val (title, message) = when (val support = driver.support) {
         is DapSupport.Unsupported -> "GDB does not support DAP" to (
             "The selected GDB does not support Debug Adapter Protocol (DAP).<br/>" +
@@ -151,28 +146,19 @@ private suspend fun notifyGdbDapUnavailable(
                 "Run '${driver.path} -i dap -batch' in a terminal to check the driver directly.<br/><br/>" +
                 "driver=${driver.path}<br/><br/>${support.diagnostics}"
             )
-        DapSupport.Supported -> return@withContext
+        DapSupport.Supported -> return
     }
-    NotificationGroupManager.getInstance()
-        .getNotificationGroup("XMake.NotificationGroup")
-        .createNotification(title, message, NotificationType.ERROR)
-        .notify(project)
+    project.notify(message, title = title)
 }
 
-private suspend fun warnAboutBuildMode(project: Project, buildMode: String) {
+private fun warnAboutBuildMode(project: Project, buildMode: String) {
     if (buildMode in setOf("debug", "releasedbg")) return
 
-    withContext(Dispatchers.EDT) {
-        if (project.isDisposed) return@withContext
-        NotificationGroupManager.getInstance()
-            .getNotificationGroup("XMake.NotificationGroup")
-            .createNotification(
-                "Build mode warning",
-                "The current build mode '<b>$buildMode</b>' may not contain debug symbols.<br/>" +
-                    "For better debugging experience, consider using 'debug' or 'releasedbg' mode.<br/>" +
-                    "You can continue debugging, but some debugging features may be limited.",
-                NotificationType.WARNING,
-            )
-            .notify(project)
-    }
+    project.notify(
+        "The current build mode '<b>$buildMode</b>' may not contain debug symbols.<br/>" +
+            "For better debugging experience, consider using 'debug' or 'releasedbg' mode.<br/>" +
+            "You can continue debugging, but some debugging features may be limited.",
+        NotificationType.WARNING,
+            title = "Build mode warning",
+    )
 }

@@ -17,11 +17,10 @@
 package io.xmake.actions
 
 import com.intellij.execution.ui.ConsoleViewContentType
-import com.intellij.notification.NotificationGroupManager
-import com.intellij.notification.NotificationType
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
+import io.xmake.utils.notify
 import io.xmake.project.console.XMakeConsole
 import io.xmake.project.console.xmakeConsoleService
 import io.xmake.run.command.XMakeCommandFactory
@@ -71,7 +70,7 @@ abstract class XMakeCommandAction : XMakeProjectAction() {
 
 private fun XMakeConsole.reportMissingBuildProfile(project: Project) {
     print("Please select an XMake build profile first!\n", ConsoleViewContentType.ERROR_OUTPUT)
-    notifyError(project, "Error with XMake Build Profile", "XMake build profile is not selected!")
+    project.notify("XMake build profile is not selected!", title = "Error with XMake Build Profile")
 }
 
 private fun XMakeConsole.reportCommandError(project: Project, error: Throwable) {
@@ -79,12 +78,6 @@ private fun XMakeConsole.reportCommandError(project: Project, error: Throwable) 
         "XMake command failed: ${error.message}\n",
         ConsoleViewContentType.ERROR_OUTPUT,
     )
-    notifyError(project, "XMake Command Failed", error.message.orEmpty())
+    project.notify(error.message.orEmpty(), title = "XMake Command Failed")
 }
 
-private fun notifyError(project: Project, title: String, content: String) {
-    NotificationGroupManager.getInstance()
-        .getNotificationGroup("XMake.NotificationGroup")
-        .createNotification(title, content, NotificationType.ERROR)
-        .notify(project)
-}

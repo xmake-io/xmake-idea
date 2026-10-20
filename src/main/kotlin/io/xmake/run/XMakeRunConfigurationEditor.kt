@@ -16,8 +16,6 @@
  */
 package io.xmake.run
 
-import com.intellij.execution.ExecutionTargetListener
-import com.intellij.execution.ExecutionTargetManager
 import com.intellij.execution.configuration.EnvironmentVariablesComponent
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
@@ -34,9 +32,7 @@ import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.panel
 import io.xmake.debug.DapDriverDetector
 import io.xmake.debug.DapDriverType
-import io.xmake.project.directory.XMakeProjectDirectoryManager
 import io.xmake.project.directory.ui.DirectoryBrowser
-import io.xmake.project.profile.XMakeBuildProfileManager
 import io.xmake.project.profile.xmakeBuildProfiles
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -103,15 +99,9 @@ class XMakeRunConfigurationEditor(
     private var detectJob: Job? = null
 
     init {
-        profileSelectionConnection.subscribe(ExecutionTargetManager.TOPIC, ExecutionTargetListener {
+        profileSelectionConnection.subscribeToContextChanges {
             editedConfiguration?.let(::refreshWorkingDirectoryToolkit)
-        })
-        profileSelectionConnection.subscribe(XMakeBuildProfileManager.TOPIC, XMakeBuildProfileManager.Listener {
-            editedConfiguration?.let(::refreshWorkingDirectoryToolkit)
-        })
-        profileSelectionConnection.subscribe(XMakeProjectDirectoryManager.TOPIC, XMakeProjectDirectoryManager.Listener {
-            editedConfiguration?.let(::refreshWorkingDirectoryToolkit)
-        })
+        }
         dapDriverAutoDetect.addItemListener { event ->
             if (event.stateChange != ItemEvent.SELECTED && event.stateChange != ItemEvent.DESELECTED) {
                 return@addItemListener

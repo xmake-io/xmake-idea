@@ -21,8 +21,6 @@ import com.intellij.execution.ExecutionResult
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.configurations.RunProfileState
 import com.intellij.execution.runners.ExecutionEnvironment
-import com.intellij.notification.NotificationGroupManager
-import com.intellij.notification.NotificationType
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.platform.dap.DapBreakpointsDescription
@@ -36,6 +34,7 @@ import com.jetbrains.cidr.execution.debugger.breakpoints.CidrLineBreakpointType
 import io.xmake.debug.DapDriverType
 import io.xmake.debug.XMakeDebugDriver
 import io.xmake.debug.XMakeDebugLaunch
+import io.xmake.utils.notify
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -148,15 +147,11 @@ internal class XMakeDebugAdapterDescriptor(
     }
 
     private fun notifyMissingDriverDependency(driverPath: String) {
-        NotificationGroupManager.getInstance()
-            .getNotificationGroup("XMake.NotificationGroup")
-            .createNotification(
-                "DAP driver is missing a DLL",
-                "Failed to start ${File(driverPath).name} (0xC0000135). " +
-                    "Run '$driverPath --version' in a terminal to identify the missing dependency.",
-                NotificationType.ERROR,
-            )
-            .notify(project)
+        project.notify(
+            "Failed to start ${File(driverPath).name} (0xC0000135). " +
+                "Run '$driverPath --version' in a terminal to identify the missing dependency.",
+            title = "DAP driver is missing a DLL",
+        )
     }
 
     private companion object {

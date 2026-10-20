@@ -20,18 +20,15 @@ import com.intellij.execution.Executor
 import com.intellij.execution.ProgramRunnerUtil
 import com.intellij.execution.RunManager
 import com.intellij.execution.RunnerAndConfigurationSettings
-import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.project.Project
+import io.xmake.utils.notify
 import io.xmake.run.XMakeRunConfiguration
 
 internal fun launchSelectedXMakeRunConfiguration(project: Project, executor: Executor) {
     val settings = project.selectedXMakeRunConfigurationSettings
     if (settings == null) {
-        NotificationGroupManager.getInstance()
-            .getNotificationGroup("XMake.NotificationGroup")
-            .createNotification("Please select a valid XMake configuration first!", NotificationType.WARNING)
-            .notify(project)
+        project.notify("Please select a valid XMake configuration first", NotificationType.WARNING)
         return
     }
 
