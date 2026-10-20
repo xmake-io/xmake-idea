@@ -26,7 +26,7 @@ import com.intellij.openapi.project.Project
 import io.xmake.project.toolkit.ToolkitHostType.LOCAL
 import io.xmake.project.toolkit.ToolkitHostType.SSH
 import io.xmake.project.toolkit.ToolkitHostType.WSL
-import io.xmake.utils.execute.awaitBounded
+import io.xmake.utils.execute.awaitExit
 import io.xmake.utils.execute.createProcess
 import io.xmake.utils.execute.probeXmakeLocCommand
 import io.xmake.utils.execute.probeXmakeLocCommandOnWin
@@ -257,7 +257,7 @@ internal class ToolkitScanner {
         command: GeneralCommandLine,
     ): ExecutionResult =
         runInterruptible(Dispatchers.IO) { command.createProcess(host, project) }
-            .awaitBounded(PROBE_TIMEOUT)
+            .awaitExit(PROBE_TIMEOUT)
 
     private fun decode(bytes: ByteArray): String = try {
         Charsets.UTF_8.newDecoder()

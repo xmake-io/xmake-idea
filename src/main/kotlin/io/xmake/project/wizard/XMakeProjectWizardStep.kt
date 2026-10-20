@@ -66,7 +66,7 @@ import io.xmake.run.XMakeRunConfigurationType
 import io.xmake.run.target.XMakeBuildProfileExecutionTarget
 import io.xmake.utils.execute.ProcessTimeoutException
 import io.xmake.utils.execute.SyncDirection
-import io.xmake.utils.execute.awaitBounded
+import io.xmake.utils.execute.awaitExit
 import io.xmake.utils.execute.createProcess
 import io.xmake.utils.execute.transferProjectFiles
 import java.io.File
@@ -248,7 +248,7 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
             // via IOException, which the wizard reports without opening a half-built project.
             runWithModalProgressBlocking(project, "Creating XMake project") {
                 val result = try {
-                    commandLine.createProcess(selectedToolkit).awaitBounded(XMAKE_CREATE_TIMEOUT)
+                    commandLine.createProcess(selectedToolkit).awaitExit(XMAKE_CREATE_TIMEOUT)
                 } catch (e: ProcessNotCreatedException) {
                     throw IOException("Failed to start xmake (${selectedToolkit.path}): ${e.message}", e)
                 } catch (e: IOException) {

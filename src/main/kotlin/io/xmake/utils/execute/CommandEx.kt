@@ -94,21 +94,28 @@ fun GeneralCommandLine.createProcess(
 class ProcessTimeoutException(message: String, cause: Throwable? = null) : RuntimeException(message, cause)
 
 /**
- * Collects the process's output with a hard time bound. The process is killed on timeout or
- * caller cancellation; killing an already terminated process is a documented no-op, so one
- * cleanup path covers every outcome.
+ * Waits for the process to exit and returns its captured output. A process that does not exit
+ * within [timeout] is killed and [ProcessTimeoutException] is thrown; caller cancellation takes
+ * the same cleanup path.
  */
-suspend fun Process.awaitBounded(timeout: Duration): ExecutionResult = try {
-    withTimeout(timeout) { getBareExecutionResult() }
-} catch (error: TimeoutCancellationException) {
-    throw ProcessTimeoutException("Process did not exit within $timeout", error)
-} finally {
-    runCatching { destroyForcibly() }
+suspend fun Process.awaitExit(timeout: Duration): ExecutionResult {
+    if (timeout <= Duration.ZERO) {
+        destroyForcibly()
+        throw IllegalArgumentException("Process timeout must be positive: $timeout")
+    }
+    return try {
+        withTimeout(timeout) { getBareExecutionResult() }
+    } catch (error: TimeoutCancellationException) {
+        throw ProcessTimeoutException("Process did not exit within $timeout", error)
+    } finally {
+        runCatching { destroyForcibly() }
+    }
 }
 
 /**
- * Runs the command with a hard time bound and returns the captured output. The process is killed
- * on timeout; the call blocks, so it must run off the EDT.
+ * Starts the command line as a local process, captures both streams, and blocks until it exits
+ * or [timeout] elapses. A timed-out process is killed, and the returned output carries
+ * [ProcessOutput.isTimeout]. The call blocks, so run it off the EDT.
  */
 fun GeneralCommandLine.runProcessBlocking(timeout: Duration): ProcessOutput {
     require(timeout > Duration.ZERO) { "Process timeout must be positive: $timeout" }
