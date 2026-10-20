@@ -33,7 +33,7 @@ import io.xmake.utils.execute.probeXmakeLocCommand
 import io.xmake.utils.execute.probeXmakeLocCommandOnWin
 import io.xmake.utils.execute.probeXmakeVersionCommand
 import io.xmake.utils.extension.ToolkitHostExtension
-import kotlinx.coroutines.CancellationException
+import io.xmake.utils.runCancellable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -158,15 +158,6 @@ internal class ToolkitScanner {
             }
 
             hostsByType.mapValues { (_, hosts) -> hosts.distinctBy(ToolkitHost::id) }
-        }
-
-    private inline fun <T> runCancellable(block: () -> T): Result<T> =
-        try {
-            Result.success(block())
-        } catch (error: CancellationException) {
-            throw error
-        } catch (error: Exception) {
-            Result.failure(error)
         }
 
     private suspend fun scanHost(project: Project?, host: ToolkitHost): ScanResult? = runCancellable {
