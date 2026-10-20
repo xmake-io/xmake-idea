@@ -149,7 +149,8 @@ private class TargetSynchronizer(
         trackedConfiguration = selectedConfiguration
         val configuration = selectedConfiguration as? XMakeProfileRunConfiguration ?: return
         val activeTarget = ExecutionTargetManager.getActiveTarget(project)
-        val profileTargets = ExecutionTargetManager.getTargetsToChooseFor(project, selectedConfiguration)
+        // Raw list: the choosable list filters externally-managed targets.
+        val profileTargets = ExecutionTargetManager.getInstance(project).getTargetsFor(selectedConfiguration)
             .filterIsInstance<XMakeBuildProfileExecutionTarget>()
         val activeProfileId = (activeTarget as? XMakeBuildProfileExecutionTarget)?.profileId
         val targetProfileId = configuration.preferredBuildProfileId ?: activeProfileId

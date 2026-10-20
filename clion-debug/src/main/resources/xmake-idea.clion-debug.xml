@@ -1,7 +1,9 @@
 <idea-plugin>
     <dependencies>
         <module name="intellij.platform.dap"/>
-        <module name="intellij.cidr.debugger.core"/>
+        <!-- Contains CPPEnvironment directly and exposes the internal cidr.debugger.profiles
+             module (the debug profile manager) transitively. -->
+        <module name="intellij.clion.toolchains"/>
         <plugin id="com.intellij.modules.clion"/>
         <plugin id="com.intellij.nativeDebug"/>
     </dependencies>
@@ -13,4 +15,14 @@
     <extensions defaultExtensionNs="com.intellij.platform.dap">
         <debugAdapterSupportProvider implementation="io.xmake.debug.clion.dap.XMakeDebugAdapterProvider"/>
     </extensions>
+
+    <!-- The merged profile switcher, in the native switcher's toolbar groups; the platform's
+         target combobox steps aside while this module is loaded. -->
+    <actions>
+        <action id="XMakeProfileSwitcher"
+                class="io.xmake.debug.clion.XMakeProfileSwitcherAction">
+            <add-to-group group-id="ExecutionTargetsToolbarGroup"/>
+            <add-to-group group-id="ToolbarRunGroup" anchor="before" relative-to-action="RunConfiguration"/>
+        </action>
+    </actions>
 </idea-plugin>
