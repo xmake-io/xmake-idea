@@ -28,7 +28,7 @@ import io.xmake.project.profile.xmakeBuildProfiles
 import io.xmake.project.target.discoverXMakeBuildTargets
 import io.xmake.run.command.DEFAULT_BUILD_TARGET
 import io.xmake.utils.ui.LiveModelComboBox
-import kotlinx.coroutines.CancellationException
+import io.xmake.utils.runCancellable
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -63,11 +63,9 @@ class XMakeBuildTargetSelector(
         scope.launch {
             targetRequests.consumeAsFlow()
                 .transformLatest { profile ->
-                    try {
+                    runCancellable {
                         emit(profile to project.discoverXMakeBuildTargets(profile))
-                    } catch (error: CancellationException) {
-                        throw error
-                    } catch (error: Exception) {
+                    }.onFailure { error ->
                         // Keep the persisted target when profile discovery is unavailable.
                         Log.warn("Failed to load XMake targets for profile ${profile.id}", error)
                     }
