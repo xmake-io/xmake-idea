@@ -27,7 +27,7 @@ import io.xmake.project.toolkit.ToolkitHostType.LOCAL
 import io.xmake.project.toolkit.ToolkitHostType.SSH
 import io.xmake.project.toolkit.ToolkitHostType.WSL
 import io.xmake.utils.execute.awaitBounded
-import io.xmake.utils.execute.createWslProcess
+import io.xmake.utils.execute.createProcess
 import io.xmake.utils.execute.probeXmakeLocCommand
 import io.xmake.utils.execute.probeXmakeLocCommandOnWin
 import io.xmake.utils.execute.probeXmakeVersionCommand
@@ -255,20 +255,9 @@ internal class ToolkitScanner {
         project: Project?,
         host: ToolkitHost,
         command: GeneralCommandLine,
-    ): ExecutionResult {
-        return when (host.type) {
-            LOCAL -> runInterruptible(Dispatchers.IO) {
-                ProcessBuilder(command.getCommandLineList(command.exePath)).start()
-            }
-
-            WSL -> command.createWslProcess(
-                host.requireWslDistribution(),
-                project,
-            )
-
-            SSH -> ToolkitHostExtension.requireForHostType(SSH).startProcess(host, command)
-        }.awaitBounded(PROBE_TIMEOUT)
-    }
+    ): ExecutionResult =
+        runInterruptible(Dispatchers.IO) { command.createProcess(host, project) }
+            .awaitBounded(PROBE_TIMEOUT)
 
     private fun decode(bytes: ByteArray): String = try {
         Charsets.UTF_8.newDecoder()

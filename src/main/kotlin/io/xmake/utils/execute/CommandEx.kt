@@ -28,6 +28,7 @@ import com.intellij.execution.wsl.WSLDistribution
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import io.xmake.project.toolkit.Toolkit
+import io.xmake.project.toolkit.ToolkitHost
 import io.xmake.project.toolkit.ToolkitHostType.*
 import io.xmake.utils.extension.ToolkitHostExtension
 import java.io.File
@@ -37,13 +38,13 @@ import kotlin.time.Duration
 
 private val Log = Logger.getInstance("io.xmake.utils.execute.CommandEx")
 
-fun GeneralCommandLine.createLocalProcess(): Process {
+private fun GeneralCommandLine.createLocalProcess(): Process {
     return this
         .also { Log.info("commandOnLocal: ${this.commandLineString}") }
         .toProcessBuilder().start()
 }
 
-fun GeneralCommandLine.createWslProcess(
+private fun GeneralCommandLine.createWslProcess(
     wslDistribution: WSLDistribution,
     project: Project? = null,
     remoteWorkingDirectory: String? = null,
@@ -69,24 +70,21 @@ fun GeneralCommandLine.createWslProcess(
 fun GeneralCommandLine.createProcess(
     toolkit: Toolkit,
     project: Project? = null,
-    workingDirectory: String? = null,
+    remoteWorkingDirectory: String? = null,
 ): Process {
-    return with(toolkit) {
-        Log.info("createProcessWithToolkit: $toolkit")
-        when (host.type) {
-            LOCAL -> {
-                this@createProcess.createLocalProcess()
-            }
+    Log.info("createProcessWithToolkit: $toolkit")
+    return createProcess(toolkit.host, project, remoteWorkingDirectory)
+}
 
-            WSL -> {
-                val wslDistribution = host.requireWslDistribution()
-                this@createProcess.createWslProcess(wslDistribution, project, workingDirectory)
-            }
-
-            SSH -> {
-                ToolkitHostExtension.requireForHostType(SSH).startProcess(host, this@createProcess)
-            }
-        }
+fun GeneralCommandLine.createProcess(
+    host: ToolkitHost,
+    project: Project? = null,
+    remoteWorkingDirectory: String? = null,
+): Process {
+    return when (host.type) {
+        LOCAL -> createLocalProcess()
+        WSL -> createWslProcess(host.requireWslDistribution(), project, remoteWorkingDirectory)
+        SSH -> ToolkitHostExtension.requireForHostType(SSH).startProcess(host, this)
     }
 }
 
