@@ -40,6 +40,7 @@ import io.xmake.project.directory.XMakeProjectDirectoryResolutionService
 import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.project.profile.XMakeBuildProfileOptions
 import io.xmake.project.profile.queryXMakeBuildProfileOptions
+import io.xmake.utils.runCancellable
 import io.xmake.project.directory.xmakeProjectDirectories
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ui.ToolkitComboBox
@@ -162,11 +163,9 @@ internal class XMakeBuildProfileForm(
         scope.launch {
             optionRequests.consumeAsFlow()
                 .transformLatest { (requestedProfile, toolkit) ->
-                    val options = try {
+                    val options = runCancellable {
                         project.queryXMakeBuildProfileOptions(requestedProfile, toolkit)
-                    } catch (error: CancellationException) {
-                        throw error
-                    } catch (error: Exception) {
+                    }.getOrElse { error ->
                         Log.debug("Unable to load XMake build profile options", error)
                         null
                     }

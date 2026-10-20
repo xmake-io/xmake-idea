@@ -20,7 +20,7 @@ import com.intellij.openapi.diagnostic.Logger
 import com.intellij.openapi.project.Project
 import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.project.toolkit.Toolkit
-import kotlinx.coroutines.CancellationException
+import io.xmake.utils.runCancellable
 import java.util.concurrent.ConcurrentHashMap
 
 /** Runs a command operation in the context of one build profile, without interleaving. */
@@ -39,11 +39,9 @@ internal suspend fun <T> Project.withProfileCommands(
 /** Runs `xmake config`; failures are tolerated because targets can be queried without a fresh config. */
 internal suspend fun XMakeCommandFactory.configureBestEffort(executionService: XMakeExecutionService) {
     val command = createConfigure()
-    try {
+    runCancellable {
         executionService.executeSilently(command)
-    } catch (error: CancellationException) {
-        throw error
-    } catch (error: Exception) {
+    }.onFailure { error ->
         Log.debug(
             "XMake configuration failed before an informational query: " +
                     command.commandLine.commandLineString,
@@ -61,11 +59,9 @@ internal suspend fun XMakeCommandFactory.executeInfoQuery(
     if (toolkit.version in PLAIN_LISTING_VERSIONS) {
         return executionService.captureStandardOutput(createInfoQuery(queryName, jsonOutput = false))
     }
-    return try {
+    return runCancellable {
         executionService.captureStandardOutput(createInfoQuery(queryName, jsonOutput = true))
-    } catch (error: CancellationException) {
-        throw error
-    } catch (error: Exception) {
+    }.getOrElse { error ->
         Log.debug("XMake ${toolkit.version} info query '$queryName' failed, retrying without --json", error)
         // A failed retry surfaces its own error: the plain listing is the one this version keeps
         // using, so its failure is the diagnostic one.

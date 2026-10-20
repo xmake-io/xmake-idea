@@ -33,6 +33,7 @@ import io.xmake.project.directory.XMakeProjectDirectoryResolutionService
 import io.xmake.project.directory.hasRootXMakeLua
 import io.xmake.project.directory.hasXMakeProjectDirectorySource
 import io.xmake.project.directory.isXMakeLuaVfsEvent
+import io.xmake.utils.runCancellable
 import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.project.profile.XMakeBuildProfileManager
 import io.xmake.project.profile.XMakeBuildProfileOptions
@@ -139,14 +140,11 @@ class XMakeInfoManager(
                     configureBestEffort(executionService)
 
                     suspend fun <T> queryOrNull(queryName: String, parse: (String) -> T): T? =
-                        try {
-                            parse(executeInfoQuery(queryName, executionService))
-                        } catch (error: CancellationException) {
-                            throw error
-                        } catch (error: Exception) {
-                            Log.warn("Failed to query XMake '$queryName'; keeping its previous value", error)
-                            null
-                        }
+                        runCancellable { parse(executeInfoQuery(queryName, executionService)) }
+                            .getOrElse { error ->
+                                Log.warn("Failed to query XMake '$queryName'; keeping its previous value", error)
+                                null
+                            }
 
                     val previous = if (profile.toolkitId == probedToolkitId) xmakeInfo else XMakeInfo()
                     probedToolkitId = profile.toolkitId
