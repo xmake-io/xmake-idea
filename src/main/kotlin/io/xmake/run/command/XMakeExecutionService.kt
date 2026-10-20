@@ -60,7 +60,7 @@ internal class XMakeExecutionService(
         console: XMakeConsole,
         command: XMakeCommand,
         options: XMakeConsoleOptions = XMakeConsoleOptions(),
-    ) = runToCompletion(
+    ) = runAndAwait(
         command,
         options,
         onTextAvailable = { text, outputType ->
@@ -69,13 +69,13 @@ internal class XMakeExecutionService(
         beforeStart = { if (options.showConsole) console.showOutput() },
     )
 
-    suspend fun execute(command: XMakeCommand) {
-        runToCompletion(command)
+    suspend fun executeSilently(command: XMakeCommand) {
+        runAndAwait(command)
     }
 
     suspend fun captureStandardOutput(command: XMakeCommand): String {
         val output = StringBuilder()
-        runToCompletion(
+        runAndAwait(
             command,
             onTextAvailable = { text, outputType ->
                 if (ProcessOutputType.isStdout(outputType)) output.append(text)
@@ -84,7 +84,8 @@ internal class XMakeExecutionService(
         return output.toString()
     }
 
-    private suspend fun runToCompletion(
+    /** Runs [command] to successful completion. The caller holds the execution mutex. */
+    private suspend fun runAndAwait(
         command: XMakeCommand,
         options: XMakeConsoleOptions = XMakeConsoleOptions(),
         onTextAvailable: (String, Key<*>) -> Unit = { _, _ -> },

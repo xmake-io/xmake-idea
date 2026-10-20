@@ -40,7 +40,7 @@ internal suspend fun <T> Project.withProfileCommands(
 internal suspend fun XMakeCommandFactory.configureBestEffort(executionService: XMakeExecutionService) {
     val command = createConfigure()
     try {
-        executionService.execute(command)
+        executionService.executeSilently(command)
     } catch (error: CancellationException) {
         throw error
     } catch (error: Exception) {
