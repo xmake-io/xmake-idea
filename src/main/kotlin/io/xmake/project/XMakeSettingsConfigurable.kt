@@ -69,13 +69,12 @@ class XMakeSettingsConfigurable(private val project: Project) :
 
         project.messageBus.connect(disposable!!).subscribe(
             ToolkitListener.TOPIC,
-            object : ToolkitListener {
-                override fun toolkitsChanged() {
-                    ApplicationManager.getApplication().invokeLater({
-                        refreshToolkitList()
-                        projectDirectoryPanel.refreshToolkits()
-                    }, ModalityState.any())
-                }
+            ToolkitListener {
+                ApplicationManager.getApplication().invokeLater({
+                    if (project.isDisposed) return@invokeLater
+                    refreshToolkitList()
+                    projectDirectoryPanel.refreshToolkits()
+                }, ModalityState.any())
             },
         )
 

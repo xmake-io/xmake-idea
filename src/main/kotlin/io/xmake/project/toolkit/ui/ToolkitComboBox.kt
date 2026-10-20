@@ -61,13 +61,11 @@ class ToolkitComboBox(
 
         (project?.messageBus ?: ApplicationManager.getApplication().messageBus).connect(this).subscribe(
             ToolkitListener.TOPIC,
-            object : ToolkitListener {
-                override fun toolkitsChanged() {
-                    ApplicationManager.getApplication().invokeLater(
-                        { if (!isDisposed) synchronizeAndNotify() },
-                        ModalityState.any(),
-                    )
-                }
+            ToolkitListener {
+                ApplicationManager.getApplication().invokeLater(
+                    { if (!isDisposed) synchronizeAndNotify() },
+                    ModalityState.any(),
+                )
             },
         )
 

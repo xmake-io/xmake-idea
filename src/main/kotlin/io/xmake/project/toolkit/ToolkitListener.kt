@@ -18,8 +18,8 @@ package io.xmake.project.toolkit
 
 import com.intellij.util.messages.Topic
 
-interface ToolkitListener {
-    fun toolkitsChanged() {}
+fun interface ToolkitListener {
+    fun toolkitsChanged()
 
     companion object {
         @Topic.AppLevel

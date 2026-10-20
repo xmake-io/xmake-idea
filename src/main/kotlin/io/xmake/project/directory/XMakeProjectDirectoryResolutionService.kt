@@ -64,11 +64,7 @@ class XMakeProjectDirectoryResolutionService(
         )
         messageBusConnection.subscribe(
             ToolkitListener.TOPIC,
-            object : ToolkitListener {
-                override fun toolkitsChanged() {
-                    resolveAsync()
-                }
-            },
+            ToolkitListener { resolveAsync() },
         )
         messageBusConnection.subscribe(VirtualFileManager.VFS_CHANGES, object : BulkFileListener {
             override fun after(events: MutableList<out VFileEvent>) {
