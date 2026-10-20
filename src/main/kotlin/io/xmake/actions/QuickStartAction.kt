@@ -21,7 +21,6 @@
 package io.xmake.actions
 
 import com.intellij.execution.configurations.GeneralCommandLine
-import com.intellij.execution.process.CapturingProcessHandler
 import com.intellij.execution.process.ProcessOutput
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.AnActionEvent
@@ -37,8 +36,9 @@ import io.xmake.project.directory.hasRootXMakeLuaCached
 import io.xmake.project.directory.hasXMakeProjectDirectorySource
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitManager
-import io.xmake.utils.execute.createProcess
+import io.xmake.utils.execute.runProcessBlocking
 import io.xmake.utils.path.WorkingDirectoryResolver
+import kotlin.time.Duration.Companion.seconds
 
 class QuickStartAction : XMakeProjectAction() {
 
@@ -67,12 +67,11 @@ class QuickStartAction : XMakeProjectAction() {
             val resolvedProjectDirectoryPath = WorkingDirectoryResolver.resolve(project, projectDirectoryPath, toolkit)
             val commandLine = GeneralCommandLine(toolkit.path, "create", "-P", ".")
                 .withWorkDirectory(resolvedProjectDirectoryPath)
+                .withCharset(Charsets.UTF_8)
 
             ApplicationManager.getApplication().executeOnPooledThread {
                 try {
-                    val process = commandLine.createProcess(toolkit)
-                    val output = CapturingProcessHandler(process, Charsets.UTF_8, commandLine.commandLineString)
-                        .runProcess(CREATE_TIMEOUT_MS.toInt(), true)
+                    val output = commandLine.runProcessBlocking(CREATE_TIMEOUT)
                     when {
                         output.isTimeout -> project.notify("xmake create timed out and was terminated.${output.outputTail()}")
 
@@ -104,7 +103,7 @@ class QuickStartAction : XMakeProjectAction() {
 
 
     private companion object {
-        private const val CREATE_TIMEOUT_MS = 120_000L
+        private val CREATE_TIMEOUT = 120.seconds
     }
 }
 
