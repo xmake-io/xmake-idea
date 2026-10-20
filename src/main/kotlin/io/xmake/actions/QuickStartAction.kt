@@ -23,7 +23,6 @@ package io.xmake.actions
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.process.CapturingProcessHandler
 import com.intellij.execution.process.ProcessOutput
-import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.application.ApplicationManager
@@ -32,6 +31,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.wm.ToolWindowManager
+import io.xmake.utils.notify
 import io.xmake.project.console.xmakeConsoleService
 import io.xmake.project.directory.hasRootXMakeLuaCached
 import io.xmake.project.directory.hasXMakeProjectDirectorySource
@@ -74,16 +74,10 @@ class QuickStartAction : XMakeProjectAction() {
                     val output = CapturingProcessHandler(process, Charsets.UTF_8, commandLine.commandLineString)
                         .runProcess(CREATE_TIMEOUT_MS.toInt(), true)
                     when {
-                        output.isTimeout -> notifyQuickStartFailure(
-                            project,
-                            "xmake create timed out and was terminated.${output.outputTail()}",
-                        )
+                        output.isTimeout -> project.notify("xmake create timed out and was terminated.${output.outputTail()}")
 
                         output.exitCode == 0 -> {
-                            NotificationGroupManager.getInstance()
-                                .getNotificationGroup("XMake.NotificationGroup")
-                                .createNotification("XMake project created successfully!", NotificationType.INFORMATION)
-                                .notify(project)
+                            project.notify("XMake project created successfully!", NotificationType.INFORMATION)
 
                             ToolWindowManager.getInstance(project).invokeLater {
                                 if (project.isDisposed) return@invokeLater
@@ -98,24 +92,16 @@ class QuickStartAction : XMakeProjectAction() {
                             }
                         }
 
-                        else -> notifyQuickStartFailure(
-                            project,
-                            "xmake create failed (exit=${output.exitCode}).${output.outputTail()}",
-                        )
+                        else -> project.notify("xmake create failed (exit=${output.exitCode}).${output.outputTail()}")
                     }
                 } catch (e: Exception) {
-                    notifyQuickStartFailure(project, "Failed to start xmake create: ${e.message}")
+                    project.notify("Failed to start xmake create: ${e.message}")
                 }
             }
         }
     }
 
-    private fun notifyQuickStartFailure(project: Project, message: String) {
-        NotificationGroupManager.getInstance()
-            .getNotificationGroup("XMake.NotificationGroup")
-            .createNotification(message, NotificationType.ERROR)
-            .notify(project)
-    }
+
 
     private companion object {
         private const val CREATE_TIMEOUT_MS = 120_000L
