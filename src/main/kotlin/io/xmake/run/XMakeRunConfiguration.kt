@@ -91,7 +91,7 @@ class XMakeRunConfiguration(
     var dapDriverAutoDetect: Boolean = true
 
     @OptionTag(tag = "launchConfiguration")
-    var launchConfiguration: String = getDefaultLaunchConfigJson()
+    var launchConfiguration: String = defaultLaunchConfigJson()
 
     override fun writeExternal(element: Element) {
         super.writeExternal(element)
@@ -161,7 +161,7 @@ class XMakeRunConfiguration(
         runArguments = runArguments ?: ""
         launchWorkingDirectory = launchWorkingDirectory ?: ""
         dapDriverPath = dapDriverPath ?: ""
-        launchConfiguration = launchConfiguration ?: getDefaultLaunchConfigJson()
+        launchConfiguration = launchConfiguration ?: defaultLaunchConfigJson()
     }
 
     override fun canRunOn(target: ExecutionTarget): Boolean = project.findXMakeBuildProfileFor(target) != null
@@ -180,19 +180,19 @@ class XMakeRunConfiguration(
         /** Only keys documented for gdb's DAP interpreter and lldb-dap belong here; the
          *  object-form cpptools leftovers (sourceMap objects, setupCommands, variables) are
          *  not read by either. lldb-dap's documented array-form sourceMap stays passable. */
-        fun getDefaultGdbLaunchConfigJson(): String {
+        fun defaultGdbLaunchConfigJson(): String {
             return """{
     "stopOnEntry": true
 }"""
         }
 
-        fun getDefaultLldbLaunchConfigJson(): String {
+        fun defaultLldbLaunchConfigJson(): String {
             return """{
     "stopOnEntry": true,
     "initCommands": []
 }"""
         }
 
-        fun getDefaultLaunchConfigJson(): String = getDefaultLldbLaunchConfigJson()
+        fun defaultLaunchConfigJson(): String = defaultLldbLaunchConfigJson()
     }
 }

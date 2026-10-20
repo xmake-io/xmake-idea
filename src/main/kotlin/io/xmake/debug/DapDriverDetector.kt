@@ -20,176 +20,61 @@
  */
 package io.xmake.debug
 
-import com.intellij.execution.process.CapturingProcessHandler
 import com.intellij.openapi.util.SystemInfo
 import java.io.File
 
-/**
- * DAP driver path detection utility
- */
-object DapDriverDetector {
+internal object DapDriverDetector {
 
-    data class DapDriverInfo(
-        val path: String,
-        val type: DapDriverType,
-        val displayName: String,
-        val dapCapable: Boolean = true,
-        val diagnostics: String? = null,
-        /** True only when the unsupported verdict rests on parsed version evidence; a failed
-         *  probe is reported as unverifiable instead of unsupported. */
-        val unsupportedConfirmed: Boolean = false
-    )
-    
-    enum class DapDriverType(val displayName: String) {
-        LLDB_DAP("LLDB DAP"),
-        GDB_DAP("GDB DAP"),
-        UNKNOWN("Unknown DAP")
+    fun findBestDriver(): DapDriverInfo? {
+        val drivers = detectDrivers()
+        return drivers.find { it.type == DapDriverType.LLDB }
+            ?: drivers.find { it.type == DapDriverType.GDB && it.support is DapSupport.Supported }
     }
 
-    private enum class ProbeOutcome { EXITED, LAUNCH_FAILED, TIMED_OUT }
-
-    private data class ProcessResult(
-        val outcome: ProbeOutcome,
-        val exitCode: Int? = null,
-        val output: String = "",
-        val errorText: String? = null
-    )
-
-    private data class GdbDapCapability(
-        val dapCapable: Boolean,
-        val versionText: String?,
-        val diagnostics: String?,
-        val unsupportedConfirmed: Boolean = false,
-    ) {
-        /** A launch failure or a timeout is not a verdict, so it is not cached. */
-        val definite: Boolean
-            get() = dapCapable || unsupportedConfirmed
+    fun resolve(path: String): DapDriverInfo? {
+        val file = File(path)
+        if (!file.exists() || !file.canExecute()) return null
+        return detectDriver(path)
     }
 
-    /** The cache key includes the binary's timestamp and size, so an upgrade invalidates it. */
-    private data class DriverIdentity(val path: String, val lastModified: Long, val size: Long) {
-        companion object {
-            fun of(path: String): DriverIdentity {
-                val file = File(path)
-                return DriverIdentity(path, file.lastModified(), file.length())
-            }
+    private fun detectDrivers(): List<DapDriverInfo> =
+        candidateDriverPaths().asSequence()
+            .filter { path -> File(path).let { it.exists() && it.canExecute() } }
+            .mapNotNull(::detectDriver)
+            .toList()
+
+    private fun detectDriver(path: String): DapDriverInfo? {
+        val type = detectDriverType(path) ?: return null
+        val support = when (type) {
+            DapDriverType.GDB -> GdbSupportDetector.detect(path)
+            DapDriverType.LLDB -> DapSupport.Supported
         }
+        return DapDriverInfo(path, type, support)
     }
 
-    private val gdbCapabilityCache: MutableMap<DriverIdentity, GdbDapCapability> = mutableMapOf()
-
-    /** Synchronous probe helper; must be called off the EDT. [CapturingProcessHandler] reads
-     *  both streams concurrently, so a full pipe can never fake a timeout. */
-    private fun runProcess(executable: String, args: List<String>): ProcessResult {
-        val process = try {
-            ProcessBuilder(listOf(executable) + args).start()
-        } catch (error: Throwable) {
-            return ProcessResult(ProbeOutcome.LAUNCH_FAILED, errorText = error.message ?: error.javaClass.simpleName)
-        }
-        val output = CapturingProcessHandler(process, Charsets.UTF_8, "$executable ${args.joinToString(" ")}")
-            .runProcess(PROBE_TIMEOUT_MS.toInt(), true)
-        val text = (output.stdout + "\n" + output.stderr).trim()
-        return if (output.isTimeout) {
-            ProcessResult(ProbeOutcome.TIMED_OUT, output = text)
-        } else {
-            ProcessResult(ProbeOutcome.EXITED, exitCode = output.exitCode, output = text)
-        }
-    }
-
-    private fun parseGdbVersion(output: String): Pair<Int, Int>? {
-        val firstLine = output.lineSequence().firstOrNull()?.trim().orEmpty()
-        if (firstLine.isBlank()) return null
-        val match = Regex("""\b(\d+)\.(\d+)(?:\.\d+)?\b""").find(firstLine) ?: return null
-        val major = match.groupValues.getOrNull(1)?.toIntOrNull() ?: return null
-        val minor = match.groupValues.getOrNull(2)?.toIntOrNull() ?: return null
-        return major to minor
-    }
-
-    private fun truncateDiagnostics(text: String, maxChars: Int = 600): String {
-        val trimmed = text.trim()
-        if (trimmed.length <= maxChars) return trimmed
-        return trimmed.take(maxChars) + "…"
-    }
-
-    @Synchronized
-    private fun getGdbDapCapability(path: String): GdbDapCapability {
-        val identity = DriverIdentity.of(path)
-        gdbCapabilityCache[identity]?.let { return it }
-
-        val versionResult = runProcess(path, listOf("--version"))
-        val versionText = versionResult.output.lineSequence().firstOrNull()?.trim()
-        val parsed = parseGdbVersion(versionResult.output)
-        if (parsed != null) {
-            val (major, minor) = parsed
-            val dapCapable = major > 14 || (major == 14 && minor >= 1)
-            val capability = if (dapCapable) {
-                GdbDapCapability(true, versionText, null)
-            } else {
-                GdbDapCapability(
-                    false,
-                    versionText,
-                    "GDB ${major}.${minor} detected; DAP requires GDB 14.1+.",
-                    unsupportedConfirmed = true
-                )
-            }
-            gdbCapabilityCache[identity] = capability
-            return capability
-        }
-
-        val dapProbe = runProcess(path, listOf("-i", "dap", "--version"))
-        val probeOutput = truncateDiagnostics(dapProbe.output)
-        val probeDiagnostics = when (dapProbe.outcome) {
-            ProbeOutcome.LAUNCH_FAILED ->
-                "Failed to launch the DAP probe via $path: ${dapProbe.errorText}"
-            ProbeOutcome.TIMED_OUT ->
-                "Timed out probing the DAP interpreter via $path -i dap --version"
-            ProbeOutcome.EXITED if dapProbe.exitCode != 0 ->
-                if (probeOutput.isBlank()) {
-                    "Failed to probe the DAP interpreter via $path -i dap --version, exit=${dapProbe.exitCode}"
-                } else {
-                    "Failed to probe the DAP interpreter, exit=${dapProbe.exitCode}: $probeOutput"
-                }
-            ProbeOutcome.EXITED -> null
-        }
-        val dapCapable = probeDiagnostics == null
-
-        val capability = GdbDapCapability(dapCapable, versionText, probeDiagnostics)
-        if (capability.definite) {
-            gdbCapabilityCache[identity] = capability
-        }
-        return capability
-    }
-    
-    /**
-     * Detect DAP driver type based on file name and content
-     */
-    fun detectDriverType(path: String): DapDriverType {
+    private fun detectDriverType(path: String): DapDriverType? {
         val file = File(path)
         if (!file.exists()) {
-            return DapDriverType.UNKNOWN
+            return null
         }
-        
+
         val fileName = file.name.lowercase()
         return when {
-            fileName.contains("lldb-dap") -> DapDriverType.LLDB_DAP
-            fileName.contains("lldb-vscode") -> DapDriverType.LLDB_DAP
-            fileName.contains("gdb") && !fileName.contains("lldb") -> DapDriverType.GDB_DAP
+            fileName.contains("lldb-dap") -> DapDriverType.LLDB
+            fileName.contains("lldb-vscode") -> DapDriverType.LLDB
+            fileName.contains("gdb") && !fileName.contains("lldb") -> DapDriverType.GDB
             else -> {
-                val result = runProcess(path, listOf("--version"))
-                val output = result.output.lowercase()
+                val output = GdbSupportDetector.versionOutput(path).lowercase()
                 when {
-                    output.contains("lldb-dap") || output.contains("lldb-vscode") -> DapDriverType.LLDB_DAP
-                    output.contains("gdb") -> DapDriverType.GDB_DAP
-                    else -> DapDriverType.UNKNOWN
+                    output.contains("lldb-dap") || output.contains("lldb-vscode") -> DapDriverType.LLDB
+                    output.contains("gdb") -> DapDriverType.GDB
+                    else -> null
                 }
             }
         }
     }
-    
-    /**
-     * Get default search paths for DAP drivers
-     */
-    fun getDefaultSearchPaths(): List<String> = buildList {
+
+    private fun candidateDriverPaths(): List<String> = buildList {
         when {
             SystemInfo.isMac -> addAll(listOf(
                 "/Applications/Xcode.app/Contents/Developer/usr/bin/lldb-dap",
@@ -221,61 +106,4 @@ object DapDriverDetector {
             ))
         }
     }
-    
-    /**
-     * Find all available DAP drivers
-     */
-    fun findAvailableDrivers(): List<DapDriverInfo> =
-        getDefaultSearchPaths().asSequence()
-            .filter { path -> File(path).let { it.exists() && it.canExecute() } }
-            .mapNotNull(::detectDriver)
-            .toList()
-
-    private fun detectDriver(path: String): DapDriverInfo? = when (val type = detectDriverType(path)) {
-        DapDriverType.UNKNOWN -> null
-        DapDriverType.GDB_DAP -> detectGdbDriver(path, type)
-        DapDriverType.LLDB_DAP -> DapDriverInfo(path, type, type.displayName)
-    }
-
-    private fun detectGdbDriver(path: String, type: DapDriverType): DapDriverInfo {
-        val capability = getGdbDapCapability(path)
-        val displayName = when {
-            capability.dapCapable -> type.displayName
-            capability.unsupportedConfirmed -> "${type.displayName} (need 14.1+)"
-            else -> "${type.displayName} (unavailable)"
-        }
-        return DapDriverInfo(
-            path = path,
-            type = type,
-            displayName = displayName,
-            dapCapable = capability.dapCapable,
-            diagnostics = capability.diagnostics ?: capability.versionText,
-            unsupportedConfirmed = capability.unsupportedConfirmed,
-        )
-    }
-    
-    /**
-     * Find best available DAP driver (prefer LLDB over GDB)
-     */
-    fun findBestDriver(): DapDriverInfo? {
-        val drivers = findAvailableDrivers()
-        
-        // Prefer LLDB over GDB
-        return drivers.find { it.type == DapDriverType.LLDB_DAP }
-            ?: drivers.find { it.type == DapDriverType.GDB_DAP && it.dapCapable }
-            ?: drivers.find { it.dapCapable }
-    }
-    
-    /**
-     * Validate a custom DAP driver path
-     */
-    fun validateDriverPath(path: String): DapDriverInfo? {
-        val file = File(path)
-        if (!file.exists() || !file.canExecute()) {
-            return null
-        }
-        return detectDriver(path)
-    }
-
-    private const val PROBE_TIMEOUT_MS = 1_500L
 }

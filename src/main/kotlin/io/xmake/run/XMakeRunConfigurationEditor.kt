@@ -33,6 +33,7 @@ import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.panel
 import io.xmake.debug.DapDriverDetector
+import io.xmake.debug.DapDriverType
 import io.xmake.project.directory.XMakeProjectDirectoryManager
 import io.xmake.project.directory.ui.DirectoryBrowser
 import io.xmake.project.profile.XMakeBuildProfileManager
@@ -97,7 +98,7 @@ class XMakeRunConfigurationEditor(
     private var isResetting = false
     private val profileSelectionConnection = project.messageBus.connect(this)
 
-    /** Auto-detection scans files and may spawn version probes, so it runs off the EDT. */
+    /** Auto-detection scans files and may run version detection, so it runs off the EDT. */
     private val detectScope = CoroutineScope(SupervisorJob())
     private var detectJob: Job? = null
 
@@ -129,7 +130,7 @@ class XMakeRunConfigurationEditor(
         Disposer.register(this) { detectScope.cancel() }
     }
 
-    /** Cancelling the previous probe also invalidates its pending result, so a reset or a
+    /** Cancelling the previous detection also invalidates its pending result, so a reset or a
      *  re-selection can never apply a stale driver default. */
     private fun startDriverAutoDetection() {
         detectJob?.cancel()
@@ -137,7 +138,7 @@ class XMakeRunConfigurationEditor(
             val driver = withContext(Dispatchers.IO) { DapDriverDetector.findBestDriver() }
             withContext(Dispatchers.EDT) {
                 if (!isResetting && dapDriverAutoDetect.isSelected) {
-                    driver?.let { found -> replaceDefaultLaunchConfiguration(found.type) }
+                    driver?.let { found -> applyDefaultLaunchConfig(found.type) }
                 }
             }
         }
@@ -163,7 +164,7 @@ class XMakeRunConfigurationEditor(
             dapDriverAutoDetect.isSelected = configuration.dapDriverAutoDetect
             dapDriverPath.text = configuration.dapDriverPath
             launchConfiguration.text = configuration.launchConfiguration.ifBlank {
-                XMakeRunConfiguration.getDefaultLaunchConfigJson()
+                XMakeRunConfiguration.defaultLaunchConfigJson()
             }
             updateDapControls()
         } finally {
@@ -224,10 +225,10 @@ class XMakeRunConfigurationEditor(
         launchWorkingDirectory.setToolkit(profile?.resolveToolkit(project))
     }
 
-    private fun replaceDefaultLaunchConfiguration(driverType: DapDriverDetector.DapDriverType) {
+    private fun applyDefaultLaunchConfig(driverType: DapDriverType) {
         val currentLaunchConfiguration = launchConfiguration.text.trim()
-        val gdbDefault = XMakeRunConfiguration.getDefaultGdbLaunchConfigJson()
-        val lldbDefault = XMakeRunConfiguration.getDefaultLldbLaunchConfigJson()
+        val gdbDefault = XMakeRunConfiguration.defaultGdbLaunchConfigJson()
+        val lldbDefault = XMakeRunConfiguration.defaultLldbLaunchConfigJson()
         if (
             currentLaunchConfiguration.isNotEmpty() &&
             currentLaunchConfiguration != gdbDefault.trim() &&
@@ -235,10 +236,8 @@ class XMakeRunConfigurationEditor(
         ) return
 
         launchConfiguration.text = when (driverType) {
-            DapDriverDetector.DapDriverType.GDB_DAP -> gdbDefault
-            DapDriverDetector.DapDriverType.LLDB_DAP,
-            DapDriverDetector.DapDriverType.UNKNOWN,
-            -> lldbDefault
+            DapDriverType.GDB -> gdbDefault
+            DapDriverType.LLDB -> lldbDefault
         }
     }
 }
