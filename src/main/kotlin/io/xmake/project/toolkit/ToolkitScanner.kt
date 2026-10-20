@@ -18,6 +18,7 @@ package io.xmake.project.toolkit
 
 import com.intellij.execution.ExecutionException
 import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.execution.processTools.ExecutionResult
 import com.intellij.execution.wsl.WSLUtil
 import com.intellij.execution.wsl.WslDistributionManager
 import com.intellij.openapi.diagnostic.logger
@@ -209,7 +210,7 @@ internal class ToolkitScanner {
             else -> probeXmakeLocCommand(null)
         }
         val result = execute(project, host, command)
-        val output = result.stdout
+        val output = decode(result.stdOut)
         val paths = output
             .lineSequence()
             .filterNot(String::isBlank)
@@ -229,7 +230,7 @@ internal class ToolkitScanner {
     private suspend fun probeVersion(project: Project?, host: ToolkitHost, path: String): String {
         val command = probeXmakeVersionCommand.withExePath(path)
         val result = execute(project, host, command)
-        val output = result.stdout
+        val output = decode(result.stdOut)
         val version = XMAKE_VERSION_PATTERN.find(output)?.groupValues?.get(1).orEmpty()
         Log.info("Host: ${host.type} ExitCode: ${result.exitCode} Version: $version")
 
@@ -242,22 +243,20 @@ internal class ToolkitScanner {
         return version
     }
 
-    private fun executionFailure(result: ProbeResult): ExecutionException {
-        val stderr = result.stderr.trim()
+    private fun executionFailure(result: ExecutionResult): ExecutionException {
+        val stderr = decode(result.stdErr).trim()
         val detail = stderr.takeIf(String::isNotEmpty)?.let { text -> ": $text" }.orEmpty()
         return ExecutionException(
             "Failed to query the XMake version with exit code ${result.exitCode}$detail",
         )
     }
 
-    private class ProbeResult(val exitCode: Int, val stdout: String, val stderr: String)
-
     private suspend fun execute(
         project: Project?,
         host: ToolkitHost,
         command: GeneralCommandLine,
-    ): ProbeResult {
-        val result = when (host.type) {
+    ): ExecutionResult {
+        return when (host.type) {
             LOCAL -> runInterruptible(Dispatchers.IO) {
                 ProcessBuilder(command.getCommandLineList(command.exePath)).start()
             }
@@ -269,7 +268,6 @@ internal class ToolkitScanner {
 
             SSH -> ToolkitHostExtension.requireForHostType(SSH).startProcess(host, command)
         }.awaitBounded(PROBE_TIMEOUT)
-        return ProbeResult(result.exitCode, decode(result.stdOut), decode(result.stdErr))
     }
 
     private fun decode(bytes: ByteArray): String = try {
