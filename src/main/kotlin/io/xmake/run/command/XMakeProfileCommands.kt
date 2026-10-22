@@ -16,7 +16,7 @@
  */
 package io.xmake.run.command
 
-import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.diagnostic.fileLogger
 import com.intellij.openapi.project.Project
 import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.project.toolkit.Toolkit
@@ -43,7 +43,7 @@ internal suspend fun XMakeCommandFactory.configureBestEffort(executionService: X
         executionService.executeSilently(command)
     }.onFailure { error ->
         Log.debug(
-            "XMake configuration failed before an informational query: " +
+            "Configure failed before an informational query: " +
                     command.commandLine.commandLineString,
             error,
         )
@@ -56,24 +56,32 @@ internal suspend fun XMakeCommandFactory.executeInfoQuery(
     queryName: String,
     executionService: XMakeExecutionService,
 ): String {
-    if (toolkit.version in PLAIN_LISTING_VERSIONS) {
+    if (toolkit.plainListingKey() in PLAIN_LISTING_TOOLKITS) {
         return executionService.captureStandardOutput(createInfoQuery(queryName, jsonOutput = false))
     }
     return runCancellable {
         executionService.captureStandardOutput(createInfoQuery(queryName, jsonOutput = true))
     }.getOrElse { error ->
-        Log.debug("XMake ${toolkit.version} info query '$queryName' failed, retrying without --json", error)
+        Log.debug(
+            "XMake ${toolkit.version} info query '$queryName' " +
+                    "failed, retrying without --json",
+            error,
+        )
         // A failed retry surfaces its own error: the plain listing is the one this version keeps
         // using, so its failure is the diagnostic one.
         val plain = executionService.captureStandardOutput(createInfoQuery(queryName, jsonOutput = false))
-        PLAIN_LISTING_VERSIONS.add(toolkit.version)
+        PLAIN_LISTING_TOOLKITS.add(toolkit.plainListingKey())
         Log.warn("XMake ${toolkit.version} has no --json listings, using plain output")
         plain
     }
 }
 
-private val PLAIN_LISTING_VERSIONS = ConcurrentHashMap.newKeySet<String>()
+/** Identifies one installation at one version, so an in-place upgrade (new version)
+ *  retries `--json` on its own. */
+private fun Toolkit.plainListingKey(): Pair<String, String> = id to version
 
-private val Log = Logger.getInstance("io.xmake.run.command.XMakeProfileCommands")
+private val PLAIN_LISTING_TOOLKITS = ConcurrentHashMap.newKeySet<Pair<String, String>>()
+
+private val Log = fileLogger()
 
 internal const val DEFAULT_BUILD_TARGET = "default"
