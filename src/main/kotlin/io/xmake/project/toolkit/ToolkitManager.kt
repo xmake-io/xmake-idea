@@ -20,6 +20,7 @@
  */
 package io.xmake.project.toolkit
 
+import com.intellij.execution.wsl.WSLUtil
 import com.intellij.execution.wsl.WslDistributionManager
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
@@ -30,24 +31,24 @@ import com.intellij.openapi.components.Storage
 import com.intellij.openapi.components.serviceOrNull
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.project.ProjectManager
-import com.intellij.openapi.project.ProjectManagerListener
 import com.intellij.util.xmlb.annotations.XCollection
 import io.xmake.project.toolkit.ToolkitHostType.LOCAL
 import io.xmake.project.toolkit.ToolkitHostType.SSH
 import io.xmake.project.toolkit.ToolkitHostType.WSL
 import io.xmake.utils.extension.ToolkitHostExtension
+import io.xmake.utils.runCancellable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
-/** Application service coordinating toolkit persistence, scanning, registration, and change publication. */
-@Service
+/** Application-level toolkit registrations, resolved against a project's hosts. */
+@Service(Service.Level.APP)
 @State(name = "toolkits", storages = [Storage("xmakeToolkits.xml")])
-class ToolkitManager(private val scope: CoroutineScope) :
+class ToolkitManager(scope: CoroutineScope) :
     PersistentStateComponent<ToolkitManager.State>,
     Disposable {
 
@@ -64,352 +65,278 @@ class ToolkitManager(private val scope: CoroutineScope) :
         var preferredToolkitId: String? = null
     }
 
-    private val lock = Any()
+    private val stateLock = Any()
     private val registry = ToolkitRegistry()
-    private val scanner = ToolkitScanner()
-    private val scanJobLock = Any()
-    private val scanJobs = mutableMapOf<Project?, Job>()
+    private val detector = ToolkitDetector()
+    private val pendingDetectionProjects = LinkedHashSet<Project?>()
+    private val pendingDetectionLock = Any()
+    private val detectionSignal = Channel<Unit>(Channel.CONFLATED)
+    private val detectionLoop: Job
 
     init {
-        ApplicationManager.getApplication().messageBus.connect(this).apply {
-            subscribe(ProjectManager.TOPIC, object : ProjectManagerListener {
-                override fun projectClosed(project: Project) {
-                    synchronized(scanJobLock) {
-                        scanJobs.remove(project)?.cancel()
-                    }
+        detectionLoop = scope.launch {
+            while (true) {
+                val signal = detectionSignal.receiveCatching()
+                if (signal.isClosed) break
+                val projects = synchronized(pendingDetectionLock) {
+                    pendingDetectionProjects.toList().also { pendingDetectionProjects.clear() }
                 }
-            })
+                projects.forEach { project -> runDetection(project) }
+            }
         }
     }
 
     override fun dispose() {
-        // The message bus connection is parented to this service and disposed with it.
+        detectionSignal.close()
+        detectionLoop.cancel()
     }
 
     internal var defaultToolkitId: String?
-        get() = synchronized(lock) { registry.defaultToolkitId }
+        get() = synchronized(stateLock) { registry.defaultToolkitId }
         set(value) {
-            synchronized(lock) { registry.defaultToolkitId = value }
+            synchronized(stateLock) { registry.defaultToolkitId = value }
         }
 
-    fun visibleToolkits(project: Project? = null): List<Toolkit> {
-        val sshHostsById = currentSshHostsById(project)
-        return synchronized(lock) { visibleToolkitsLocked(sshHostsById) }
-    }
+    /** Registered and detected installations, resolved against [project]'s hosts. */
+    fun toolkits(project: Project? = null): List<Toolkit> = toolkitsView(hostsFor(project))
 
-    fun registeredToolkits(project: Project? = null): List<Toolkit> {
-        val sshHostsById = currentSshHostsById(project)
-        return synchronized(lock) {
-            val visibleById = visibleToolkitsLocked(sshHostsById).associateBy(Toolkit::id)
-            registry.registeredToolkits.mapNotNull { registered -> visibleById[registered.id] }
+    private fun toolkitsView(hosts: Map<ToolkitHostType, List<ToolkitHost>>): List<Toolkit> {
+        val registered: List<Toolkit>
+        val detected: List<Toolkit>
+        val paths: Map<ToolkitHost.Id, Set<String>>
+        synchronized(stateLock) {
+            registered = registry.toolkits
+            detected = detector.toolkits
+            paths = detector.detectedPaths
         }
-    }
 
-    fun registeredToolkit(id: String, project: Project? = null): Toolkit? {
-        val sshHostsById = currentSshHostsById(project)
-        return synchronized(lock) {
-            visibleToolkitsLocked(sshHostsById)
-                .firstOrNull { toolkit -> toolkit.id == id }
-                ?.takeIf { it.isRegistered }
-        }
-    }
+        val detectedByLocation = detected.associateBy(Toolkit::location)
+        val merged = linkedMapOf<Toolkit.Location, Toolkit>()
 
-    fun requestScan(project: Project?) {
-        if (project?.isDisposed == true) return
-
-        val job = synchronized(scanJobLock) {
-            if (scanJobs[project]?.isActive == true) return@synchronized null
-            scope.launch(start = CoroutineStart.LAZY) { runScan(project) }.also { scanJobs[project] = it }
-        } ?: return
-
-        job.invokeOnCompletion {
-            synchronized(scanJobLock) {
-                if (scanJobs[project] === job) scanJobs.remove(project)
-            }
-        }
-        job.start()
-    }
-
-    fun register(id: String, project: Project? = null): Toolkit? {
-        val sshHostsById = currentSshHostsById(project)
-        val registrationResult = synchronized(lock) {
-            val scannedToolkit = scanner.find(id)
-                ?.takeIf { toolkit -> visibleHost(toolkit.host, sshHostsById) != null }
-            val change = scannedToolkit?.let(registry::refresh)
-            val registered = when {
-                change != null -> change.toolkit
-                scannedToolkit != null -> registry.register(scannedToolkit)
-                else -> registry.find(id)
-            } ?: return@synchronized null
-            ToolkitRegistry.RegistrationResult(
-                toolkit = resolve(registered, sshHostsById),
-                changed = change?.changed ?: (scannedToolkit != null),
+        registered.forEach { toolkit ->
+            val typeKnown = hosts[toolkit.host.type] != null
+            val host = if (typeKnown) findToolkitHost(hosts, toolkit) else null
+            val location = Toolkit.Location(host?.id ?: toolkit.host.id, toolkit.path)
+            if (location in merged) return@forEach
+            val match = detectedByLocation[location]
+            merged[location] = (match ?: toolkit).copy(
+                id = toolkit.id,
+                host = host ?: toolkit.host,
+                isRegistered = true,
+                isAvailable = if (typeKnown) {
+                    host != null &&
+                            (match?.isAvailable
+                                ?: paths[host.id]?.contains(toolkit.path)
+                                ?: true)
+                } else {
+                    match?.isAvailable ?: toolkit.isAvailable
+                },
             )
+        }
+
+        detected.forEach { toolkit ->
+            val known = hosts[toolkit.host.type]
+            if (known != null && known.none { it.id == toolkit.host.id }) return@forEach
+            merged.putIfAbsent(toolkit.location, toolkit.copy(isRegistered = false))
+        }
+
+        return merged.values.toList()
+    }
+
+    fun registeredToolkits(project: Project? = null): List<Toolkit> =
+        toolkits(project).filter(Toolkit::isRegistered)
+
+    fun registeredToolkit(id: String, project: Project? = null): Toolkit? =
+        toolkits(project).firstOrNull { toolkit -> toolkit.id == id && toolkit.isRegistered }
+
+    fun defaultToolkit(project: Project? = null): Toolkit? =
+        defaultToolkitId?.let { id -> registeredToolkit(id, project) }
+
+    /** The toolkit to launch when the user has not chosen one; never null. */
+    fun defaultRunnableToolkit(project: Project? = null): Toolkit =
+        defaultToolkit(project)?.takeIf { it.isAvailable && !it.requiresBackend }
+            ?: toolkits(project).firstOrNull { toolkit ->
+                toolkit.isAvailable && !toolkit.requiresBackend
+            }
+            ?: PATH_FALLBACK_TOOLKIT
+
+    /** The registered toolkit to preselect; null when nothing is registered. */
+    fun defaultRegisteredToolkit(project: Project? = null): Toolkit? {
+        val registered = registeredToolkits(project)
+        return defaultToolkit(project)?.takeIf(Toolkit::isAvailable)
+            ?: registered.firstOrNull(Toolkit::isAvailable)
+            ?: registered.firstOrNull()
+    }
+
+    fun isRegistered(id: String): Boolean = synchronized(stateLock) { registry.find(id) != null }
+
+    /** Registers a detected installation, or returns the registration on the same location. */
+    fun register(id: String, project: Project? = null): Toolkit? {
+        val hosts = hostsFor(project)
+        var changed = false
+        val registeredId: String? = synchronized(stateLock) {
+            registry.find(id)?.let { registered -> return@synchronized registered.id }
+            val detected = detector.toolkits.firstOrNull { toolkit -> toolkit.id == id }
+                ?: return@synchronized null
+            val host = findToolkitHost(hosts, detected) ?: return@synchronized null
+            val candidate = detected.copy(host = host.toPersistedHost())
+            val location = Toolkit.Location(host.id, candidate.path)
+            val existing = registry.toolkits.firstOrNull { registered ->
+                val registeredHost = findToolkitHost(hosts, registered)
+                Toolkit.Location(registeredHost?.id ?: registered.host.id, registered.path) == location
+            }
+            if (existing != null) {
+                existing.id
+            } else {
+                registry.register(candidate)
+                changed = true
+                candidate.id
+            }
         } ?: return null
-        if (registrationResult.toolkit.host.type == WSL && !registrationResult.toolkit.host.hasBackend) {
-            restoreWslBackend(registrationResult.toolkit)
-        }
-        if (registrationResult.changed) {
-            publishToolkitChanges(listOf(registrationResult.toolkit))
-            Log.info("registered toolkit: ${registrationResult.toolkit.name}, ${registrationResult.toolkit.id}")
-        }
-        return registrationResult.toolkit
+
+        if (changed) publishToolkitsChanged()
+        return toolkitsView(hosts).firstOrNull { toolkit -> toolkit.id == registeredId && toolkit.isRegistered }
     }
 
     fun unregister(id: String) {
-        val unregistered = synchronized(lock) { registry.unregister(id) } ?: return
-        publishToolkitChanges(listOf(unregistered))
+        if (synchronized(stateLock) { registry.unregister(id) } == null) return
+        publishToolkitsChanged()
     }
 
-    fun isRegistered(id: String): Boolean = synchronized(lock) { registry.find(id) != null }
+    fun detect(project: Project? = null) {
+        if (project?.isDisposed == true) return
+        synchronized(pendingDetectionLock) { pendingDetectionProjects.add(project) }
+        detectionSignal.trySend(Unit)
+    }
 
-    override fun getState(): State = synchronized(lock) { registry.toState() }
+    override fun getState(): State = synchronized(stateLock) { registry.toState() }
 
     override fun loadState(state: State) {
         val migrated = migrateLegacyState(state)
-        val registered = synchronized(lock) {
-            scanner.clear()
-            registry.replaceState(migrated)
-        }
-        if (registered.size != migrated.registeredToolkits.size) {
+        val kept = synchronized(stateLock) { registry.replaceState(migrated) }
+        if (kept.size != migrated.registeredToolkits.size) {
             Log.warn(
-                "Discarded ${migrated.registeredToolkits.size - registered.size} duplicate " +
-                    "toolkit registrations at the same location",
+                "Discarded ${migrated.registeredToolkits.size - kept.size} duplicate " +
+                        "toolkit registrations at the same location",
             )
         }
-        registered.forEach(::restoreWslBackend)
     }
 
-    /** Converts legacy in-memory names without rewriting persistent storage during component load. */
     private fun migrateLegacyState(state: State): State {
-        val migratedToolkits = state.registeredToolkits.mapTo(mutableSetOf()) { toolkit ->
-            val host = toolkit.host
-            // Legacy local hosts persisted the OS name as their ID; local hosts have no backend.
-            val backendId = if (host.type == LOCAL) null else host.migratedBackendId
-            if (backendId == host.backendId) {
-                toolkit
-            } else {
-                toolkit.copy(host = ToolkitHost(host.type, backendId))
-            }
-        }
         val migrated = State()
-        migrated.registeredToolkits.addAll(migratedToolkits)
+        state.registeredToolkits.mapTo(migrated.registeredToolkits) { toolkit ->
+            val backendId = when (toolkit.host.type) {
+                LOCAL -> null
+                SSH -> {
+                    val persisted = toolkit.host.backendId ?: toolkit.host.migratedBackendId
+                    if (persisted == null) {
+                        ToolkitHost.parseSshEndpoint(toolkit.name)
+                    } else {
+                        ToolkitHost.parseSshEndpoint(persisted) ?: persisted
+                    }
+                }
+                WSL -> toolkit.host.migratedBackendId
+            }
+            toolkit.copy(host = ToolkitHost(toolkit.host.type, backendId))
+        }
         migrated.defaultToolkitId = state.defaultToolkitId
             ?: state.lastSelectedToolkitId
-                    ?: state.preferredToolkitId
+            ?: state.preferredToolkitId
         return migrated
     }
 
-    private fun visibleToolkitsLocked(
-        sshHostsById: Map<ToolkitHost.Id, ToolkitHost>,
-    ): List<Toolkit> =
-        buildMap {
-            registry.registeredToolkits.forEach { registered ->
-                val resolved = resolve(registered, sshHostsById)
-                put(resolved.id, resolved)
-            }
-            // Registrations publish first so a scanned copy never duplicates a registered location.
-            scanner.toolkits.forEach { scanned ->
-                if (values.none { published -> published.location == scanned.location }) {
-                    val host = visibleHost(scanned.host, sshHostsById) ?: return@forEach
-                    val registered = registry.findByLocation(scanned.location)
-                    put(
-                        scanned.id,
-                        scanned.copy(
-                            host = host.toRuntimeHost(),
-                            isRegistered = registered != null,
-                        ),
-                    )
-                }
-            }
-        }.values.toList()
-
-    private fun resolve(
-        toolkit: Toolkit,
-        sshHostsById: Map<ToolkitHost.Id, ToolkitHost>,
-    ): Toolkit {
-        val attached = attachSshHost(toolkit, sshHostsById)
-        val host = visibleHost(attached.host, sshHostsById)
-            ?: return attached.copy(
-                isRegistered = true,
-                isAvailable = false,
-            )
-
-        val scannedToolkit = scanner.findByLocation(attached.location)
-        return scannedToolkit
-            ?.let { scanned ->
-                attached.copy(
-                    host = host.toRuntimeHost(),
-                    isRegistered = true,
-                    isAvailable = scanned.isAvailable,
-                )
-            }
-            ?: attached.copy(
-                host = host.toRuntimeHost(),
-                isRegistered = true,
-                isAvailable = isPathAvailable(attached),
-            )
-    }
-
-    /** Translates a registration persisted with a configuration id, or nothing but the
-     *  toolkit name, to the endpoint key. Already-keyed registrations and names without
-     *  coordinates are returned unchanged; a name-derived key identifies the host even
-     *  before a configuration for it exists. */
-    private fun attachSshHost(toolkit: Toolkit, sshHostsById: Map<ToolkitHost.Id, ToolkitHost>): Toolkit {
-        if (toolkit.host.type != SSH) return toolkit
-        val backendId = toolkit.host.migratedBackendId
-        if (backendId != null && ToolkitHost.isEndpointKey(backendId)) return toolkit
-        val host = backendId?.let { persistedId ->
-            sshHostsById.values.singleOrNull { it.sshConfig?.id == persistedId }
-        } ?: ToolkitHost.parseSshEndpoint(toolkit.name)?.let { endpoint ->
-            sshHostsById[ToolkitHost.Id(SSH, endpoint)] ?: ToolkitHost(SSH, endpoint)
-        } ?: return toolkit
-        val updated = registry.attachHost(toolkit.id, host) ?: return toolkit
-        Log.info("Attached SSH toolkit ${toolkit.id} to ${host.id.canonical}")
-        return updated
-    }
-
-    private fun visibleHost(
-        host: ToolkitHost,
-        sshHostsById: Map<ToolkitHost.Id, ToolkitHost>,
-    ): ToolkitHost? = when (host.type) {
-        LOCAL -> host
-        WSL -> host.takeIf(ToolkitHost::hasBackend)
-        SSH -> sshHostsById[host.id]
-    }
-
-    private fun currentSshHostsById(project: Project?): Map<ToolkitHost.Id, ToolkitHost> =
-        ToolkitHostExtension.forHostType(SSH)
-            ?.getHosts(project)
-            .orEmpty()
-            .associateBy(ToolkitHost::id)
-
-    private fun isPathAvailable(toolkit: Toolkit): Boolean =
-        scanner.lastScannedExecutablePaths(toolkit.host.id)
-            ?.let { executablePaths -> toolkit.path in executablePaths }
-            ?: true
-
-    private fun applyScanResult(
-        result: ToolkitScanner.ScanResult,
-        sshHostsById: Map<ToolkitHost.Id, ToolkitHost>,
-    ): List<Toolkit> =
-        synchronized(lock) {
-            val normalizedToolkits = mutableListOf<Toolkit>()
-            val changedRegistrations = mutableListOf<Toolkit>()
-            result.toolkits.forEach { scannedToolkit ->
-                val registration = registry.refresh(scannedToolkit)
-                if (registration != null) {
-                    normalizedToolkits += scannedToolkit.copy(id = registration.toolkit.id)
-                    if (registration.changed) changedRegistrations += registration.toolkit
-                } else {
-                    normalizedToolkits += scannedToolkit
-                }
-            }
-
-            val normalizedResult = result.copy(toolkits = normalizedToolkits)
-            val affected = scanner.apply(normalizedResult) +
-                    changedRegistrations +
-                    registry.markUnavailablePaths(result.host.id, result.executablePaths)
-            resolveChanges(affected, sshHostsById)
-        }
-
-    private fun applyHosts(
-        hostsByType: Map<ToolkitHostType, List<ToolkitHost>>,
-        sshHostsById: Map<ToolkitHost.Id, ToolkitHost>,
-    ): List<Toolkit> =
-        synchronized(lock) {
-            // SSH hosts are visibility-filtered per project, so their scan results survive host removal.
-            val applicationHostsByType = hostsByType.filterKeys { hostType ->
-                hostType == LOCAL || hostType == WSL
-            }
-            val affectedToolkits = scanner.applyHosts(applicationHostsByType) +
-                    registry.markUnavailableHosts(applicationHostsByType)
-            resolveChanges(affectedToolkits, sshHostsById)
-        }
-
-    private fun resolveChanges(
-        toolkits: List<Toolkit>,
-        sshHostsById: Map<ToolkitHost.Id, ToolkitHost>,
-    ): List<Toolkit> =
-        toolkits
-            .associateBy(Toolkit::id)
-            .values
-            .map { toolkit ->
-                if (registry.findByLocation(toolkit.location) == null) {
-                    toolkit.copy(isRegistered = false)
-                } else {
-                    resolve(toolkit, sshHostsById)
-                }
-            }
-
-    private fun applyRestoredWslBackend(id: String, host: ToolkitHost): Toolkit? =
-        synchronized(lock) {
-            val toolkit = registry.find(id) ?: return@synchronized null
-            if (toolkit.host.type != WSL || host.type != WSL) return@synchronized null
-            scanner.lastScannedExecutablePaths(toolkit.host.id)?.let { paths ->
-                if (toolkit.path !in paths) return@synchronized null
-            }
-            registry.updateHost(id, host)
-        }
-
-    private suspend fun runScan(project: Project?) {
+    private suspend fun runDetection(project: Project?) {
         try {
-            val hostsByType = scanner.getHostsByType(project)
-            val sshHostsById = hostsByType[SSH].orEmpty().associateBy(ToolkitHost::id)
-            scanner.scan(project, hostsByType.values.flatten()).collect { scanResult ->
-                val affectedToolkits = applyScanResult(scanResult, sshHostsById)
-                publishToolkitChanges(affectedToolkits)
-                affectedToolkits.forEach { toolkit -> Log.info("toolkit changed: $toolkit") }
-            }
-            val affectedToolkits = applyHosts(hostsByType, sshHostsById)
-            publishToolkitChanges(affectedToolkits)
-            affectedToolkits.forEach { toolkit ->
-                Log.info("toolkit host removed: ${toolkit.host.id.canonical}")
+            val effectiveProject = project?.takeUnless(Project::isDisposed)
+            val hosts = withContext(Dispatchers.IO) { hostsFor(effectiveProject) }
+            val normalized = synchronized(stateLock) { normalizeSshRegistrations(hosts) }
+            if (normalized) publishToolkitsChanged()
+            detector.detect(hosts.values.flatten(), effectiveProject).collect { result ->
+                if (synchronized(stateLock) { detector.apply(result) }) publishToolkitsChanged()
             }
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
-            Log.error("Failed to scan for XMake toolkits", error)
+            Log.error("Failed to detect XMake toolkits", error)
         }
     }
 
-    private fun restoreWslBackend(toolkit: Toolkit) {
-        if (toolkit.host.type != WSL) return
+    /** The hosts visible to [project]. A missing type key means the provider read failed for
+     *  that type: callers keep that type's existing detection results and registered hosts and
+     *  availability; an empty list means the type genuinely has no hosts. */
+    private fun hostsFor(project: Project?): Map<ToolkitHostType, List<ToolkitHost>> {
+        val effectiveProject = project?.takeUnless(Project::isDisposed)
+        return buildMap {
+            put(LOCAL, listOf(ToolkitHost(LOCAL)))
+            if (WSLUtil.isSystemCompatible()) {
+                runCancellable {
+                    WslDistributionManager.getInstance().installedDistributions
+                        .map { distribution -> ToolkitHost.wsl(distribution) }
+                        .distinctBy(ToolkitHost::id)
+                }.onSuccess { put(WSL, it) }
+                    .onFailure { Log.warn("Failed to read WSL distributions", it) }
+            } else {
+                put(WSL, emptyList())
+            }
 
-        scope.launch(Dispatchers.IO) {
-            try {
-                val host = resolveWslHost(toolkit.host)
-                applyRestoredWslBackend(toolkit.id, host)?.let { restored ->
-                    publishToolkitChanges(listOf(restored))
-                }
-            } catch (error: CancellationException) {
-                throw error
-            } catch (error: Exception) {
-                Log.warn("Failed to restore toolkit ${toolkit.id}: ${error.message.orEmpty()}")
+            val ssh = ToolkitHostExtension.forHostType(SSH)
+            if (ssh == null) {
+                put(SSH, emptyList())
+            } else {
+                runCancellable { ssh.getHosts(effectiveProject).distinctBy(ToolkitHost::id) }
+                    .onSuccess { put(SSH, it) }
+                    .onFailure { Log.warn("Failed to read SSH hosts", it) }
             }
         }
     }
 
-    private fun resolveWslHost(host: ToolkitHost): ToolkitHost {
-        val distribution = WslDistributionManager.getInstance().installedDistributions
-            .find { distribution -> distribution.id == host.backendId }
-            ?: return host
-        return ToolkitHost.wsl(distribution)
+    /** Rewrites registrations that still carry an SSH configuration id or legacy name. Detection
+     *  is a command with a project context, so this migration stays off the read path. */
+    private fun normalizeSshRegistrations(hosts: Map<ToolkitHostType, List<ToolkitHost>>): Boolean {
+        var changed = false
+        registry.toolkits.forEach { toolkit ->
+            if (toolkit.host.type != SSH) return@forEach
+            val host = findToolkitHost(hosts, toolkit) ?: return@forEach
+            if (host.backendId == null || toolkit.host.backendId == host.backendId) return@forEach
+            val location = Toolkit.Location(host.id, toolkit.path)
+            if (registry.toolkits.any { registered -> registered.id != toolkit.id && registered.location == location }) {
+                return@forEach
+            }
+            if (registry.updateHost(toolkit.id, host) != null) changed = true
+        }
+        return changed
     }
 
-    private fun publishToolkitChanges(affectedToolkits: List<Toolkit>) {
-        if (affectedToolkits.isEmpty()) return
+    private fun publishToolkitsChanged() {
         val application = ApplicationManager.getApplication() ?: return
         if (application.isDisposed) return
-        val publisher = application.messageBus.syncPublisher(ToolkitListener.TOPIC)
-
-        publisher.toolkitsChanged()
+        application.messageBus.syncPublisher(ToolkitListener.TOPIC).toolkitsChanged()
     }
 
     companion object {
         private val Log = logger<ToolkitManager>()
 
+        private val PATH_FALLBACK_TOOLKIT = Toolkit(path = "xmake")
+
         fun getInstance(): ToolkitManager =
             serviceOrNull() ?: error("Failed to get ToolkitManager")
     }
+}
+
+/** Resolves a persisted toolkit host against the hosts visible to one project. */
+internal fun findToolkitHost(
+    hosts: Map<ToolkitHostType, List<ToolkitHost>>,
+    toolkit: Toolkit,
+): ToolkitHost? {
+    val host = toolkit.host
+    if (host.type == LOCAL) return host
+    val known = hosts[host.type].orEmpty()
+    return known.firstOrNull { candidate -> candidate.id == host.id }
+        ?: known.firstOrNull { candidate -> candidate.sshConfig?.id == host.backendId }
+        ?: ToolkitHost.parseSshEndpoint(toolkit.name)?.let { endpoint ->
+            known.firstOrNull { candidate -> candidate.id == ToolkitHost.Id(SSH, endpoint) }
+        }
+        ?: known.firstOrNull { candidate ->
+            host.backendId == null && candidate.backendId == toolkit.name
+        }
 }

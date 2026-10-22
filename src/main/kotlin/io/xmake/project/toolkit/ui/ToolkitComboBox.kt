@@ -73,7 +73,7 @@ class ToolkitComboBox(
             override fun popupMenuWillBecomeVisible(event: PopupMenuEvent?) {
                 synchronizeAndNotify()
                 refreshPopupFromModel()
-                toolkitManager.requestScan(project)
+                toolkitManager.detect(project)
             }
         })
 
@@ -91,7 +91,7 @@ class ToolkitComboBox(
     override fun addNotify() {
         super.addNotify()
         synchronizeAndNotify()
-        toolkitManager.requestScan(project)
+        toolkitManager.detect(project)
     }
 
     fun addSelectionListener(listener: (Toolkit?) -> Unit) {
@@ -118,10 +118,10 @@ class ToolkitComboBox(
     }
 
     private fun synchronizeWithToolkits(requestedToolkit: Toolkit? = selectedToolkit): Boolean {
-        val visibleToolkits = toolkitManager.visibleToolkits(project)
+        val toolkits = toolkitManager.toolkits(project)
         val previousToolkit = selectedToolkit
         val resolvedToolkit = requestedToolkit?.let { requested ->
-            visibleToolkits.firstOrNull { it.id == requested.id }?.takeIf { it.isRegistered }
+            toolkits.firstOrNull { it.id == requested.id }?.takeIf { it.isRegistered }
                 ?: requested.takeIf { it.id == pendingToolkitId }
         }
         selectedToolkit = resolvedToolkit
@@ -132,11 +132,11 @@ class ToolkitComboBox(
         }
         // A scan snapshot that misses the uncommitted pick must not drop it from the list.
         val modelToolkits = if (
-            resolvedToolkit == null || visibleToolkits.any { it.id == resolvedToolkit.id }
+            resolvedToolkit == null || toolkits.any { it.id == resolvedToolkit.id }
         ) {
-            visibleToolkits
+            toolkits
         } else {
-            visibleToolkits + resolvedToolkit
+            toolkits + resolvedToolkit
         }
         val itemsChanged = withSelectionHandlingSuppressed {
             toolkitModel.synchronizeWith(modelToolkits, selectedToolkit?.id)
