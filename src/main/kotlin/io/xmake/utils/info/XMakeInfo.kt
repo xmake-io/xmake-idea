@@ -45,7 +45,9 @@ data class XMakeInfo(
             decode: (String) -> T,
             fromLines: (List<String>) -> T,
         ): T {
-            val payload = output.lineSequence().map(String::trim)
+            // xmake emits color codes even when piped; every listing parser sees the stripped text.
+            val text = output.replace(ANSI_ESCAPE, "")
+            val payload = text.lineSequence().map(String::trim)
                 .lastOrNull { it.startsWith("[") || it.startsWith("{") }
             if (payload != null) {
                 try {
@@ -53,7 +55,7 @@ data class XMakeInfo(
                 } catch (_: Exception) {
                 }
             }
-            return fromLines(showEntryLines(output))
+            return fromLines(showEntryLines(text))
         }
 
         private fun showEntryLines(output: String): List<String> =
@@ -122,7 +124,7 @@ data class XMakeInfo(
                     buildMap {
                         lines.forEach { line ->
                             val parts = line.split(Regex("\\s+"), limit = 2)
-                            val name = parts.firstOrNull()?.replace(ANSI_ESCAPE, "") ?: return@forEach
+                            val name = parts.firstOrNull() ?: return@forEach
                             put(name, parts.getOrNull(1) ?: "")
                         }
                     }

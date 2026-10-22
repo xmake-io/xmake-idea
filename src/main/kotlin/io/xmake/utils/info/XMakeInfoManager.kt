@@ -36,8 +36,6 @@ import io.xmake.project.directory.isXMakeLuaVfsEvent
 import io.xmake.utils.runCancellable
 import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.project.profile.XMakeBuildProfileManager
-import io.xmake.project.profile.XMakeBuildProfileOptions
-import io.xmake.project.profile.xmakeBuildProfileOptionsCache
 import io.xmake.project.toolkit.ToolkitListener
 import io.xmake.run.command.configureBestEffort
 import io.xmake.run.command.executeInfoQuery
@@ -96,7 +94,6 @@ class XMakeInfoManager(
             object : BulkFileListener {
                 override fun after(events: MutableList<out VFileEvent>) {
                     if (events.any { isXMakeLuaVfsEvent(it, includeContentChanges = true) }) {
-                        project.xmakeBuildProfileOptionsCache.clear()
                         enqueueActiveProfileProbe()
                     }
                 }
@@ -112,7 +109,6 @@ class XMakeInfoManager(
     /** Recomputes everything derived from the active profile. No-op while unresolved; xmakeInfo
      *  then keeps its last values until the next successful resolve. */
     private fun refreshProfileInfo() {
-        project.xmakeBuildProfileOptionsCache.clear()
         // Directory changes can arrive before cached action awareness is refreshed.
         enqueueActiveProfileProbe()
     }
@@ -167,15 +163,6 @@ class XMakeInfoManager(
                         cachedApisKey = apisKey
                     }
                     xmakeInfo = info
-                    project.xmakeBuildProfileOptionsCache.put(
-                        profile,
-                        XMakeBuildProfileOptions(
-                            architectures = info.architectures,
-                            buildModes = info.buildModes,
-                            platforms = info.platforms,
-                            toolchains = info.toolchains,
-                        ),
-                    )
 
                     if (info.apis.isNotEmpty()) {
                         XMakeApiRegistry.update(info.apis)

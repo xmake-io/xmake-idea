@@ -17,6 +17,7 @@
 package io.xmake.project.profile.ui
 
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.application.asContextElement
@@ -35,11 +36,10 @@ import com.intellij.ui.dsl.builder.panel
 import com.intellij.ui.dsl.gridLayout.toJBEmptyBorder
 import com.intellij.ui.layout.ComboBoxPredicate
 import io.xmake.project.directory.ui.DirectoryBrowser
-import io.xmake.project.directory.XMakeProjectDirectoryManager
-import io.xmake.project.directory.XMakeProjectDirectoryResolutionService
 import io.xmake.project.profile.XMakeBuildProfile
-import io.xmake.project.profile.XMakeBuildProfileOptions
-import io.xmake.project.profile.queryXMakeBuildProfileOptions
+import io.xmake.project.profile.XMakeBuildOptions
+import io.xmake.project.profile.XMakeBuildOptionsCache
+import io.xmake.project.profile.xmakeBuildOptions
 import io.xmake.utils.runCancellable
 import io.xmake.project.directory.xmakeProjectDirectories
 import io.xmake.project.toolkit.Toolkit
@@ -68,15 +68,14 @@ internal class XMakeBuildProfileForm(
     private val project: Project,
 ) : Disposable {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private var baselineProfile = XMakeBuildProfile()
+    private var profile = XMakeBuildProfile()
     private var selectedToolkit: Toolkit? = null
-    private var profileOptions = XMakeBuildProfileOptions()
-    private var loadedOptionsProfile: XMakeBuildProfile? = null
-    private var loadedOptionsToolkitId: String? = null
+    private var profileOptions = XMakeBuildOptions()
+    private var loadedOptionsKey: XMakeBuildOptionsCache.ToolkitCacheKey? = null
     private val optionRequests = Channel<Pair<XMakeBuildProfile, Toolkit>>(Channel.CONFLATED)
     private var isResetting = false
     private var isUpdatingOptions = false
-    private val projectDirectoryConnection = project.messageBus.connect(this)
+    private val optionsCacheConnection = project.messageBus.connect(this)
 
     private val toolkitComboBox = ToolkitComboBox(project, ::selectedToolkit)
     private val platformComboBox = XMakeBuildProfileOptionComboBox()
@@ -164,37 +163,33 @@ internal class XMakeBuildProfileForm(
             optionRequests.consumeAsFlow()
                 .transformLatest { (requestedProfile, toolkit) ->
                     val options = runCancellable {
-                        project.queryXMakeBuildProfileOptions(requestedProfile, toolkit)
+                        project.xmakeBuildOptions.load(requestedProfile, toolkit)
                     }.getOrElse { error ->
-                        Log.debug("Unable to load XMake build profile options", error)
+                        Log.debug("Unable to load XMake build options", error)
                         null
                     }
-                    emit(requestedProfile to options)
+                    emit(toolkit to options)
                 }
-                .collect { (requestedProfile, options) ->
+                .collect { (toolkit, options) ->
                     withContext(Dispatchers.EDT + ModalityState.any().asContextElement()) {
-                        options?.let { applyProfileOptions(requestedProfile, it) }
+                        options?.let { applyProfileOptions(toolkit, it) }
                     }
                 }
         }
         Disposer.register(this, toolkitComboBox)
-        projectDirectoryConnection.subscribe(
-            XMakeProjectDirectoryManager.TOPIC,
-            XMakeProjectDirectoryManager.Listener {
-                loadedOptionsProfile = null
-                profileOptions = XMakeBuildProfileOptions()
-                updateOptionModels()
-                requestProfileOptions()
+        optionsCacheConnection.subscribe(
+            XMakeBuildOptionsCache.TOPIC,
+            XMakeBuildOptionsCache.Listener {
+                ApplicationManager.getApplication().invokeLater({
+                    if (project.isDisposed) return@invokeLater
+                    loadedOptionsKey = null
+                    requestProfileOptions()
+                }, ModalityState.any())
             },
         )
-        // A background directory change (for example an xmake.lua appearing) does not fire the
-        // topic above; re-query once the resolution catches up.
-        projectDirectoryConnection.subscribe(
-            XMakeProjectDirectoryResolutionService.TOPIC,
-            XMakeProjectDirectoryResolutionService.Listener { requestProfileOptions() },
-        )
-        toolkitComboBox.addSelectionListener { selectedToolkit ->
-            if (!isResetting) onToolkitSelected(selectedToolkit)
+        toolkitComboBox.addSelectionListener { toolkit ->
+            selectedToolkit = toolkit
+            if (!isResetting) onToolkitSelected(toolkit)
         }
         platformComboBox.addItemListener { event ->
             if (
@@ -209,13 +204,12 @@ internal class XMakeBuildProfileForm(
     }
 
     fun reset(profile: XMakeBuildProfile) {
-        profileOptions = XMakeBuildProfileOptions()
-        loadedOptionsProfile = null
-        baselineProfile = profile.copy()
+        profileOptions = XMakeBuildOptions()
+        loadedOptionsKey = null
+        this.profile = profile
         isResetting = true
         try {
             selectedToolkit = profile.resolveToolkit(project)
-            loadedOptionsToolkitId = selectedToolkit?.id
             buildDirectory.text = profile.buildDirectory
             androidNdkDirectory.text = profile.androidNdkDirectory
             verbose.isSelected = profile.verbose
@@ -225,7 +219,7 @@ internal class XMakeBuildProfileForm(
             architectureComboBox.updateOptions(emptyList(), profile.architecture)
             toolchainComboBox.updateOptions(emptyList(), profile.toolchain)
             buildModeComboBox.updateOptions(
-                listOf(XMakeBuildProfile.DEFAULT_BUILD_MODE, "debug"),
+                XMakeBuildProfile.FALLBACK_BUILD_MODES,
                 profile.buildMode,
                 fallback = XMakeBuildProfile.DEFAULT_BUILD_MODE,
             )
@@ -234,10 +228,13 @@ internal class XMakeBuildProfileForm(
         } finally {
             isResetting = false
         }
+        selectedToolkit?.takeIf(::canQueryOptions)?.let { toolkit ->
+            project.xmakeBuildOptions.get(toolkit)?.let { applyOptions(toolkit, it) }
+        }
         if (component.isShowing) requestProfileOptions()
     }
 
-    fun createProfileSnapshot(name: String): XMakeBuildProfile = baselineProfile.copy(
+    fun createProfileSnapshot(name: String): XMakeBuildProfile = profile.copy(
         name = name,
         toolkitId = selectedToolkit?.id,
         platform = platformComboBox.selectedItem?.toString() ?: XMakeBuildProfile.USE_XMAKE_DEFAULT,
@@ -261,12 +258,16 @@ internal class XMakeBuildProfileForm(
 
     private fun onToolkitSelected(selectedToolkit: Toolkit?) {
         rebindDirectoryBrowsers()
-        val toolkitId = selectedToolkit?.id
-        if (toolkitId == loadedOptionsToolkitId) return
+        if (selectedToolkit == null) {
+            loadedOptionsKey = null
+            profileOptions = XMakeBuildOptions()
+            updateOptionModels()
+            return
+        }
+        if (project.xmakeBuildOptions.key(selectedToolkit) == loadedOptionsKey) return
 
-        loadedOptionsToolkitId = toolkitId
-        loadedOptionsProfile = null // switching toolkits invalidates the loaded options snapshot
-        profileOptions = XMakeBuildProfileOptions()
+        loadedOptionsKey = null
+        profileOptions = XMakeBuildOptions()
         updateOptionModels()
         requestProfileOptions()
     }
@@ -280,44 +281,48 @@ internal class XMakeBuildProfileForm(
     private fun requestProfileOptions() {
         if (!component.isShowing) return
 
-        val toolkit = selectedToolkit
-        val requestedProfile = toolkit?.let(::profileForOptionQuery)
-        if (requestedProfile == null) {
-            profileOptions = XMakeBuildProfileOptions()
+        val toolkit = selectedToolkit?.takeIf(::canQueryOptions)
+        if (toolkit == null) {
+            profileOptions = XMakeBuildOptions()
+            loadedOptionsKey = null
             updateOptionModels()
             return
         }
-        if (loadedOptionsProfile == requestedProfile) return
+        if (project.xmakeBuildOptions.key(toolkit) == loadedOptionsKey) return
 
-        optionRequests.trySend(requestedProfile to toolkit)
+        val cached = project.xmakeBuildOptions.get(toolkit)
+        if (cached != null) {
+            applyOptions(toolkit, cached)
+            return
+        }
+        optionRequests.trySend(createProfileSnapshot(profile.name) to toolkit)
     }
 
-    private fun applyProfileOptions(requestedProfile: XMakeBuildProfile, options: XMakeBuildProfileOptions) {
+    private fun applyProfileOptions(toolkit: Toolkit, options: XMakeBuildOptions) {
         if (project.isDisposed || !component.isShowing) return
-        if (profileForOptionQuery(selectedToolkit ?: return) != requestedProfile) return
+        val cache = project.xmakeBuildOptions
+        if (cache.key(selectedToolkit ?: return) != cache.key(toolkit)) return
+        applyOptions(toolkit, options)
+    }
+
+    private fun applyOptions(toolkit: Toolkit, options: XMakeBuildOptions) {
         profileOptions = options
-        loadedOptionsProfile = requestedProfile
+        loadedOptionsKey = project.xmakeBuildOptions.key(toolkit)
         updateOptionModels()
     }
 
-    private fun profileForOptionQuery(selectedToolkit: Toolkit): XMakeBuildProfile? {
-        // The cached resolvability answer covers registered toolkits only; the query itself
-        // validates the directory for unregistered selections.
-        if (
-            !selectedToolkit.isAvailable ||
-            selectedToolkit.path.isBlank() ||
-            selectedToolkit.requiresBackend && !selectedToolkit.host.hasBackend
-        ) {
-            return null
-        }
-        return createProfileSnapshot(baselineProfile.name)
-    }
+    private fun canQueryOptions(toolkit: Toolkit): Boolean =
+        // Only an installation with a usable host can run the query; the query itself validates
+        // the project directory for a selection that is not registered yet.
+        toolkit.isAvailable &&
+            toolkit.path.isNotBlank() &&
+            (!toolkit.requiresBackend || toolkit.host.hasBackend)
 
     private fun updateOptionModels() {
         isUpdatingOptions = true
         try {
             platformComboBox.updateOptions(
-                profileOptions.platforms + profileOptions.architectures.keys,
+                (profileOptions.platforms + profileOptions.architectures.keys).distinct().sorted(),
                 platformComboBox.selectedItem?.toString(),
             )
             val platform = platformComboBox.selectedItem?.toString() ?: XMakeBuildProfile.USE_XMAKE_DEFAULT
@@ -332,7 +337,7 @@ internal class XMakeBuildProfileForm(
             buildModeComboBox.updateOptions(
                 profileOptions.buildModes
                     .map { mode -> mode.removePrefix("mode.") }
-                    .ifEmpty { listOf(XMakeBuildProfile.DEFAULT_BUILD_MODE, "debug") },
+                    .ifEmpty { XMakeBuildProfile.FALLBACK_BUILD_MODES },
                 buildModeComboBox.selectedItem?.toString(),
                 fallback = XMakeBuildProfile.DEFAULT_BUILD_MODE,
             )
@@ -347,7 +352,7 @@ internal class XMakeBuildProfileForm(
         val currentArchitecture = architectureComboBox.selectedItem?.toString()
         val selectedArchitecture = when {
             currentArchitecture in architectures -> currentArchitecture
-            baselineProfile.architecture in architectures -> baselineProfile.architecture
+            profile.architecture in architectures -> profile.architecture
             architectures.isNotEmpty() -> architectures.first()
             else -> XMakeBuildProfile.USE_XMAKE_DEFAULT
         }
