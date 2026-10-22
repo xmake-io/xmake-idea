@@ -16,7 +16,18 @@
  */
 package io.xmake.run
 
+import com.intellij.openapi.project.Project
+import io.xmake.project.profile.XMakeBuildProfile
+import io.xmake.project.profile.xmakeBuildProfiles
+
 interface XMakeProfileRunConfiguration {
     var runTarget: String
     var preferredBuildProfileId: String?
 }
+
+/** The profile a configuration runs on: its preferred profile when the id resolves, otherwise
+ *  the project's only profile, otherwise none. */
+internal fun XMakeProfileRunConfiguration.resolveBuildProfile(project: Project): XMakeBuildProfile? =
+    preferredBuildProfileId
+        ?.let(project.xmakeBuildProfiles::findProfile)
+        ?: project.xmakeBuildProfiles.profiles.singleOrNull()
