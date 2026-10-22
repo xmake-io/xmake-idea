@@ -23,6 +23,9 @@ import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.openapi.project.Project
 import com.intellij.util.execution.ParametersListUtil
 import io.xmake.project.toolkit.ToolkitHost
+import io.xmake.utils.execute.CommandResult
+import io.xmake.utils.execute.executeOn
+import kotlin.time.Duration
 
 /** A CLI executable installed on one host; its path is meaningful only there. */
 internal data class CliInstallation(val executable: String, val host: ToolkitHost) {
@@ -81,4 +84,10 @@ internal open class CliCommandLine internal constructor(
 
     /** Appends the arguments of a user-entered command line. */
     fun parsedArgs(commandLine: String): CliCommandLine = args(ParametersListUtil.parse(commandLine))
+
+    /** Runs this command on the host of its [installation]. */
+    suspend fun execute(
+        project: Project?,
+        timeout: Duration,
+    ): CommandResult = executeOn(installation.host, project, timeout)
 }

@@ -14,8 +14,7 @@
  *
  * Copyright (C) 2015-present, Xmake Open Source Community.
  *
- * @author      windchargerj
- * @file        CommandEx.kt
+ * @file        CommandExecution.kt
  *
  */
 package io.xmake.utils.execute
@@ -27,7 +26,7 @@ import com.intellij.execution.processTools.ExecutionResult
 import com.intellij.execution.processTools.getBareExecutionResult
 import com.intellij.execution.wsl.WSLCommandLineOptions
 import com.intellij.execution.wsl.WSLDistribution
-import com.intellij.openapi.diagnostic.Logger
+import com.intellij.openapi.diagnostic.fileLogger
 import com.intellij.openapi.project.Project
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHost
@@ -38,17 +37,18 @@ import java.nio.ByteBuffer
 import java.nio.charset.CharacterCodingException
 import java.nio.charset.Charset
 import java.nio.charset.CodingErrorAction
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.nanoseconds
 
-private val Log = Logger.getInstance("io.xmake.utils.execute.CommandEx")
+private val Log = fileLogger()
 
-private fun GeneralCommandLine.createLocalProcess(): Process {
-    return this
-        .also { Log.info("commandOnLocal: ${this.commandLineString}") }
-        .toProcessBuilder().start()
-}
+private fun GeneralCommandLine.createLocalProcess(): Process =
+    toProcessBuilder().start()
 
 private fun GeneralCommandLine.createWslProcess(
     wslDistribution: WSLDistribution,
@@ -67,20 +67,14 @@ private fun GeneralCommandLine.createWslProcess(
         }
     }
     val patchedCommandLine = wslDistribution.patchCommandLine(commandInWsl, project, options)
-
-    return patchedCommandLine
-        .also { Log.info("commandInWsl: ${patchedCommandLine.commandLineString}") }
-        .toProcessBuilder().start()
+    return patchedCommandLine.toProcessBuilder().start()
 }
 
 fun GeneralCommandLine.createProcess(
     toolkit: Toolkit,
     project: Project? = null,
     remoteWorkingDirectory: String? = null,
-): Process {
-    Log.info("createProcessWithToolkit: $toolkit")
-    return createProcess(toolkit.host, project, remoteWorkingDirectory)
-}
+): Process = createProcess(toolkit.host, project, remoteWorkingDirectory)
 
 fun GeneralCommandLine.createProcess(
     host: ToolkitHost,
@@ -110,11 +104,58 @@ suspend fun Process.awaitExit(timeout: Duration): ExecutionResult {
     return try {
         withTimeout(timeout) { getBareExecutionResult() }
     } catch (error: TimeoutCancellationException) {
-        throw ProcessTimeoutException("Process did not exit within $timeout", error)
+        throw ProcessTimeoutException("Process did not finish within $timeout", error)
     } finally {
         runCatching { destroyForcibly() }
     }
 }
+
+/** The decoded result of one process run. */
+data class CommandResult(
+    val commandLine: String,
+    val exitCode: Int,
+    val stdOut: String,
+    val stdErr: String,
+)
+
+/** Starts [this] on [host], captures both streams, and waits up to [timeout] for it to exit. A
+ *  WSL command needs a Linux path for [remoteWorkingDirectory]. */
+suspend fun GeneralCommandLine.executeOn(
+    host: ToolkitHost,
+    project: Project? = null,
+    timeout: Duration,
+    remoteWorkingDirectory: String? = null,
+): CommandResult {
+    Log.debug("Running on ${host.id.canonical}: $commandLineString")
+    val startedAt = System.nanoTime()
+    // The outer timeout bounds the start phase (process creation, SSH connections); the inner
+    // awaitExit timeout bounds the wait phase once the process is running.
+    val result = withTimeoutOrNull(timeout) {
+        runInterruptible(Dispatchers.IO) {
+            createProcess(host, project, remoteWorkingDirectory)
+        }.awaitExit(timeout)
+    } ?: throw ProcessTimeoutException(
+        "Process did not finish within $timeout: $commandLineString",
+    )
+    Log.debug(
+        "Finished $commandLineString with exit ${result.exitCode} " +
+                "after ${(System.nanoTime() - startedAt).nanoseconds}",
+    )
+    return CommandResult(
+        commandLine = commandLineString,
+        exitCode = result.exitCode,
+        stdOut = result.stdOut.decodeProcessText(),
+        stdErr = result.stdErr.decodeProcessText(),
+    )
+}
+
+internal const val MAX_FAILURE_DETAIL_LENGTH = 4000
+
+/** Quotes [text] for a failure message, keeping the tail - the diagnostics that name the
+ *  failure sit at the end of command output - and marking a truncated quote with an ellipsis. */
+internal fun failureDetail(text: String): String =
+    if (text.length <= MAX_FAILURE_DETAIL_LENGTH) text
+    else "…${text.takeLast(MAX_FAILURE_DETAIL_LENGTH)}"
 
 /**
  * Starts the command line as a local process, captures both streams, and blocks until it exits
