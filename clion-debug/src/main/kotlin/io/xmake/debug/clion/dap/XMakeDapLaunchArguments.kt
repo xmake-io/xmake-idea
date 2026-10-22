@@ -61,13 +61,7 @@ internal object XMakeDapLaunchArguments {
         JsonNull -> null
         is JsonObject -> mapValues { (_, value) -> value.toValue() }
         is JsonArray -> map { it.toValue() }
-        is JsonPrimitive -> when {
-            isString -> content
-            booleanOrNull != null -> booleanOrNull
-            longOrNull != null -> longOrNull
-            doubleOrNull != null -> doubleOrNull
-            else -> content
-        }
+        is JsonPrimitive -> if (isString) content else booleanOrNull ?: longOrNull ?: doubleOrNull ?: content
     }
 
     private val Log = logger<XMakeDapLaunchArguments>()
