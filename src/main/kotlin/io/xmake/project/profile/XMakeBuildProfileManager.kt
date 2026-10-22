@@ -82,18 +82,22 @@ class XMakeBuildProfileManager(private val project: Project) :
     /** Migrates pending legacy directories whose toolkit has appeared; the rest are retained in
      *  the persisted snapshot until their toolkit resolves. */
     private fun migratePendingLegacyDirectories() {
-        val (migratable, claimedKeys) = synchronized(stateLock) {
-            val (migratable, remaining) = XMakeBuildProfileXml.resolveLegacyWorkingDirectories(pendingLegacyDirectories) { toolkitId ->
+        val (migratable, claimed) = synchronized(stateLock) {
+            val (resolvable, remaining) = XMakeBuildProfileXml.resolveLegacyWorkingDirectories(pendingLegacyDirectories) { toolkitId ->
                 ToolkitManager.getInstance().registeredToolkit(toolkitId, project)
             }
-            migratable to (pendingLegacyDirectories.keys - remaining.keys)
+            val claimedEntries = pendingLegacyDirectories.filterKeys { it !in remaining }
+            pendingLegacyDirectories = remaining
+            resolvable to claimedEntries
         }
         if (migratable.isEmpty()) return
-        project.xmakeProjectDirectories.migrateLegacyProjectDirectories(migratable)
-        synchronized(stateLock) {
-            // Subtract only the claimed keys: a concurrent loadState or toolkit change may
-            // have added new pending entries that must survive this write-back.
-            pendingLegacyDirectories = pendingLegacyDirectories - claimedKeys
+        try {
+            project.xmakeProjectDirectories.migrateLegacyProjectDirectories(migratable)
+        } catch (error: Exception) {
+            synchronized(stateLock) {
+                pendingLegacyDirectories = pendingLegacyDirectories + claimed
+            }
+            throw error
         }
     }
 
