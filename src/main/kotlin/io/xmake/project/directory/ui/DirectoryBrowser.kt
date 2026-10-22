@@ -90,7 +90,7 @@ class DirectoryBrowser(
             WSL -> host.wslDistribution?.let(::createWslBrowseListener)
                 ?: unavailableBackendListener("the WSL distribution is not available")
 
-            SSH -> sshBrowseListener(host)
+            SSH -> createSshBrowseListener(host)
         }
 
         addActionListener(listener)
@@ -99,7 +99,7 @@ class DirectoryBrowser(
         Log.debug("Added directory browser listener for ${host.type}")
     }
 
-    private fun sshBrowseListener(host: ToolkitHost): ActionListener {
+    private fun createSshBrowseListener(host: ToolkitHost): ActionListener {
         val extension = ToolkitHostExtension.forHostType(host.type)
             ?: return unavailableBackendListener("the SSH support plugin is disabled")
         if (!host.hasBackend) {
