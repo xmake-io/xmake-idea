@@ -77,7 +77,7 @@ internal class XMakeBuildProfileForm(
     private var isUpdatingOptions = false
     private val optionsCacheConnection = project.messageBus.connect(this)
 
-    private val toolkitComboBox = ToolkitComboBox(project, ::selectedToolkit)
+    private val toolkitComboBox = ToolkitComboBox(project)
     private val platformComboBox = XMakeBuildProfileOptionComboBox()
     private val architectureComboBox = XMakeBuildProfileOptionComboBox()
     private val toolchainComboBox = XMakeBuildProfileOptionComboBox()
