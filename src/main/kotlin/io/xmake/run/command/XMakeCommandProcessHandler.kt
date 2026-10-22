@@ -30,6 +30,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
 import io.xmake.shared.XMakeProblem
 import io.xmake.utils.SystemUtils.parseProblem
+import io.xmake.utils.execute.failureDetail
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.nio.file.InvalidPathException
 import java.nio.file.Path
@@ -37,6 +38,11 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
+/**
+ * Owns the OS process of one XMake command. Construction starts the process immediately
+ * and may throw ExecutionException, so callers must consume the handler right away,
+ * through [awaitSuccessfulCompletion] or the platform's `startProcess` lifecycle.
+ */
 internal class XMakeCommandProcessHandler(
     private val project: Project,
     private val command: XMakeCommand,
@@ -44,6 +50,8 @@ internal class XMakeCommandProcessHandler(
     private val onTextAvailable: (String, Key<*>) -> Unit = { _, _ -> },
     private val onProblems: (List<XMakeProblem>) -> Unit = {},
 ) {
+    private val stdErr = StringBuilder()
+
     val processHandler: ProcessHandler = createProcessHandler()
 
     private val remotePathMapper = RemotePathMapper.forToolkit(command.toolkit, command.workingDirectory, project)
@@ -59,9 +67,15 @@ internal class XMakeCommandProcessHandler(
                     if (event.exitCode == 0) {
                         continuation.resume(Unit)
                     } else {
+                        val detail = stdErr.toString().trim()
+                            .takeIf(String::isNotEmpty)
+                            ?.let(::failureDetail)
+                            ?.let { text -> ": $text" }
+                            .orEmpty()
                         continuation.resumeWithException(
                             ExecutionException(
-                                "XMake command failed with exit code ${event.exitCode}: ${command.commandLine.commandLineString}",
+                                "XMake command failed with exit code ${event.exitCode}$detail. " +
+                                        "Command: ${command.commandLine.commandLineString}",
                             ),
                         )
                     }
@@ -98,6 +112,7 @@ internal class XMakeCommandProcessHandler(
 
             handler.addProcessListener(object : ProcessListener {
                 override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {
+                    if (ProcessOutputType.isStderr(outputType)) stdErr.append(event.text)
                     onTextAvailable(event.text, outputType)
                 }
             })

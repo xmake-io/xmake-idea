@@ -21,10 +21,12 @@ import com.intellij.openapi.project.Project
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.utils.execute.createProcess
 
+/** The xmake process copy of the profile configuration directory; XMakeCommand.configurationDirectory
+ *  is the plugin-side truth. */
 internal const val XMAKE_CONFIG_DIRECTORY_ENV = "XMAKE_CONFIGDIR"
 
 /**
- * A prepared XMake invocation together with the host context that produced it.
+ * A prepared XMake command line together with the host context that produced it.
  *
  * Keeping the toolkit, resolved working directory, and configuration directory
  * beside the command line lets later execution and file-sync stages reuse the
