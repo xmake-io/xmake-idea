@@ -35,15 +35,13 @@ internal class XMakeBuildProfileEditor(
     private val treeUpdater: Runnable,
 ) : NamedConfigurable<XMakeBuildProfile>(true, treeUpdater) {
     private val form = XMakeBuildProfileForm(project)
-    private var appliedProfile = initialProfile.copy()
-    private var profileName = appliedProfile.name
+    var profile = initialProfile
+        private set
+    private var profileName = profile.name
 
     init {
-        form.reset(appliedProfile)
+        form.reset(profile)
     }
-
-    val profile: XMakeBuildProfile
-        get() = appliedProfile.copy()
 
     override fun getDisplayName(): String = profileName
 
@@ -74,18 +72,18 @@ internal class XMakeBuildProfileEditor(
         }
     }
 
-    override fun isModified(): Boolean = form.createProfileSnapshot(profileName) != appliedProfile
+    override fun isModified(): Boolean = form.createProfileSnapshot(profileName) != profile
 
     override fun apply() {
         profileName = profileName.trim()
         form.commitToolkitSelection()
-        appliedProfile = form.createProfileSnapshot(profileName)
+        profile = form.createProfileSnapshot(profileName)
         treeUpdater.run()
     }
 
     override fun reset() {
-        profileName = appliedProfile.name
-        form.reset(appliedProfile)
+        profileName = profile.name
+        form.reset(profile)
     }
 
     override fun disposeUIResources() {
