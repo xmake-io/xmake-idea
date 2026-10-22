@@ -25,7 +25,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.project.target.discoverXMakeBuildTargets
-import io.xmake.run.command.DEFAULT_BUILD_TARGET
+import io.xmake.utils.cli.DEFAULT_TARGET
 import io.xmake.utils.ui.LiveModelComboBox
 import io.xmake.utils.runCancellable
 import kotlinx.coroutines.CoroutineScope
@@ -54,7 +54,7 @@ class XMakeBuildTargetSelector(
     private var editedConfiguration: XMakeProfileRunConfiguration? = null
 
     val selectedTarget: String
-        get() = buildTargetModel.selectedItem?.toString() ?: DEFAULT_BUILD_TARGET
+        get() = buildTargetModel.selectedItem?.toString() ?: DEFAULT_TARGET
 
     init {
         Disposer.register(parentDisposable, component)
@@ -78,7 +78,7 @@ class XMakeBuildTargetSelector(
                     }
                 }
         }
-        replaceBuildTargetChoices(DEFAULT_BUILD_TARGET, emptyList())
+        replaceBuildTargetChoices(DEFAULT_TARGET, emptyList())
         val connection = project.messageBus.connect(parentDisposable)
         connection.subscribeToContextChanges {
             editedConfiguration?.let(::refreshBuildTargets)
@@ -87,7 +87,7 @@ class XMakeBuildTargetSelector(
 
     fun reset(configuration: XMakeProfileRunConfiguration) {
         editedConfiguration = configuration
-        val selectedBuildTarget = configuration.runTarget.ifBlank { DEFAULT_BUILD_TARGET }
+        val selectedBuildTarget = configuration.runTarget.ifBlank { DEFAULT_TARGET }
         if (buildTargetModel.getIndexOf(selectedBuildTarget) < 0) {
             buildTargetModel.addElement(selectedBuildTarget)
         }
@@ -118,9 +118,9 @@ class XMakeBuildTargetSelector(
     }
 
     private fun replaceBuildTargetChoices(selectedTarget: String, buildTargets: Iterable<String>) {
-        val selectedBuildTarget = selectedTarget.ifBlank { DEFAULT_BUILD_TARGET }
+        val selectedBuildTarget = selectedTarget.ifBlank { DEFAULT_TARGET }
         val buildTargetChoices = buildList {
-            add(DEFAULT_BUILD_TARGET)
+            add(DEFAULT_TARGET)
             addAll(buildTargets.filter(String::isNotBlank))
             // Keep the persisted/custom target even when discovery does not return it.
             add(selectedBuildTarget)

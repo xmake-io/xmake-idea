@@ -44,8 +44,9 @@ import io.xmake.project.profile.xmakeBuildProfiles
 import io.xmake.project.directory.xmakeProjectDirectories
 import io.xmake.run.state.XMakeDebugState
 import io.xmake.run.state.XMakeRunState
-import io.xmake.run.command.DEFAULT_BUILD_TARGET
+import io.xmake.utils.cli.DEFAULT_TARGET
 import io.xmake.run.target.findXMakeBuildProfileFor
+import io.xmake.utils.cli.ALL_TARGET
 import java.io.File
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
@@ -61,7 +62,7 @@ class XMakeRunConfiguration(
     XMakeProfileRunConfiguration {
 
     @OptionTag(tag = "runTarget")
-    override var runTarget: String = DEFAULT_BUILD_TARGET
+    override var runTarget: String = DEFAULT_TARGET
 
     @OptionTag(tag = "arguments")
     var runArguments: String = ""
@@ -107,7 +108,7 @@ class XMakeRunConfiguration(
 
         XmlSerializer.deserializeInto(this, element)
         normalizeDeserializedStrings()
-        if (runTarget == DEFAULT_BUILD_TARGET && !legacyTarget.isNullOrBlank()) runTarget = legacyTarget
+        if (runTarget == DEFAULT_TARGET && !legacyTarget.isNullOrBlank()) runTarget = legacyTarget
         runEnvironment = EnvironmentVariablesData.readExternal(element)
         migrateLegacyBuildSettings(element)
     }
@@ -135,7 +136,7 @@ class XMakeRunConfiguration(
         // arguments cannot reach the target unless a concrete one is selected.
         val target = runTarget.trim()
         val needsConcreteTarget = runArguments.isNotBlank() &&
-                (target.isEmpty() || target == DEFAULT_BUILD_TARGET || target == "all")
+                (target.isEmpty() || target == DEFAULT_TARGET || target == ALL_TARGET)
         if (needsConcreteTarget) {
             throw RuntimeConfigurationError("Program arguments require a concrete run target, got '$target'")
         }
@@ -157,7 +158,7 @@ class XMakeRunConfiguration(
     /** The XML serializer can leave a non-null String null; restore every default. */
     @Suppress("USELESS_ELVIS")
     private fun normalizeDeserializedStrings() {
-        runTarget = runTarget ?: DEFAULT_BUILD_TARGET
+        runTarget = runTarget ?: DEFAULT_TARGET
         runArguments = runArguments ?: ""
         launchWorkingDirectory = launchWorkingDirectory ?: ""
         dapDriverPath = dapDriverPath ?: ""

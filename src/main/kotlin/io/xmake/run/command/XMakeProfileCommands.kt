@@ -84,4 +84,3 @@ private val PLAIN_LISTING_TOOLKITS = ConcurrentHashMap.newKeySet<Pair<String, St
 
 private val Log = fileLogger()
 
-internal const val DEFAULT_BUILD_TARGET = "default"
