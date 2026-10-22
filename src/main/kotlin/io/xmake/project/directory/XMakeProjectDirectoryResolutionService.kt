@@ -46,8 +46,7 @@ class XMakeProjectDirectoryResolutionService(
      *  execution-target updates. The answer is optimistic (true) until the first background
      *  computation completes; execution paths keep the authoritative disk validation. */
     fun isToolkitResolvable(toolkit: Toolkit): Boolean {
-        if (toolkit.path.isBlank()) return false
-        if (toolkit.requiresBackend && !toolkit.host.hasBackend) return false
+        if (toolkitRunErrorMessage(toolkit) != null) return false
         val resolution = cachedResolution ?: return true
         return toolkit.id in resolution.resolvableToolkitIds
     }
@@ -98,7 +97,6 @@ class XMakeProjectDirectoryResolutionService(
         val directories = project.xmakeProjectDirectories
         val resolvableToolkitIds = ToolkitManager.getInstance()
             .registeredToolkits(project)
-            .filter { it.path.isNotBlank() }
             .filter { directories.canResolve(it) }
             .mapTo(mutableSetOf()) { it.id }
         return DirectoryResolution(directories.hasDirectorySource(), project.hasRootXMakeLua, resolvableToolkitIds)

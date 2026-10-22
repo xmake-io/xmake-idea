@@ -35,6 +35,7 @@ import com.intellij.ui.dsl.builder.RowLayout
 import com.intellij.ui.dsl.builder.panel
 import com.intellij.ui.dsl.gridLayout.toJBEmptyBorder
 import com.intellij.ui.layout.ComboBoxPredicate
+import io.xmake.project.directory.toolkitRunErrorMessage
 import io.xmake.project.directory.ui.DirectoryBrowser
 import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.project.profile.XMakeBuildOptions
@@ -314,9 +315,7 @@ internal class XMakeBuildProfileForm(
     private fun canQueryOptions(toolkit: Toolkit): Boolean =
         // Only an installation with a usable host can run the query; the query itself validates
         // the project directory for a selection that is not registered yet.
-        toolkit.isAvailable &&
-            toolkit.path.isNotBlank() &&
-            (!toolkit.requiresBackend || toolkit.host.hasBackend)
+        toolkit.isAvailable && toolkitRunErrorMessage(toolkit) == null
 
     private fun updateOptionModels() {
         isUpdatingOptions = true
