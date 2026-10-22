@@ -30,12 +30,10 @@ class XMakeProjectDirectoryGenerator :
     NewProjectWizardDirectoryGeneratorAdapter<XMakeNewProjectWizardData>(XMakeGeneratorNewProjectWizard()),
     CustomStepProjectGenerator<XMakeNewProjectWizardData> {
 
-    private fun validate(): ValidationResult {
-        return with(panel.component.validateAll()) {
-            if (all { it.okEnabled }) ValidationResult.OK
-            else find { !it.okEnabled }?.let { ValidationResult(it.message) } ?: ValidationResult("")
-        }
-    }
+    private fun validate(): ValidationResult =
+        panel.component.validateAll().firstOrNull { !it.okEnabled }
+            ?.let { ValidationResult(it.message) }
+            ?: ValidationResult.OK
 
     override fun createStep(
         projectGenerator: DirectoryProjectGenerator<XMakeNewProjectWizardData>?,
