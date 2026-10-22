@@ -70,10 +70,11 @@ internal class XMakeBuildProfilesEditor(
         super.disposeUIResources()
     }
 
+    private fun profileNodes(): List<MyNode> =
+        (0 until myRoot.childCount).map { index -> myRoot.getChildAt(index) as MyNode }
+
     private fun disposeCurrentEditors() {
-        (0 until myRoot.childCount).forEach { index ->
-            (myRoot.getChildAt(index) as MyNode).configurable.disposeUIResources()
-        }
+        profileNodes().forEach { node -> node.configurable.disposeUIResources() }
     }
 
     fun validateProfiles(): ValidationInfo? {
@@ -105,19 +106,15 @@ internal class XMakeBuildProfilesEditor(
     )
 
     private fun preselectProfile(profileId: String?) {
-        val selectedNode = (0 until myRoot.childCount)
-            .asSequence()
-            .map { index -> myRoot.getChildAt(index) as MyNode }
-            .firstOrNull { node -> (node.configurable as XMakeBuildProfileEditor).profile.id == profileId }
-            ?: myRoot.getChildAt(0) as? MyNode
+        val nodes = profileNodes()
+        val selectedNode = nodes.firstOrNull { node ->
+            (node.configurable as XMakeBuildProfileEditor).profile.id == profileId
+        } ?: nodes.firstOrNull()
         selectedNode?.let(::selectNodeInTree)
     }
 
     private fun profileEditors(): List<XMakeBuildProfileEditor> =
-        (0 until myRoot.childCount).map { index ->
-            val profileNode = myRoot.getChildAt(index) as MyNode
-            profileNode.configurable as XMakeBuildProfileEditor
-        }
+        profileNodes().map { node -> node.configurable as XMakeBuildProfileEditor }
 
     private inner class AddProfileAction : DumbAwareAction(
         "Add",
