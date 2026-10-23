@@ -25,17 +25,17 @@ import java.util.UUID
 /** Persisted project build inputs shared by Build, Run, and Debug. */
 data class XMakeBuildProfile(
     // Profile editors never change this stable identity.
-    var id: String = UUID.randomUUID().toString(),
-    var name: String = DEFAULT_PROFILE_NAME,
-    var toolkitId: String? = null,
-    var platform: String = USE_XMAKE_DEFAULT,
-    var architecture: String = USE_XMAKE_DEFAULT,
-    var toolchain: String = USE_XMAKE_DEFAULT,
-    var buildMode: String = DEFAULT_BUILD_MODE,
-    var buildDirectory: String = "",
-    var androidNdkDirectory: String = "",
-    var verbose: Boolean = false,
-    var configureArguments: String = "",
+    val id: String = UUID.randomUUID().toString(),
+    val name: String = DEFAULT_PROFILE_NAME,
+    val toolkitId: String? = null,
+    val platform: String = USE_XMAKE_DEFAULT,
+    val architecture: String = USE_XMAKE_DEFAULT,
+    val toolchain: String = USE_XMAKE_DEFAULT,
+    val buildMode: String = DEFAULT_BUILD_MODE,
+    val buildDirectory: String = "",
+    val androidNdkDirectory: String = "",
+    val verbose: Boolean = false,
+    val configureArguments: String = "",
 ) {
     internal fun resolveToolkit(project: Project): Toolkit? =
         toolkitId?.let { id -> ToolkitManager.getInstance().registeredToolkit(id, project) }
@@ -54,6 +54,9 @@ data class XMakeBuildProfile(
         const val DEFAULT_PROFILE_NAME = "Default"
 
         const val DEFAULT_BUILD_MODE = "release"
+
+        /** The build modes offered before the XMake query returns its list. */
+        val FALLBACK_BUILD_MODES = listOf(DEFAULT_BUILD_MODE, "debug")
 
         /** "Name", "Name 2", "Name 3", ... — the first candidate not present in [existingNames]. */
         internal fun uniqueName(requestedName: String, existingNames: Collection<String>): String {

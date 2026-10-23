@@ -24,7 +24,6 @@ import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import io.xmake.project.profile.XMakeBuildProfile
-import io.xmake.project.profile.xmakeBuildProfiles
 import io.xmake.project.target.discoverXMakeBuildTargets
 import io.xmake.run.command.DEFAULT_BUILD_TARGET
 import io.xmake.utils.ui.LiveModelComboBox
@@ -97,9 +96,7 @@ class XMakeBuildTargetSelector(
     }
 
     private fun refreshBuildTargets(configuration: XMakeProfileRunConfiguration) {
-        val profile = configuration.preferredBuildProfileId
-            ?.let(project.xmakeBuildProfiles::findProfile)
-            ?: project.xmakeBuildProfiles.profiles.singleOrNull()
+        val profile = configuration.resolveBuildProfile(project)
         if (profile == null) {
             resetBuildTargetChoices(configuration.runTarget)
         } else {
@@ -108,12 +105,11 @@ class XMakeBuildTargetSelector(
     }
 
     private fun requestBuildTargets(profile: XMakeBuildProfile) {
-        val requestedProfileSnapshot = profile.copy()
-        if (buildTargetProfileSnapshot != requestedProfileSnapshot) {
-            buildTargetProfileSnapshot = requestedProfileSnapshot
+        if (buildTargetProfileSnapshot != profile) {
+            buildTargetProfileSnapshot = profile
             replaceBuildTargetChoices(selectedTarget, emptyList())
         }
-        targetRequests.trySend(requestedProfileSnapshot)
+        targetRequests.trySend(profile)
     }
 
     private fun resetBuildTargetChoices(selectedTarget: String) {

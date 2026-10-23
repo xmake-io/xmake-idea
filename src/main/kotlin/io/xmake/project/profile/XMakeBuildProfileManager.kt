@@ -82,26 +82,30 @@ class XMakeBuildProfileManager(private val project: Project) :
     /** Migrates pending legacy directories whose toolkit has appeared; the rest are retained in
      *  the persisted snapshot until their toolkit resolves. */
     private fun migratePendingLegacyDirectories() {
-        val (migratable, claimedKeys) = synchronized(stateLock) {
-            val (migratable, remaining) = XMakeBuildProfileXml.resolveLegacyWorkingDirectories(pendingLegacyDirectories) { toolkitId ->
+        val (migratable, claimed) = synchronized(stateLock) {
+            val (resolvable, remaining) = XMakeBuildProfileXml.resolveLegacyWorkingDirectories(pendingLegacyDirectories) { toolkitId ->
                 ToolkitManager.getInstance().registeredToolkit(toolkitId, project)
             }
-            migratable to (pendingLegacyDirectories.keys - remaining.keys)
+            val claimedEntries = pendingLegacyDirectories.filterKeys { it !in remaining }
+            pendingLegacyDirectories = remaining
+            resolvable to claimedEntries
         }
         if (migratable.isEmpty()) return
-        project.xmakeProjectDirectories.migrateLegacyProjectDirectories(migratable)
-        synchronized(stateLock) {
-            // Subtract only the claimed keys: a concurrent loadState or toolkit change may
-            // have added new pending entries that must survive this write-back.
-            pendingLegacyDirectories = pendingLegacyDirectories - claimedKeys
+        try {
+            project.xmakeProjectDirectories.migrateLegacyProjectDirectories(migratable)
+        } catch (error: Exception) {
+            synchronized(stateLock) {
+                pendingLegacyDirectories = pendingLegacyDirectories + claimed
+            }
+            throw error
         }
     }
 
     val profiles: List<XMakeBuildProfile>
-        get() = synchronized(stateLock) { currentProfiles.map(XMakeBuildProfile::copy) }
+        get() = synchronized(stateLock) { currentProfiles }
 
     fun findProfile(id: String): XMakeBuildProfile? = synchronized(stateLock) {
-        currentProfiles.firstOrNull { it.id == id }?.copy()
+        currentProfiles.firstOrNull { it.id == id }
     }
 
     fun replaceProfiles(profiles: List<XMakeBuildProfile>) {
@@ -132,12 +136,12 @@ class XMakeBuildProfileManager(private val project: Project) :
         require(XMakeBuildProfile.isValidId(profile.id)) { "Invalid XMake build profile ID: ${profile.id}" }
         val (importedProfile, changed) = synchronized(stateLock) {
             currentProfiles.firstOrNull { existing -> existing.id == profile.id }?.let { existing ->
-                return@synchronized existing.copy() to false
+                return@synchronized existing to false
             }
             val existingNames = currentProfiles.mapTo(mutableSetOf()) { existing -> existing.name.trim() }
             val imported = profile.copy(name = XMakeBuildProfile.uniqueName(profile.name, existingNames))
             currentProfiles = currentProfiles + imported
-            imported.copy() to true
+            imported to true
         }
         if (changed) publishProfilesChanged()
         return importedProfile
@@ -162,7 +166,7 @@ class XMakeBuildProfileManager(private val project: Project) :
             }
         }
         if (shouldPublish) publishProfilesChanged()
-        // A newly registered or scanned toolkit may resolve retained legacy directories.
+        // A newly registered or detected toolkit may resolve retained legacy directories.
         migratePendingLegacyDirectories()
     }
 

@@ -34,7 +34,7 @@ internal class XMakeCommandFactory(
     profile: XMakeBuildProfile,
     selectedToolkit: Toolkit? = null,
 ) {
-    private val profileSnapshot = profile.copy()
+    private val profileSnapshot = profile
     private val compileCommandsPath = project.xmakeSettings.state.compileCommandsPath
     val compileCommandsGeneratedPath: String = compileCommandsGeneratedPath(compileCommandsPath)
     private val compileCommandsOutputDirectory: String? = compileCommandsOutputDirectory(compileCommandsGeneratedPath)

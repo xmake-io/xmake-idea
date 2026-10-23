@@ -27,8 +27,8 @@ import io.xmake.project.toolkit.ToolkitHostType
 import org.jdom.Element
 import java.util.UUID
 
-/** Maps build settings stored in an old run configuration to project-owned state. */
-internal data class MigratedBuildSettings(
+/** Maps build settings stored in an old run configuration to their migrated, project-owned form. */
+internal data class LegacySettings(
     val profile: XMakeBuildProfile,
     val legacyProjectDirectory: LegacyProjectDirectory?,
 )
@@ -36,7 +36,7 @@ internal data class MigratedBuildSettings(
 internal fun readLegacyBuildSettings(
     element: Element,
     configurationName: String,
-): MigratedBuildSettings? {
+): LegacySettings? {
     if (!hasLegacyBuildSettings(element)) return null
 
     val legacySettings = LegacyBuildSettings().also { state ->
@@ -55,7 +55,7 @@ internal fun readLegacyBuildSettings(
         verbose = legacySettings.verbose,
         configureArguments = legacySettings.configureArguments,
     )
-    return MigratedBuildSettings(
+    return LegacySettings(
         profile = migratedProfile,
         legacyProjectDirectory = legacySettings.workingDirectory
             .takeUnless(String::isBlank)

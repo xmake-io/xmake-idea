@@ -33,7 +33,6 @@ import com.intellij.ui.dsl.builder.panel
 import io.xmake.debug.DapDriverDetector
 import io.xmake.debug.DapDriverType
 import io.xmake.project.directory.ui.DirectoryBrowser
-import io.xmake.project.profile.xmakeBuildProfiles
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -209,9 +208,7 @@ class XMakeRunConfigurationEditor(
     }
 
     private fun refreshWorkingDirectoryToolkit(configuration: XMakeRunConfiguration) {
-        val profile = configuration.preferredBuildProfileId
-            ?.let(project.xmakeBuildProfiles::findProfile)
-            ?: project.xmakeBuildProfiles.profiles.singleOrNull()
+        val profile = configuration.resolveBuildProfile(project)
         launchWorkingDirectory.setToolkit(profile?.resolveToolkit(project))
     }
 
