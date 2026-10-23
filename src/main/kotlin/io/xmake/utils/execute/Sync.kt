@@ -288,26 +288,24 @@ suspend fun transferProjectFiles(
     require(hostDirectoryPath.isNotBlank()) { "Sync directory must be explicit" }
     require(localDirectoryPath.isNotBlank()) { "Local sync directory must be explicit" }
 
-    if (toolkit.host.type == ToolkitHostType.LOCAL) {
-        refreshVirtualFileSystem(localDirectoryPath)
-        return
-    }
-
     try {
-        when (toolkit.host.type) {
-            ToolkitHostType.LOCAL -> Unit
-            ToolkitHostType.WSL -> transferWslFolder(
-                toolkit.host,
-                direction,
-                localDirectoryPath,
-                hostDirectoryPath,
-                relativePath,
-            )
+        if (toolkit.host.type != ToolkitHostType.LOCAL) {
+            when (toolkit.host.type) {
+                ToolkitHostType.WSL -> transferWslFolder(
+                    toolkit.host,
+                    direction,
+                    localDirectoryPath,
+                    hostDirectoryPath,
+                    relativePath,
+                )
 
-            ToolkitHostType.SSH -> {
-                val hostSyncPath = resolveSshSyncPath(hostDirectoryPath, relativePath)
-                ToolkitHostExtension.requireForHostType(ToolkitHostType.SSH)
-                    .syncProject(toolkit.host, direction, hostSyncPath, localDirectoryPath)
+                ToolkitHostType.SSH -> {
+                    val hostSyncPath = resolveSshSyncPath(hostDirectoryPath, relativePath)
+                    ToolkitHostExtension.requireForHostType(ToolkitHostType.SSH)
+                        .syncProject(toolkit.host, direction, hostSyncPath, localDirectoryPath)
+                }
+
+                else -> error("Unexpected toolkit host type: ${toolkit.host.type}")
             }
         }
     } finally {
@@ -343,7 +341,7 @@ internal fun resolveSshSyncPath(hostDirectoryPath: String, relativePath: String?
     if (relativePath == null) return normalizeRemotePath(hostDirectoryPath)
     require(!relativePath.startsWith("/")) { "Sync path must be relative: $relativePath" }
     val root = normalizeRemotePath(hostDirectoryPath)
-    val joined = normalizeRemotePath("$root/${relativePath.trimStart('/')}")
+    val joined = normalizeRemotePath("$root/$relativePath")
     require(joined.isWithin(root)) { "Sync path escapes its root: $relativePath" }
     return joined
 }
