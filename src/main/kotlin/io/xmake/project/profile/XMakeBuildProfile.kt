@@ -67,11 +67,8 @@ data class XMakeBuildProfile(
         }
 
         internal fun createDefault(project: Project, name: String = DEFAULT_PROFILE_NAME): XMakeBuildProfile {
-            val manager = ToolkitManager.getInstance()
-            val registeredToolkits = manager.registeredToolkits(project)
-            val toolkit = manager.defaultToolkitId
-                ?.let { id -> registeredToolkits.firstOrNull { toolkit -> toolkit.id == id } }
-                ?: registeredToolkits.firstOrNull()
+            val toolkit = ToolkitManager.getInstance()
+                .defaultRegisteredToolkit(project)
             return XMakeBuildProfile(
                 name = name,
                 toolkitId = toolkit?.id,

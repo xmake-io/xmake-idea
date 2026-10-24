@@ -91,10 +91,7 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
     override val kindsProperty: GraphProperty<String> =
         propertyGraph.lazyProperty { kindsModel.selectedItem?.toString().orEmpty() }
     override val toolkitProperty: GraphProperty<Toolkit?> = propertyGraph.lazyProperty {
-        val registeredToolkits = toolkitManager.registeredToolkits(context.project)
-        toolkitManager.defaultToolkitId
-            ?.let { id -> registeredToolkits.firstOrNull { toolkit -> toolkit.id == id } }
-            ?: registeredToolkits.firstOrNull()
+        toolkitManager.defaultRegisteredToolkit(context.project)
     }
     private val requiresBackendProperty: GraphProperty<Boolean> =
         propertyGraph.lazyProperty { toolkit?.requiresBackend == true }
@@ -133,7 +130,21 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
     }
 
     private val browser = DirectoryBrowser(context.project)
-    private val toolkitComboBox = ToolkitComboBox(context.project, ::toolkit)
+    private val toolkitComboBox = ToolkitComboBox(context.project)
+
+    // Wired in class scope, not in an apply block on the combo box: JComponent.getToolkit()
+    // gives the receiver a synthetic `toolkit` property that shadows this step's `toolkit`.
+    init {
+        toolkitComboBox.addSelectionListener(::applyToolkitSelection)
+        toolkitComboBox.selectToolkit(toolkit)
+        applyToolkitSelection(toolkitComboBox.selectedToolkit)
+    }
+
+    private fun applyToolkitSelection(selected: Toolkit?) {
+        toolkit = selected
+        browser.setToolkit(selected)
+        requiresBackend = selected?.requiresBackend == true
+    }
 
     override fun setupUI(builder: Panel) {
         val locationProperty = remotePathProperty.joinCanonicalPath(nameProperty)
@@ -151,13 +162,7 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
             }.enabledIf(requiresBackendProperty).visibleIf(requiresBackendProperty).bottomGap(BottomGap.SMALL)
 
             row("XMake Toolkit") {
-                cell(toolkitComboBox).applyToComponent {
-                    addSelectionListener { toolkit ->
-                        browser.setToolkit(toolkit)
-                        requiresBackend = toolkit?.requiresBackend == true
-                    }
-                    browser.setToolkit(selectedToolkit)
-                }
+                cell(toolkitComboBox)
                     .validationRequestor(WHEN_PROPERTY_CHANGED(toolkitProperty))
                     .validationOnInput(REQUIRE_TOOLKIT_SELECTION.forToolkitComboBox())
                     .validationOnApply(REQUIRE_TOOLKIT_SELECTION.forToolkitComboBox())

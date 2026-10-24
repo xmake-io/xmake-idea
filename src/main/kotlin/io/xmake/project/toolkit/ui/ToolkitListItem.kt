@@ -22,6 +22,7 @@ package io.xmake.project.toolkit.ui
 
 import io.xmake.icons.XMakeIcons
 import io.xmake.project.toolkit.Toolkit
+import io.xmake.project.toolkit.ToolkitHostType
 import javax.swing.Icon
 
 sealed class ToolkitListItem(
@@ -38,7 +39,18 @@ sealed class ToolkitListItem(
         this is None && other is None -> 0
         this is None -> -1
         other is None -> 1
-        else -> compareValuesBy(this, other, ToolkitListItem::id)
+        this is Entry && other is Entry -> compareValuesBy(
+            this,
+            other,
+            { entry -> !entry.toolkit.isRegistered },
+            { entry -> entry.toolkit.host.type },
+            { entry -> entry.toolkit.host.id },
+            { entry -> entry.toolkit.path },
+            Entry::id,
+        )
+        else -> error(
+            "ToolkitListItem has no comparison for ${this::class.simpleName} and ${other::class.simpleName}",
+        )
     }
 
     data object None : ToolkitListItem(id = "", text = "None")
@@ -58,21 +70,14 @@ sealed class ToolkitListItem(
         caption = if (toolkit.isRegistered) "Registered" else toolkit.host.type.name,
         isCaptionVisible = true,
         icon = XMakeIcons.XMAKE,
-    ) {
-        override fun compareTo(other: ToolkitListItem): Int = when (other) {
-            is None -> 1
-            is Entry -> compareValuesBy(
-                this,
-                other,
-                { entry -> !entry.toolkit.isRegistered },
-                { entry -> entry.toolkit.host.type },
-                { entry -> entry.toolkit.host.id },
-                { entry -> entry.toolkit.path },
-                Entry::id,
-            )
-        }
-    }
+    )
 }
 
-private fun unavailableReason(toolkit: Toolkit): String =
-    if (toolkit.requiresBackend && !toolkit.host.hasBackend) "${toolkit.host.type} host not configured" else "Unavailable"
+private fun unavailableReason(toolkit: Toolkit): String {
+    if (!toolkit.requiresBackend || toolkit.host.hasBackend) return "Unavailable"
+    return if (toolkit.host.type == ToolkitHostType.WSL) {
+        "WSL distribution not configured"
+    } else {
+        "SSH configuration not available in this project; check Settings | Tools | SSH Configurations"
+    }
+}

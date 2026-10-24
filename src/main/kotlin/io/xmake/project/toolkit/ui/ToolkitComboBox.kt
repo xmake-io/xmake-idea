@@ -23,6 +23,7 @@ package io.xmake.project.toolkit.ui
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.options.ConfigurationException
 import com.intellij.openapi.ui.validation.DialogValidation
 import com.intellij.openapi.ui.validation.transformParameter
 import com.intellij.openapi.ui.validation.validationErrorIf
@@ -33,11 +34,9 @@ import io.xmake.project.toolkit.ToolkitManager
 import io.xmake.utils.ui.LiveModelComboBox
 import java.awt.event.ItemEvent
 import javax.swing.event.PopupMenuEvent
-import kotlin.reflect.KMutableProperty0
 
 class ToolkitComboBox(
     private val project: Project?,
-    selectedToolkitProperty: KMutableProperty0<Toolkit?>,
 ) : LiveModelComboBox<ToolkitListItem>(ToolkitComboBoxModel()) {
 
     private val toolkitManager = ToolkitManager.getInstance()
@@ -48,7 +47,7 @@ class ToolkitComboBox(
      *  owner commits it or the selection changes. Scan refreshes never clear it. */
     private var pendingToolkitId: String? = null
 
-    var selectedToolkit: Toolkit? by selectedToolkitProperty
+    var selectedToolkit: Toolkit? = null
         private set
 
     private val toolkitModel: ToolkitComboBoxModel
@@ -73,7 +72,7 @@ class ToolkitComboBox(
             override fun popupMenuWillBecomeVisible(event: PopupMenuEvent?) {
                 synchronizeAndNotify()
                 refreshPopupFromModel()
-                toolkitManager.requestScan(project)
+                toolkitManager.detect(project)
             }
         })
 
@@ -91,7 +90,7 @@ class ToolkitComboBox(
     override fun addNotify() {
         super.addNotify()
         synchronizeAndNotify()
-        toolkitManager.requestScan(project)
+        toolkitManager.detect(project)
     }
 
     fun addSelectionListener(listener: (Toolkit?) -> Unit) {
@@ -105,12 +104,23 @@ class ToolkitComboBox(
 
     /** Commits the current selection: a scanned-but-unregistered installation is registered now.
      *  Owners call this from their commit path (the settings apply path, the wizard create step),
-     *  because registering persists state and broadcasts application-wide. Returns the instance to
-     *  persist: an existing registration on the same location may carry a different id. */
+     *  because registering persists state and broadcasts application-wide. Returns null when
+     *  nothing is selected; throws [ConfigurationException] when the selection is unavailable
+     *  or its registration fails. */
     fun commitSelection(): Toolkit? {
         val selected = selectedToolkit ?: return null
+        if (!selected.isAvailable) {
+            throw ConfigurationException(
+                "The selected XMake toolkit is unavailable. " +
+                        "Choose another toolkit or fix its host connection.",
+            )
+        }
         val pendingId = pendingToolkitId ?: return selected
-        val registered = toolkitManager.register(pendingId, project) ?: return selected
+        val registered = toolkitManager.register(pendingId, project)
+            ?: throw ConfigurationException(
+                "The selected XMake toolkit could not be registered. " +
+                        "Choose another toolkit or fix its host connection.",
+            )
         val changed = synchronizeWithToolkits(registered)
         pendingToolkitId = null
         if (changed) fireSelectionChanged()
@@ -118,10 +128,10 @@ class ToolkitComboBox(
     }
 
     private fun synchronizeWithToolkits(requestedToolkit: Toolkit? = selectedToolkit): Boolean {
-        val visibleToolkits = toolkitManager.visibleToolkits(project)
+        val toolkits = toolkitManager.toolkits(project)
         val previousToolkit = selectedToolkit
         val resolvedToolkit = requestedToolkit?.let { requested ->
-            visibleToolkits.firstOrNull { it.id == requested.id }?.takeIf { it.isRegistered }
+            toolkits.firstOrNull { it.id == requested.id }?.takeIf { it.isRegistered }
                 ?: requested.takeIf { it.id == pendingToolkitId }
         }
         selectedToolkit = resolvedToolkit
@@ -132,11 +142,11 @@ class ToolkitComboBox(
         }
         // A scan snapshot that misses the uncommitted pick must not drop it from the list.
         val modelToolkits = if (
-            resolvedToolkit == null || visibleToolkits.any { it.id == resolvedToolkit.id }
+            resolvedToolkit == null || toolkits.any { it.id == resolvedToolkit.id }
         ) {
-            visibleToolkits
+            toolkits
         } else {
-            visibleToolkits + resolvedToolkit
+            toolkits + resolvedToolkit
         }
         val itemsChanged = withSelectionHandlingSuppressed {
             toolkitModel.synchronizeWith(modelToolkits, selectedToolkit?.id)

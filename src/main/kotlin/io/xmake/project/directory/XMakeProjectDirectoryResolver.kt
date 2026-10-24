@@ -30,12 +30,7 @@ internal class XMakeProjectDirectoryResolver(
 
     /** Resolves the directory to run xmake in for [toolkit]. */
     fun resolveProjectDirectory(toolkit: Toolkit): String {
-        if (toolkit.path.isBlank()) {
-            throw RuntimeConfigurationError("XMake toolkit path is not set")
-        }
-        if (toolkit.requiresBackend && !toolkit.host.hasBackend) {
-            throw RuntimeConfigurationError("XMake ${toolkit.host.type} toolkit host is not available")
-        }
+        toolkitRunErrorMessage(toolkit)?.let { throw RuntimeConfigurationError(it) }
 
         return when (toolkit.host.type) {
             ToolkitHostType.LOCAL -> resolveLocalProjectDirectory()
@@ -92,5 +87,14 @@ internal class XMakeProjectDirectoryResolver(
             false
         }
 }
+
+/** Single source shared by the authoritative resolver and the EDT cache. */
+internal fun toolkitRunErrorMessage(toolkit: Toolkit): String? =
+    when {
+        toolkit.path.isBlank() -> "XMake toolkit path is not set"
+        toolkit.requiresBackend && !toolkit.host.hasBackend ->
+            "XMake ${toolkit.host.type} toolkit host is not available"
+        else -> null
+    }
 
 private val Log = logger<XMakeProjectDirectoryResolver>()

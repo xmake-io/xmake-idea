@@ -184,3 +184,43 @@ internal fun xmake(toolkit: Toolkit): XMakeCommandLine = xmake(CliInstallation(t
 
 /** Starts an xmake command line for [installation]. */
 internal fun xmake(installation: CliInstallation): XMakeCommandLine = XMakeCommandLine(installation)
+
+private val IS_WINDOWS_HOST = System.getProperty("os.name").orEmpty().startsWith("Windows", ignoreCase = true)
+
+private val unixSearchPaths = listOf(
+    // Todo: Add more paths
+    $$"${HOME}/.local/bin",
+    "/usr/local/bin",
+    "/usr/bin",
+    "/opt/homebrew/bin"
+)
+
+/**
+ * Builds the PATH search that lists every xmake installation visible on [host].
+ * A local Unix host searches the user's home before the system paths.
+ */
+internal fun locateXMakeCommand(host: ToolkitHost): CliCommandLine =
+    if (host.type != LOCAL) {
+        CliCommandLine(CliInstallation("sh", host)).args("-c", REMOTE_LOCATE_SCRIPT)
+    } else if (IS_WINDOWS_HOST) {
+        CliCommandLine(CliInstallation("where.exe", host)).args("xmake")
+    } else {
+        CliCommandLine(CliInstallation("which", host)).args(whichArguments(System.getProperty("user.home")))
+    }
+
+private fun whichArguments(home: String?): List<String> =
+    listOf("xmake") + unixSearchPaths.map { path ->
+        val resolved = home?.let { path.replace($$"${HOME}", it) } ?: path
+        "$resolved/xmake"
+    }
+
+/** WSL and SSH must expand `home` remotely, so the search runs in a shell. */
+private val REMOTE_LOCATE_SCRIPT = buildString {
+    appendLine("command -v xmake")
+    append("for path in ")
+    unixSearchPaths.forEach { path ->
+        append('"').append(path.replace($$"${HOME}", $$"$HOME")).append("/xmake\" ")
+    }
+    appendLine($$"""; do [ -x "$path" ] && echo "$path"; done""")
+    appendLine("exit 0")
+}

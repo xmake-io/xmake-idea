@@ -26,8 +26,8 @@ internal class ToolkitComboBoxModel : SortedComboBoxModel<ToolkitListItem>(natur
         add(ToolkitListItem.None)
     }
 
-    fun synchronizeWith(visibleToolkits: List<Toolkit>, selectedToolkitId: String?): Boolean {
-        val desiredItems = visibleToolkits.associateBy(Toolkit::id)
+    fun synchronizeWith(toolkits: List<Toolkit>, selectedToolkitId: String?): Boolean {
+        val desiredItems = toolkits.associateBy(Toolkit::id)
         val removed = removeObsoleteItems(desiredItems)
         val updated = updateItems(desiredItems)
         selectItem(selectedToolkitId)
