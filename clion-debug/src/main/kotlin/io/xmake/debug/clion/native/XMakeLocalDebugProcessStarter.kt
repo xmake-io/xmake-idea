@@ -31,7 +31,7 @@ internal class XMakeLocalDebugProcessStarter(
     override fun start(session: XDebugSession): XDebugProcess {
         val consoleBuilder = TextConsoleBuilderFactory.getInstance().createBuilder(session.project)
         consoleBuilder.addFilter(FileReferenceFilter(session.project))
-        return CidrLocalDebugProcess(XMakeRunParameters(launch), session, consoleBuilder).apply {
+        return CidrLocalDebugProcess(XMakeRunParameters(launch, session.project), session, consoleBuilder).apply {
             start()
         }
     }

@@ -20,7 +20,7 @@ dependencies {
     intellijPlatform {
         clion(providers.gradleProperty("runIdeVersion"))
         bundledModule("intellij.platform.dap")
-        bundledModule("intellij.cidr.debugger.core")
+        bundledModule("intellij.clion.toolchains")
         bundledPlugin("com.intellij.nativeDebug")
     }
 }

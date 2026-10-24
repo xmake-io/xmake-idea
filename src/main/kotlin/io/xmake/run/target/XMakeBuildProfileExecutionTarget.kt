@@ -19,12 +19,13 @@ package io.xmake.run.target
 import com.intellij.execution.ExecutionTarget
 import com.intellij.execution.configurations.RunConfiguration
 import com.intellij.openapi.project.Project
+import io.xmake.debug.XMakeDebugSupport
 import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.project.profile.xmakeBuildProfiles
 import io.xmake.run.XMakeProfileRunConfiguration
 import javax.swing.Icon
 
-internal class XMakeBuildProfileExecutionTarget(
+class XMakeBuildProfileExecutionTarget(
     private val project: Project,
     profile: XMakeBuildProfile,
 ) : ExecutionTarget() {
@@ -39,6 +40,9 @@ internal class XMakeBuildProfileExecutionTarget(
     override fun getGroupName(): String = "XMake Profiles"
 
     override fun getIcon(): Icon? = null
+
+    // The clion-debug switcher owns the selection UI while loaded; the platform combobox shows otherwise.
+    override fun isExternallyManaged(): Boolean = XMakeDebugSupport.isAvailable()
 
     override fun canRun(configuration: RunConfiguration): Boolean = configuration is XMakeProfileRunConfiguration
 

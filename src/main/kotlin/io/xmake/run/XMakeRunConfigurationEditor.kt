@@ -59,7 +59,7 @@ class XMakeRunConfigurationEditor(
     )
 
     private val useDapDriver = JBCheckBox(
-        "Use an external DAP driver instead of CLion's bundled LLDB",
+        "Use an external DAP driver instead of CLion's active debug profile",
     )
     private val dapDriverAutoDetect = JBCheckBox("Auto-detect DAP driver")
     private val dapDriverPath = TextFieldWithBrowseButton().apply {
