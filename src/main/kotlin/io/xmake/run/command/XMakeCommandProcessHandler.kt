@@ -51,6 +51,7 @@ internal class XMakeCommandProcessHandler(
     private val onProblems: (List<XMakeProblem>) -> Unit = {},
 ) {
     private val stdErr = StringBuilder()
+    private val stdOut = StringBuilder()
 
     val processHandler: ProcessHandler = createProcessHandler()
 
@@ -67,7 +68,10 @@ internal class XMakeCommandProcessHandler(
                     if (event.exitCode == 0) {
                         continuation.resume(Unit)
                     } else {
-                        val detail = stdErr.toString().trim()
+                        // xmake prints its version refusal to stdout, so both streams feed
+                        // the failure detail.
+                        val detail = listOf(stdErr.toString(), stdOut.toString())
+                            .map(String::trim).filter(String::isNotEmpty).joinToString("\n")
                             .takeIf(String::isNotEmpty)
                             ?.let(::failureDetail)
                             ?.let { text -> ": $text" }
@@ -112,7 +116,10 @@ internal class XMakeCommandProcessHandler(
 
             handler.addProcessListener(object : ProcessListener {
                 override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {
-                    if (ProcessOutputType.isStderr(outputType)) stdErr.append(event.text)
+                    when {
+                        ProcessOutputType.isStderr(outputType) -> stdErr.append(event.text)
+                        ProcessOutputType.isStdout(outputType) -> stdOut.append(event.text)
+                    }
                     onTextAvailable(event.text, outputType)
                 }
             })

@@ -24,8 +24,9 @@ import io.xmake.utils.runCancellable
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
 
-/** The command context of one build profile: one xmake run at a time, with the tolerated
- *  failures shared by every query. */
+/** The command context of one build profile: one xmake run at a time, with the version
+ *  refusals ([XMakeProjectVersionError]) rethrown and the tolerated failures shared by
+ *  every query. */
 internal class ProfileCommands internal constructor(
     private val factory: XMakeCommandFactory,
     private val executor: XMakeExecutionService,
@@ -54,11 +55,14 @@ internal class ProfileCommands internal constructor(
         }
     }
 
-    /** One listing parsed with [parse]; a failure warns and answers null. */
+    /** One listing parsed with [parse]; a failure warns and answers null, while a version
+     *  refusal still throws so the caller can show it. */
     suspend fun <T> listing(name: String, parse: (String) -> T): T? =
         try {
             parse(listing(name))
         } catch (error: CancellationException) {
+            throw error
+        } catch (error: XMakeProjectVersionError) {
             throw error
         } catch (error: Exception) {
             Log.warn("Failed to load the XMake '$name' listing on ${factory.toolkit.name}", error)

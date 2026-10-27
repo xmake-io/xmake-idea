@@ -37,6 +37,8 @@ import io.xmake.project.directory.isXMakeLuaVfsEvent
 import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.project.profile.XMakeBuildProfileManager
 import io.xmake.project.toolkit.ToolkitListener
+import io.xmake.run.command.XMakeProjectVersionError
+import io.xmake.run.command.userMessage
 import io.xmake.run.command.withProfileCommands
 import io.xmake.run.target.activeOrSingleXMakeBuildProfile
 import kotlinx.coroutines.FlowPreview
@@ -157,6 +159,11 @@ class XMakeInfoManager(
             }
         } catch (error: CancellationException) {
             throw error
+        } catch (error: XMakeProjectVersionError) {
+            val toolkit = profile.resolveToolkit(project)
+            if (toolkit != null) {
+                Log.warn(error.userMessage(toolkit))
+            }
         } catch (error: Exception) {
             Log.warn("Failed to probe XMake information for profile ${profile.id}", error)
         }

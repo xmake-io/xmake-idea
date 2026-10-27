@@ -23,6 +23,8 @@ import com.intellij.openapi.components.Service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
 import io.xmake.project.console.XMakeConsole
+import io.xmake.project.toolkit.Toolkit
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
@@ -73,14 +75,24 @@ internal class XMakeExecutionService(
         runAndAwait(command)
     }
 
+    /** Captures stdout of one command. A project script that refuses this xmake version
+     *  (its set_xmakever asks for a newer one) throws [XMakeProjectVersionError] instead of
+     *  the raw failure, so callers can tell the two apart. */
     suspend fun captureStandardOutput(command: XMakeCommand): String {
         val output = StringBuilder()
-        runAndAwait(
-            command,
-            onTextAvailable = { text, outputType ->
-                if (ProcessOutputType.isStdout(outputType)) output.append(text)
-            },
-        )
+        try {
+            runAndAwait(
+                command,
+                onTextAvailable = { text, outputType ->
+                    if (ProcessOutputType.isStdout(outputType)) output.append(text)
+                },
+            )
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (error: Exception) {
+            throw error.message?.takeIf(VERSION_REQUIREMENT::containsMatchIn)
+                ?.let(::XMakeProjectVersionError) ?: error
+        }
         return output.toString()
     }
 
@@ -104,3 +116,16 @@ internal class XMakeExecutionService(
 internal val Project.xmakeExecutionService: XMakeExecutionService
     get() = getService(XMakeExecutionService::class.java)
         ?: error("Failed to get XMakeExecutionService for $this")
+
+/** The project script refused this xmake version; the message is the failed command's
+ *  report and carries xmake's own refusal text. */
+internal class XMakeProjectVersionError(message: String) : RuntimeException(message)
+
+/** The one wording of a version refusal, for logs and UI alike: the toolkit the project
+ *  refused, and the failure xmake itself reported. */
+internal fun XMakeProjectVersionError.userMessage(toolkit: Toolkit): String =
+    "The project refused xmake ${toolkit.version} on ${toolkit.name}: $message"
+
+// xmake's interpreter refuses the whole project script when its set_xmakever exceeds the
+// running version; this text is identical on 2.8.7 and 3.x.
+private val VERSION_REQUIREMENT = Regex("xmake v\\S+ < v\\S+, please run")
