@@ -68,6 +68,15 @@ import io.xmake.utils.execute.ProcessTimeoutException
 import io.xmake.utils.execute.SyncDirection
 import io.xmake.utils.execute.failureDetail
 import io.xmake.utils.execute.transferProjectFiles
+import io.xmake.utils.info.XMakeProjectTemplates
+import io.xmake.utils.info.probeXMakeProjectTemplates
+import io.xmake.utils.ui.uiEdt
+import io.xmake.utils.ui.loader
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
 import java.nio.file.Path
@@ -102,33 +111,26 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
     override var toolkit: Toolkit? by toolkitProperty
     private var requiresBackend by requiresBackendProperty
 
-    private val kindOptions = listOf(
-        "Console",
-        "Static Library",
-        "Shared Library",
-    ).associateWith { it.substringBefore(' ').lowercase() }
-
-    private val languageOptions = listOf(
-        "C",
-        "C++",
-        "Rust",
-        "Dlang",
-        "Go",
-        "Swift",
-        "Objc",
-        "Objc++",
-    ).associateWith { it.lowercase() }
+    /** The templates behind the combo boxes. */
+    private var projectTemplates: XMakeProjectTemplates = FALLBACK_TEMPLATES
 
     private val kindModel = DefaultComboBoxModel<String>().apply {
-        kindOptions.keys.forEach { addElement(it) }
+        FALLBACK_TEMPLATES.values.first().forEach(::addElement)
     }
 
     private val languageModel = DefaultComboBoxModel<String>().apply {
-        languageOptions.keys.forEach { addElement(it) }
+        FALLBACK_TEMPLATES.keys.forEach(::addElement)
     }
 
     private val browser = DirectoryBrowser(context.project)
     private val toolkitComboBox = ToolkitComboBox(context.project)
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val loadTemplates = loader<Toolkit>(scope) { toolkit ->
+        val templates = probeXMakeProjectTemplates(toolkit, context.project, TEMPLATE_LISTING_TIMEOUT)
+            ?: return@loader
+        withContext(uiEdt) { applyProjectTemplates(templates) }
+    }
 
     // Wired in class scope, not in an apply block on the combo box: JComponent.getToolkit()
     // gives the receiver a synthetic `toolkit` property that shadows this step's `toolkit`.
@@ -136,12 +138,33 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
         toolkitComboBox.addSelectionListener(::applyToolkitSelection)
         toolkitComboBox.selectToolkit(toolkit)
         applyToolkitSelection(toolkitComboBox.selectedToolkit)
+        languageProperty.afterChange { refreshKindModel() }
     }
 
     private fun applyToolkitSelection(selected: Toolkit?) {
         toolkit = selected
         browser.setToolkit(selected)
         requiresBackend = selected?.requiresBackend == true
+        selected?.let(loadTemplates)
+    }
+
+    private fun applyProjectTemplates(templates: XMakeProjectTemplates) {
+        if (templates == projectTemplates) return
+        projectTemplates = templates
+        val previousLanguage = languageModel.selectedItem as? String
+        languageModel.removeAllElements()
+        templates.keys.forEach(languageModel::addElement)
+        languageModel.selectedItem = previousLanguage?.takeIf { it in templates } ?: templates.keys.firstOrNull()
+        refreshKindModel()
+    }
+
+    private fun refreshKindModel() {
+        val language = languageModel.selectedItem as? String ?: return
+        val kinds = projectTemplates[language] ?: return
+        val previousKind = kindModel.selectedItem as? String
+        kindModel.removeAllElements()
+        kinds.forEach(kindModel::addElement)
+        kindModel.selectedItem = previousKind?.takeIf { it in kinds } ?: kinds.firstOrNull()
     }
 
     override fun setupUI(builder: Panel) {
@@ -185,13 +208,7 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
                 toolkitManager.defaultToolkitId = toolkitComboBox.commitSelection()?.id
 
                 Log.info("wizard apply base data: ${baseData?.name}, ${baseData?.path}")
-                Log.info(
-                    "wizard apply xmake data: ${name}," +
-                            " ${remotePath}," +
-                            " ${toolkit}," +
-                            " ${languageOptions[language]}" +
-                            " ${kindOptions[kind]}"
-                )
+                Log.info("wizard apply xmake data: $name, $remotePath, $toolkit, $language, $kind")
             }
         }
     }
@@ -227,12 +244,8 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
     }
 
     private fun createProject(project: Project, toolkit: Toolkit, directories: WizardDirectories) {
-        val languageId = languageOptions[language]
-            ?: throw IOException("Unsupported XMake project language: '$language'")
-        val kindId = kindOptions[kind]
-            ?: throw IOException("Unsupported XMake project kind: '$kind'")
         val commandLine = xmake(toolkit)
-            .create(directories.generation, languageId, kindId)
+            .create(directories.generation, language, kind)
 
         if (!toolkit.requiresBackend) {
             val leftover = File(directories.generation)
@@ -370,11 +383,19 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
 
     init {
         Disposer.register(context.disposable, toolkitComboBox)
+        Disposer.register(context.disposable) { scope.cancel() }
     }
 
     companion object {
 
+        /** The built-in templates shown before the live listing answers, and kept when it fails. */
+        private val FALLBACK_TEMPLATES: XMakeProjectTemplates = listOf(
+            "c", "c++", "rust", "dlang", "go", "swift", "objc", "objc++",
+        ).associateWith { listOf("console", "static", "shared") }
+
         private val XMAKE_CREATE_TIMEOUT = 120.seconds
+
+        private val TEMPLATE_LISTING_TIMEOUT = 30.seconds
 
         // The welcome-screen path supplies no projectBuilder, and plugin.xml registers a
         // moduleBuilder but no moduleType; this id only has to stay stable and unique.
