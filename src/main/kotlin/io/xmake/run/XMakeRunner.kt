@@ -66,17 +66,17 @@ class XMakeRunner : AsyncProgramRunner<RunnerSettings>() {
         state: RunProfileState,
     ): Promise<RunContentDescriptor?> {
         val project = environment.project
-        val execution = project.xmakeExecutor
+        val executor = project.xmakeExecutor
         val deferred = when (state) {
-            is XMakeRunState -> execution.submit {
+            is XMakeRunState -> executor.submit {
                 val console = prepareConsole(project)
-                executeRun(execution, state, environment, console)
+                executeRun(executor, state, environment, console)
             }
-            is XMakeDebugState -> execution.submitAfter(
+            is XMakeDebugState -> executor.submitAfter(
                 before = { prepareXMakeDebugBuild(project, state) },
-                task = { executeDebug(execution, state, environment) },
+                task = { executeDebug(executor, state, environment) },
             )
-            else -> execution.submit {
+            else -> executor.submit {
                 throw ExecutionException("Unsupported XMake run profile state: ${state::class.java.name}")
             }
         }
@@ -84,12 +84,12 @@ class XMakeRunner : AsyncProgramRunner<RunnerSettings>() {
     }
 
     private suspend fun executeRun(
-        execution: XMakeExecutor,
+        executor: XMakeExecutor,
         state: XMakeRunState,
         environment: ExecutionEnvironment,
         console: XMakeConsole,
     ): RunContentDescriptor {
-        execution.execute(console, state.configureCommand)
+        executor.execute(console, state.configureCommand)
 
         val processHandler = state.startProcess()
         return try {
@@ -107,13 +107,13 @@ class XMakeRunner : AsyncProgramRunner<RunnerSettings>() {
     }
 
     private suspend fun executeDebug(
-        execution: XMakeExecutor,
+        executor: XMakeExecutor,
         state: XMakeDebugState,
         environment: ExecutionEnvironment,
     ): RunContentDescriptor {
         val debugSupport = XMakeDebugSupport.find()
             ?: throw ExecutionException("XMake debugging requires the CLion debugger integration")
-        val launch = prepareXMakeDebugLaunch(state, environment.project, execution)
+        val launch = prepareXMakeDebugLaunch(state, environment.project, executor)
 
         return withContext(Dispatchers.EDT) {
             ensureProjectIsOpen(environment.project)

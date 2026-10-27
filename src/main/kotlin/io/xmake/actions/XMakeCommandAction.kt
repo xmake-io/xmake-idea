@@ -23,10 +23,15 @@ import com.intellij.openapi.project.Project
 import io.xmake.utils.notify
 import io.xmake.project.console.XMakeConsole
 import io.xmake.project.console.xmakeConsoleService
+import io.xmake.project.directory.xmakeProjectDirectories
+import io.xmake.run.command.XMakeCommand
 import io.xmake.run.command.XMakeCommandFactory
+import io.xmake.run.command.XMakeConsoleOptions
 import io.xmake.run.command.xmakeExecutor
 import io.xmake.run.command.xmakeCommands
 import io.xmake.run.target.activeOrSingleXMakeBuildProfile
+import io.xmake.utils.execute.fetchGeneratedFile
+import io.xmake.utils.execute.syncBeforeFetch
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -60,6 +65,27 @@ abstract class XMakeCommandAction : XMakeProjectAction() {
                 console.reportCommandError(project, error)
             }
         }
+    }
+
+    internal suspend fun updateGeneratedArtifact(
+        project: Project,
+        console: XMakeConsole,
+        commandFactory: XMakeCommandFactory,
+        updateCommand: XMakeCommand,
+        generatedFileRelativePath: String,
+    ) {
+        val execution = project.xmakeExecutor
+        val toolkit = updateCommand.toolkit
+        val workingDirectory = updateCommand.workingDirectory
+        val localDirectory = project.xmakeProjectDirectories.resolveLocalSyncDirectory()
+        syncBeforeFetch(project, toolkit, workingDirectory, localDirectory)
+        execution.execute(console, commandFactory.createConfigure())
+        execution.execute(
+            console,
+            updateCommand,
+            XMakeConsoleOptions(showConsole = false, showProblems = true, showExitCode = true),
+        )
+        fetchGeneratedFile(project, toolkit, workingDirectory, localDirectory, generatedFileRelativePath)
     }
 
     internal abstract suspend fun execute(
