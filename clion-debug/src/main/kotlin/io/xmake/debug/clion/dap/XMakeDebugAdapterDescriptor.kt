@@ -70,14 +70,7 @@ internal class XMakeDebugAdapterDescriptor(
     @Suppress("DEPRECATION")
     override val breakpointsDescription: DapBreakpointsDescription = createBreakpointsDescription()
 
-    private fun createDriverCommandLine(launch: XMakeDebugLaunch, driver: XMakeDebugDriver.Dap): GeneralCommandLine =
-        baseDriverCommandLine(launch, driver).apply {
-            if (driver.info.type == DapDriverType.GDB) {
-                withParameters(GDB_DAP_INTERPRETER_ARGS)
-            }
-        }
-
-    private fun baseDriverCommandLine(launch: XMakeDebugLaunch, driver: XMakeDebugDriver.Dap): GeneralCommandLine {
+    private fun createDriverCommandLine(launch: XMakeDebugLaunch, driver: XMakeDebugDriver.Dap): GeneralCommandLine {
         val driverPath = driver.info.path
         val driverDirectory = File(driverPath).absoluteFile.parent
         val environment = EnvironmentUtil.getEnvironmentMap().toMutableMap().apply {
@@ -87,6 +80,11 @@ internal class XMakeDebugAdapterDescriptor(
         return GeneralCommandLine(driverPath)
             .withWorkDirectory(launch.workingDirectory)
             .withEnvironment(environment)
+            .apply {
+                if (driver.info.type == DapDriverType.GDB) {
+                    withParameters(GDB_DAP_INTERPRETER_ARGS)
+                }
+            }
     }
 
     /**
