@@ -97,17 +97,19 @@ internal class XMakeDebugAdapterDescriptor(
     private fun createBreakpointsDescription(): DapBreakpointsDescription {
         val lineBreakpointType = CidrLineBreakpointType::class.java
         val exceptionBreakpointType = CidrExceptionBreakpointType::class.java
-        val constructor = DapBreakpointsDescription::class.java.constructors
-            .filter { it.parameterTypes.all { type -> type == Class::class.java } }
-            .let { candidates ->
-                candidates.firstOrNull { it.parameterCount == 2 }
-                    ?: candidates.firstOrNull { it.parameterCount == 3 }
+        val (constructor, initargs) = DapBreakpointsDescription::class.java.constructors
+            .mapNotNull { candidate ->
+                if (!candidate.parameterTypes.all { it == Class::class.java }) return@mapNotNull null
+                val initargs: Array<Any?> = when (candidate.parameterCount) {
+                    2 -> arrayOf(lineBreakpointType, exceptionBreakpointType)
+                    3 -> arrayOf(lineBreakpointType, exceptionBreakpointType, null)
+                    else -> return@mapNotNull null
+                }
+                candidate to initargs
             }
+            .firstOrNull()
             ?: throw IllegalStateException("No compatible DapBreakpointsDescription constructor")
-        return when (constructor.parameterCount) {
-            2 -> constructor.newInstance(lineBreakpointType, exceptionBreakpointType)
-            else -> constructor.newInstance(lineBreakpointType, exceptionBreakpointType, null)
-        } as DapBreakpointsDescription
+        return constructor.newInstance(*initargs) as DapBreakpointsDescription
     }
 
     private fun MutableMap<String, String>.prependPath(directory: String?) {
