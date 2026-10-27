@@ -22,7 +22,6 @@ package io.xmake.project.wizard
 
 import com.intellij.execution.ExecutionTargetManager
 import com.intellij.execution.RunManager
-import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.process.ProcessNotCreatedException
 import com.intellij.ide.util.projectWizard.ModuleBuilder
 import com.intellij.ide.util.projectWizard.WizardContext
@@ -64,11 +63,10 @@ import io.xmake.project.toolkit.ui.ToolkitComboBox.Companion.REQUIRE_TOOLKIT_SEL
 import io.xmake.project.toolkit.ui.ToolkitComboBox.Companion.forToolkitComboBox
 import io.xmake.run.XMakeRunConfigurationType
 import io.xmake.run.target.XMakeBuildProfileExecutionTarget
+import io.xmake.utils.cli.xmake
 import io.xmake.utils.execute.ProcessTimeoutException
 import io.xmake.utils.execute.SyncDirection
-import io.xmake.utils.execute.awaitExit
-import io.xmake.utils.execute.createProcess
-import io.xmake.utils.execute.decodeProcessText
+import io.xmake.utils.execute.failureDetail
 import io.xmake.utils.execute.transferProjectFiles
 import java.io.File
 import java.io.IOException
@@ -224,26 +222,12 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
     }
 
     private fun createProject(project: Project, toolkit: Toolkit, directories: WizardDirectories) {
-        Log.info("contentEntry path: $contentEntryPath")
-        Log.info("remote contentEntry path: $remoteContentEntryPath")
-        Log.info("host directory: ${directories.host}")
-
         val languageId = languageOptions[language]
             ?: throw IOException("Unsupported XMake project language: '$language'")
         val kindId = kindOptions[kind]
             ?: throw IOException("Unsupported XMake project kind: '$kind'")
-        val commandLine = GeneralCommandLine(
-            listOf(
-                toolkit.path,
-                "create",
-                "-P",
-                directories.generation,
-                "-l",
-                languageId,
-                "-t",
-                kindId,
-            )
-        ).withCharset(Charsets.UTF_8)
+        val commandLine = xmake(toolkit)
+            .create(directories.generation, languageId, kindId)
 
         if (!toolkit.requiresBackend) {
             val leftover = File(directories.generation)
@@ -261,11 +245,15 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
             }
         }
 
+        Log.info("contentEntry path: $contentEntryPath")
+        Log.info("remote contentEntry path: $remoteContentEntryPath")
+        Log.info("host directory: ${directories.host}")
+
         // setupProject runs on the EDT inside the wizard commit; a failed creation aborts
         // via IOException, which the wizard reports without opening a half-built project.
         runWithModalProgressBlocking(project, "Creating XMake project") {
             val result = try {
-                commandLine.createProcess(toolkit).awaitExit(XMAKE_CREATE_TIMEOUT)
+                commandLine.execute(project, XMAKE_CREATE_TIMEOUT)
             } catch (e: ProcessNotCreatedException) {
                 throw IOException("Failed to start xmake (${toolkit.path}): ${e.message}", e)
             } catch (e: IOException) {
@@ -274,10 +262,10 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
             } catch (e: ProcessTimeoutException) {
                 throw IOException("xmake create timed out and was terminated", e)
             }
-            val output = result.stdOut.decodeProcessText().trim()
-            Log.info("XMake project creation output: $output")
+            val output = result.stdOut.trim()
+            Log.debug("Create output: $output")
             if (result.exitCode != 0) {
-                val diagnostics = (output + result.stdErr.decodeProcessText()).trim().take(2000)
+                val diagnostics = failureDetail((output + result.stdErr).trim())
                 throw IOException("xmake create failed (exit=${result.exitCode}): $diagnostics")
             }
         }
