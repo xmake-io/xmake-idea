@@ -24,8 +24,8 @@ import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import io.xmake.project.profile.XMakeBuildProfile
-import io.xmake.project.target.discoverXMakeBuildTargets
 import io.xmake.utils.cli.DEFAULT_TARGET
+import io.xmake.utils.info.XMakeInfoManager
 import io.xmake.utils.ui.LiveModelComboBox
 import io.xmake.utils.runCancellable
 import kotlinx.coroutines.CoroutineScope
@@ -63,7 +63,7 @@ class XMakeBuildTargetSelector(
             targetRequests.consumeAsFlow()
                 .transformLatest { profile ->
                     runCancellable {
-                        emit(profile to project.discoverXMakeBuildTargets(profile))
+                        emit(profile to XMakeInfoManager.getInstance(project).loadBuildTargets(profile))
                     }.onFailure { error ->
                         // Keep the persisted target when profile discovery is unavailable.
                         Log.warn("Failed to load XMake targets for profile ${profile.id}", error)

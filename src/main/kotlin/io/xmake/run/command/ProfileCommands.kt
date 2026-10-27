@@ -20,6 +20,8 @@ import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.project.toolkit.Toolkit
+import io.xmake.project.toolkit.ToolkitInstallationKey
+import io.xmake.project.toolkit.installationKey
 import io.xmake.utils.runCancellable
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
@@ -36,7 +38,7 @@ internal class ProfileCommands internal constructor(
      *  a failed listing retries the plain form, and that version keeps using it. A refusal
      *  caused by the project requiring a newer xmake becomes [XMakeProjectVersionError]. */
     suspend fun listing(name: String): String {
-        if (factory.toolkit.plainListingKey() in PLAIN_LISTING_TOOLKITS) {
+        if (factory.toolkit.installationKey() in PLAIN_LISTING_TOOLKITS) {
             return executor.captureStandardOutput(factory.createInfoQuery(name, jsonOutput = false))
         }
         return runCancellable {
@@ -49,7 +51,7 @@ internal class ProfileCommands internal constructor(
             // A failed retry surfaces its own error: the plain listing is the one this version
             // keeps using, so its failure is the diagnostic one.
             val plain = executor.captureStandardOutput(factory.createInfoQuery(name, jsonOutput = false))
-            PLAIN_LISTING_TOOLKITS.add(factory.toolkit.plainListingKey())
+            PLAIN_LISTING_TOOLKITS.add(factory.toolkit.installationKey())
             Log.warn("XMake ${factory.toolkit.version} has no --json listings, using plain output")
             plain
         }
@@ -96,10 +98,6 @@ internal suspend fun <T> Project.withProfileCommands(
     }
 }
 
-/** Identifies one installation at one version, so an in-place upgrade (new version)
- *  retries `--json` on its own. */
-private fun Toolkit.plainListingKey(): Pair<String, String> = id to version
-
-private val PLAIN_LISTING_TOOLKITS = ConcurrentHashMap.newKeySet<Pair<String, String>>()
+private val PLAIN_LISTING_TOOLKITS = ConcurrentHashMap.newKeySet<ToolkitInstallationKey>()
 
 private val Log = logger<ProfileCommands>()
