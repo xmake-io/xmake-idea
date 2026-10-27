@@ -20,9 +20,10 @@ class XMakeSettings : PersistentStateComponent<XMakeSettings.State> {
     }
 
     companion object {
-        fun getInstance(project: Project): XMakeSettings = project.getService(XMakeSettings::class.java)
+        fun getInstance(project: Project): XMakeSettings =
+            project.serviceOrNull() ?: error("Failed to get XMakeSettings for $project")
     }
 }
 
-val Project.xmakeSettings: XMakeSettings
-    get() = XMakeSettings.getInstance(this)
+val Project.xmakeSettings: XMakeSettings.State
+    get() = XMakeSettings.getInstance(this).state

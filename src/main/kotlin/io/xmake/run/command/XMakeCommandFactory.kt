@@ -44,7 +44,7 @@ internal class XMakeCommandFactory(
     private val profile: XMakeBuildProfile,
     toolkit: Toolkit? = null,
 ) {
-    private val compileCommandsPath = project.xmakeSettings.state.compileCommandsPath
+    private val compileCommandsPath = project.xmakeSettings.compileCommandsPath
     val compileCommandsGeneratedPath: String = compileCommandsGeneratedPath(compileCommandsPath)
     private val compileCommandsOutputDirectory: String? = compileCommandsOutputDirectory(compileCommandsGeneratedPath)
     /** The toolkit every command from this factory runs on: the preview-selected installation,
