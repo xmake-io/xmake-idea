@@ -43,6 +43,7 @@ import io.xmake.project.directory.XMakeProjectDirectoryResolutionService
 import io.xmake.run.XMakeProfileRunConfiguration
 import io.xmake.run.command.xmakeCommands
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
@@ -144,6 +145,10 @@ private class TargetSynchronizer(
     @Volatile
     private var configureStop: (() -> Unit)? = null
 
+    /** Completes when the last dispatched configure's task settles. */
+    @Volatile
+    private var configureTaskTermination: CompletableDeferred<Unit>? = null
+
     fun syncTargetFromConfiguration(settings: RunnerAndConfigurationSettings?) {
         val selectedConfiguration = settings?.configuration
         trackedConfiguration = selectedConfiguration
@@ -183,13 +188,18 @@ private class TargetSynchronizer(
 
     private fun autoConfigure(profileId: String) {
         val profile = project.xmakeBuildProfiles.findProfile(profileId) ?: return
-        configureJob?.cancel()
-        configureStop?.invoke()
-        configureStop = null
+        val previousJob = configureJob
         // LAZY: the body must not run before `configureJob` is assigned, otherwise the fast-failure
         // path could compare against the previous job and swallow its notification.
         val job = scope.launch(start = CoroutineStart.LAZY) {
             val request = currentCoroutineContext().job
+            previousJob?.cancel()
+            previousJob?.join()
+            // The stop handle only requests the process to end, and the wait ends with the
+            // stopped task's settlement, not a confirmed process exit. Read the fields after
+            // the join — the previous job's dispatch decision is final then.
+            configureStop?.invoke()
+            configureTaskTermination?.await()
             val task = try {
                 // The factory resolves the toolkit and the project directory, so it stays off the EDT.
                 withContext(Dispatchers.IO) {
@@ -211,23 +221,26 @@ private class TargetSynchronizer(
             withContext(Dispatchers.EDT) {
                 if (project.isDisposed || !request.isActive) return@withContext
                 val context = ProjectTaskContext()
-                ProjectTaskManager.getInstance(project).run(context, task)
-                    .onSuccess { result ->
-                        if (result.hasErrors()) {
-                            if (configureJob === request) {
-                                notifyConfigureFailed(profile.name, null)
-                            } else {
-                                Log.info("Superseded configure for '${profile.name}' finished with errors")
-                            }
-                        }
-                    }
-                    .onError { error ->
+                val result = ProjectTaskManager.getInstance(project).run(context, task)
+                val termination = CompletableDeferred<Unit>()
+                configureTaskTermination = termination
+                result.onSuccess { taskResult ->
+                    if (taskResult.hasErrors()) {
                         if (configureJob === request) {
-                            notifyConfigureFailed(profile.name, error.message)
+                            notifyConfigureFailed(profile.name, null)
                         } else {
-                            Log.info("Superseded configure for '${profile.name}' failed: ${error.message}")
+                            Log.info("Superseded configure for '${profile.name}' finished with errors")
                         }
                     }
+                }
+                result.onError { error ->
+                    if (configureJob === request) {
+                        notifyConfigureFailed(profile.name, error.message)
+                    } else {
+                        Log.info("Superseded configure for '${profile.name}' failed: ${error.message}")
+                    }
+                }
+                result.onProcessed { termination.complete(Unit) }
                 configureStop = context.getUserData(BUILD_STOP_HANDLE)
             }
         }
