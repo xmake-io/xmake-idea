@@ -71,7 +71,7 @@ class XMakeRunConfigurationEditor(
     }
     private val launchConfiguration = EditorTextField().apply {
         setOneLineMode(false)
-        preferredSize = Dimension(400, 140)
+        preferredSize = launchConfigurationSize
         addSettingsProvider { editor ->
             editor.settings.apply {
                 isFoldingOutlineShown = false
@@ -84,7 +84,7 @@ class XMakeRunConfigurationEditor(
         }
     }
     private val scrollableLaunchConfiguration: JComponent = JBScrollPane(launchConfiguration).apply {
-        preferredSize = Dimension(400, 140)
+        preferredSize = launchConfigurationSize
         verticalScrollBarPolicy = ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED
         horizontalScrollBarPolicy = ScrollPaneConstants.HORIZONTAL_SCROLLBAR_AS_NEEDED
     }
@@ -226,5 +226,9 @@ class XMakeRunConfigurationEditor(
             DapDriverType.GDB -> gdbDefault
             DapDriverType.LLDB -> lldbDefault
         }
+    }
+
+    private companion object {
+        val launchConfigurationSize = Dimension(400, 140)
     }
 }
