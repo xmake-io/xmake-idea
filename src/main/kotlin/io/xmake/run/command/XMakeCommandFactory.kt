@@ -31,6 +31,7 @@ import io.xmake.project.xmakeSettings
 import io.xmake.utils.SystemUtils
 import io.xmake.utils.cli.XMakeCommandLine
 import io.xmake.utils.cli.DEFAULT_TARGET
+import io.xmake.utils.cli.QUERY_ENVIRONMENT
 import io.xmake.utils.cli.xmake
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.Path
@@ -251,12 +252,3 @@ internal class XMakeCommandFactory(
         }
     }
 }
-
-/** Environment every informational xmake query runs with. */
-internal val QUERY_ENVIRONMENT = mapOf(
-    "XMAKE_SKIP_HISTORY" to "1",
-    "XMAKE_ROOT" to "y",
-    // xmake reads XMAKE_COLORTERM (core/base/tty.lua), not XMAKE_COLOR_TERM.
-    "XMAKE_COLORTERM" to "nocolor",
-)
-
