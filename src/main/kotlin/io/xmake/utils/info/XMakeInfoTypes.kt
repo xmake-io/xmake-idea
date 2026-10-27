@@ -25,4 +25,6 @@ typealias XMakeBuildModes = List<String>
 typealias XMakePlatforms = List<String>
 typealias XMakeTargets = List<String>
 typealias XMakeToolchains = Map<String, String>
+/** The api set as [XMakeInfo.parseApis] emits it: each dotted api name is already split into
+ *  its dot-free components. */
 typealias XMakeApis = Set<String>

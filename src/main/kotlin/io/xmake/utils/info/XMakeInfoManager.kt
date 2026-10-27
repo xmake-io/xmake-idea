@@ -20,6 +20,7 @@
  */
 package io.xmake.utils.info
 
+import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.logger
@@ -155,8 +156,11 @@ class XMakeInfoManager(
                     }
                     xmakeInfo = info
 
-                    if (info.apis.isNotEmpty()) {
+                    // The Lua lexer reads the registry, so editors opened before the probe keep
+                    // the old vocabulary unless the analyzer restarts.
+                    if (info.apis.isNotEmpty() && info.apis != XMakeApiRegistry.current) {
                         XMakeApiRegistry.update(info.apis)
+                        DaemonCodeAnalyzer.getInstance(project).restart("Xmake api set changed")
                     }
                 }
             }
