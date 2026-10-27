@@ -16,65 +16,45 @@
  */
 package io.xmake.project.profile
 
-import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import io.xmake.project.toolkit.Toolkit
-import io.xmake.run.command.executeInfoQuery
 import io.xmake.run.command.withProfileCommands
+import io.xmake.utils.info.XMakeArchitectures
+import io.xmake.utils.info.XMakeBuildModes
 import io.xmake.utils.info.XMakeInfo
-import io.xmake.utils.runCancellable
-import kotlinx.coroutines.Deferred
+import io.xmake.utils.info.XMakePlatforms
+import io.xmake.utils.info.XMakeToolchains
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 
 internal data class XMakeBuildOptions(
-    val architectures: Map<String, List<String>> = emptyMap(),
-    val buildModes: List<String> = emptyList(),
-    val platforms: List<String> = emptyList(),
-    val toolchains: Map<String, String> = emptyMap(),
+    val architectures: XMakeArchitectures = emptyMap(),
+    val buildModes: XMakeBuildModes = emptyList(),
+    val platforms: XMakePlatforms = emptyList(),
+    val toolchains: XMakeToolchains = emptyMap(),
 )
 
 /** Queries the build options available in one build profile's command context. The profile only
  *  supplies the command context (its XMAKE_CONFIGDIR is profile-scoped); `xmake show -l` listings
- *  do not read it, so any profile bound to the toolkit yields the same catalog. */
+ *  do not read it, so any profile bound to the toolkit yields the same listings. */
 internal suspend fun Project.queryXMakeBuildOptions(
     profile: XMakeBuildProfile,
     toolkit: Toolkit,
-): XMakeBuildOptions {
-    return withContext(Dispatchers.IO) {
-        withProfileCommands(profile, toolkit) { executionService ->
-            coroutineScope {
-                // One failed listing must not empty the whole catalog; the project script
-                // or the host can fail one listing while the others answer.
-                suspend fun <T> listing(name: String, query: suspend () -> T): Deferred<T?> = async {
-                    runCancellable { query() }.getOrElse { error ->
-                        Log.warn("Failed to load the XMake '$name' listing on ${toolkit.name}", error)
-                        null
-                    }
-                }
-                val architectures = listing("architectures") {
-                    XMakeInfo.parseArchitectures(executeInfoQuery("architectures", executionService))
-                }
-                val buildModes = listing("buildmodes") {
-                    XMakeInfo.parseBuildModes(executeInfoQuery("buildmodes", executionService))
-                }
-                val platforms = listing("platforms") {
-                    XMakeInfo.parsePlatforms(executeInfoQuery("platforms", executionService))
-                }
-                val toolchains = listing("toolchains") {
-                    XMakeInfo.parseToolchains(executeInfoQuery("toolchains", executionService))
-                }
-                XMakeBuildOptions(
-                    architectures = architectures.await()?.toSortedMap() ?: emptyMap(),
-                    buildModes = buildModes.await()?.distinct()?.sorted() ?: emptyList(),
-                    platforms = platforms.await()?.distinct()?.sorted() ?: emptyList(),
-                    toolchains = toolchains.await()?.toSortedMap() ?: emptyMap(),
-                )
-            }
+): XMakeBuildOptions = withContext(Dispatchers.IO) {
+    withProfileCommands(profile, toolkit) {
+        coroutineScope {
+            val architectures = async { listing("architectures", XMakeInfo::parseArchitectures) }
+            val buildModes = async { listing("buildmodes", XMakeInfo::parseBuildModes) }
+            val platforms = async { listing("platforms", XMakeInfo::parsePlatforms) }
+            val toolchains = async { listing("toolchains", XMakeInfo::parseToolchains) }
+            XMakeBuildOptions(
+                architectures = architectures.await()?.toSortedMap() ?: emptyMap(),
+                buildModes = buildModes.await()?.distinct()?.sorted() ?: emptyList(),
+                platforms = platforms.await()?.distinct()?.sorted() ?: emptyList(),
+                toolchains = toolchains.await()?.toSortedMap() ?: emptyMap(),
+            )
         }
     }
 }
-
-private val Log = logger<XMakeBuildOptions>()

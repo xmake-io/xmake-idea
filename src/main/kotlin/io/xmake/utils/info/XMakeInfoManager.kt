@@ -34,11 +34,9 @@ import io.xmake.project.directory.XMakeProjectDirectoryResolutionService
 import io.xmake.project.directory.hasRootXMakeLua
 import io.xmake.project.directory.hasXMakeProjectDirectorySource
 import io.xmake.project.directory.isXMakeLuaVfsEvent
-import io.xmake.utils.runCancellable
 import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.project.profile.XMakeBuildProfileManager
 import io.xmake.project.toolkit.ToolkitListener
-import io.xmake.run.command.executeInfoQuery
 import io.xmake.run.command.withProfileCommands
 import io.xmake.run.target.activeOrSingleXMakeBuildProfile
 import kotlinx.coroutines.FlowPreview
@@ -132,14 +130,7 @@ class XMakeInfoManager(
                 if (!project.hasXMakeProjectDirectorySource && !project.hasRootXMakeLua) {
                     return@withContext
                 }
-                project.withProfileCommands(profile) { executionService ->
-                    suspend fun <T> queryOrNull(queryName: String, parse: (String) -> T): T? =
-                        runCancellable { parse(executeInfoQuery(queryName, executionService)) }
-                            .getOrElse { error ->
-                                Log.warn("Failed to query XMake '$queryName'; keeping its previous value", error)
-                                null
-                            }
-
+                project.withProfileCommands(profile) {
                     val previous = if (profile.toolkitId == probedToolkitId) xmakeInfo else XMakeInfo()
                     probedToolkitId = profile.toolkitId
                     val apisKey = apisCacheKey(profile)
@@ -148,7 +139,7 @@ class XMakeInfoManager(
                         apis = if (apisCached) {
                             xmakeInfo.apis
                         } else {
-                            queryOrNull("apis", XMakeInfo::parseApis) ?: previous.apis
+                            listing("apis", XMakeInfo::parseApis) ?: previous.apis
                         },
                     )
                     if (info.apis.isNotEmpty()) {
