@@ -61,7 +61,6 @@ import io.xmake.project.toolkit.ToolkitManager
 import io.xmake.project.toolkit.ui.ToolkitComboBox
 import io.xmake.project.toolkit.ui.ToolkitComboBox.Companion.REQUIRE_TOOLKIT_SELECTION
 import io.xmake.project.toolkit.ui.ToolkitComboBox.Companion.forToolkitComboBox
-import io.xmake.project.wizard.XMakeNewProjectWizardData.Companion.xmakeData
 import io.xmake.run.XMakeRunConfigurationType
 import io.xmake.run.target.XMakeBuildProfileExecutionTarget
 import io.xmake.utils.execute.ProcessTimeoutException
@@ -86,10 +85,10 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
     override val nameProperty: GraphProperty<String> = baseData!!.nameProperty
     override val pathProperty: GraphProperty<String> = baseData!!.pathProperty
     override val remotePathProperty: GraphProperty<String> = propertyGraph.lazyProperty { "" }
-    override val languagesProperty: GraphProperty<String> =
-        propertyGraph.lazyProperty { languagesModel.selectedItem?.toString().orEmpty() }
-    override val kindsProperty: GraphProperty<String> =
-        propertyGraph.lazyProperty { kindsModel.selectedItem?.toString().orEmpty() }
+    override val languageProperty: GraphProperty<String> =
+        propertyGraph.lazyProperty { languageModel.selectedItem?.toString().orEmpty() }
+    override val kindProperty: GraphProperty<String> =
+        propertyGraph.lazyProperty { kindModel.selectedItem?.toString().orEmpty() }
     override val toolkitProperty: GraphProperty<Toolkit?> = propertyGraph.lazyProperty {
         toolkitManager.defaultRegisteredToolkit(context.project)
     }
@@ -99,8 +98,8 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
     override var name: String by nameProperty
     override var path: String by pathProperty
     override var remotePath: String by remotePathProperty
-    override var language: String by languagesProperty
-    override var kind: String by kindsProperty
+    override var language: String by languageProperty
+    override var kind: String by kindProperty
     override var toolkit: Toolkit? by toolkitProperty
     private var requiresBackend by requiresBackendProperty
 
@@ -121,11 +120,11 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
         "Objc++",
     ).associateWith { it.lowercase() }
 
-    private val kindsModel = DefaultComboBoxModel<String>().apply {
+    private val kindModel = DefaultComboBoxModel<String>().apply {
         kindOptions.keys.forEach { addElement(it) }
     }
 
-    private val languagesModel = DefaultComboBoxModel<String>().apply {
+    private val languageModel = DefaultComboBoxModel<String>().apply {
         languageOptions.keys.forEach { addElement(it) }
     }
 
@@ -171,13 +170,13 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
             }.bottomGap(BottomGap.SMALL)
 
             row("Module Language:") {
-                comboBox(languagesModel)
-                    .bindItem(languagesProperty)
+                comboBox(languageModel)
+                    .bindItem(languageProperty)
                     .align(AlignX.FILL)
             }.bottomGap(BottomGap.SMALL)
             row("Module Type:") {
-                comboBox(kindsModel)
-                    .bindItem(kindsProperty)
+                comboBox(kindModel)
+                    .bindItem(kindProperty)
                     .align(AlignX.FILL)
             }.bottomGap(BottomGap.SMALL)
 
@@ -188,11 +187,11 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
 
                 Log.info("wizard apply base data: ${baseData?.name}, ${baseData?.path}")
                 Log.info(
-                    "wizard apply xmake data: ${xmakeData?.name}," +
-                            " ${xmakeData?.remotePath}," +
-                            " ${xmakeData?.toolkit}" +
-                            " ${languageOptions[(xmakeData?.language)]}" +
-                            " ${kindOptions[xmakeData?.kind]}"
+                    "wizard apply xmake data: ${name}," +
+                            " ${remotePath}," +
+                            " ${toolkit}," +
+                            " ${languageOptions[language]}" +
+                            " ${kindOptions[kind]}"
                 )
             }
         }
@@ -217,10 +216,10 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
             Log.info("remote contentEntry path: $remoteContentEntryPath")
             Log.info("host directory: $hostDirectory")
 
-            val language = languageOptions[xmakeData?.language]
-                ?: throw IOException("Unsupported XMake project language: '${xmakeData?.language}'")
-            val kind = kindOptions[xmakeData?.kind]
-                ?: throw IOException("Unsupported XMake project kind: '${xmakeData?.kind}'")
+            val languageId = languageOptions[language]
+                ?: throw IOException("Unsupported XMake project language: '$language'")
+            val kindId = kindOptions[kind]
+                ?: throw IOException("Unsupported XMake project kind: '$kind'")
             val commandLine = GeneralCommandLine(
                 listOf(
                     selectedToolkit.path,
@@ -228,9 +227,9 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
                     "-P",
                     generationDirectory,
                     "-l",
-                    language,
+                    languageId,
                     "-t",
-                    kind,
+                    kindId,
                 )
             ).withCharset(Charsets.UTF_8)
 
@@ -364,7 +363,6 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
 
     init {
         Disposer.register(context.disposable, toolkitComboBox)
-        data.putUserData(XMakeNewProjectWizardData.KEY, this)
     }
 
     companion object {
