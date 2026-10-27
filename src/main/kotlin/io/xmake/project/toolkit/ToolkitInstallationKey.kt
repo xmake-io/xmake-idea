@@ -19,9 +19,8 @@
  */
 package io.xmake.project.toolkit
 
-/** One xmake installation at one version: the identity every installation-scoped fact is
- *  keyed by, from query caches to capability memories. The toolkit id already encodes the
- *  host and the installation path, so an in-place upgrade (new version) is a new key. */
+/** One xmake installation at one version. The toolkit id already encodes the host and the
+ *  installation path, so an in-place upgrade (new version) is a new key. */
 internal data class ToolkitInstallationKey(
     val toolkitId: String,
     val version: String?,

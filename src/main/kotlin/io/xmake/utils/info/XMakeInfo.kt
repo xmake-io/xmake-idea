@@ -23,6 +23,7 @@ package io.xmake.utils.info
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
 
@@ -126,6 +127,57 @@ data class XMakeInfo(
                     }
                 },
             )
+
+        /** Parses the template kinds per language id from a template listing. Accepts both
+         *  forms a listing takes: the json object of the lua exporter, and the indented
+         *  `create --list` tree of xmake 3.x (groups unindented, languages one level in,
+         *  `- kind` entries two levels in). */
+        fun parseProjectTemplates(output: String): XMakeProjectTemplates {
+            val text = output.replace(ANSI_ESCAPE, "")
+            val payload = text.lineSequence().map(String::trim).lastOrNull { it.startsWith("{") }
+            if (payload != null) {
+                val exported = parseTemplateExport(payload)
+                if (exported.isNotEmpty()) return exported
+            }
+            return parseTemplateTree(text)
+        }
+
+        private fun parseTemplateExport(payload: String): XMakeProjectTemplates = try {
+            val element = json.parseToJsonElement(payload)
+            buildMap {
+                (element as? JsonObject)?.forEach { (language, kinds) ->
+                    val names = (kinds as? JsonArray)
+                        ?.mapNotNull { item -> (item as? JsonPrimitive)?.content?.takeIf(String::isNotEmpty) }
+                        .orEmpty()
+                    if (names.isNotEmpty()) put(language, names)
+                }
+            }
+        } catch (_: Exception) {
+            emptyMap()
+        }
+
+        /** Diagnostic lines (`note:`, `error:`, ...) start unindented, so they read as group
+         *  headers and are skipped like the `builtin` header itself. */
+        private fun parseTemplateTree(text: String): XMakeProjectTemplates = buildMap<String, MutableList<String>> {
+            var language: String? = null
+            text.lineSequence().forEach { line ->
+                val indent = line.indexOfFirst { !it.isWhitespace() }
+                if (indent < 0) return@forEach
+                val content = line.substring(indent)
+                when {
+                    indent == 0 -> language = null
+                    content.startsWith("- ") -> content.removePrefix("- ")
+                        .takeIf(String::isNotEmpty)
+                        ?.let { kind ->
+                            language?.let { current ->
+                                getOrPut(current) { mutableListOf() }.add(kind)
+                            }
+                        }
+
+                    else -> language = content
+                }
+            }
+        }
 
         fun parseApis(output: String): XMakeApis =
             parseShowOutput(
