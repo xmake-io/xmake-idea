@@ -62,18 +62,18 @@ class XMakeProjectTaskRunner : ProjectTaskRunner() {
         val title = buildTasks.singleOrNull()?.getPresentableName() ?: "XMake Build"
         val processHandler = XMakeBuildProcessHandler(title)
         val progress = createBuildProgress(project, context, buildTasks, processHandler, title)
-        val completed = AtomicBoolean()
+        val session = BuildSession(progress, processHandler, title)
         val operation = project.xmakeExecutor.submit {
-            execute(project, buildTasks, progress, processHandler, completed, title)
+            execute(project, buildTasks, session)
         }
         val promise = operation.toPromiseWithoutLogError()
         processHandler.bind(operation)
         context.putUserData(BUILD_STOP_HANDLE, processHandler::destroyProcess)
         promise.onError { error ->
             if (error is CancellationException) {
-                cancel(progress, processHandler, completed, title)
+                session.cancel()
             } else {
-                fail(progress, processHandler, completed, error, title)
+                session.fail(error)
             }
         }
         return promise
@@ -82,90 +82,88 @@ class XMakeProjectTaskRunner : ProjectTaskRunner() {
     private suspend fun execute(
         project: Project,
         tasks: List<XMakeBuildTask>,
-        progress: BuildProgress<BuildProgressDescriptor>,
-        processHandler: XMakeBuildProcessHandler,
-        completed: AtomicBoolean,
-        title: String,
-    ): Result = try {
-        for (task in tasks) {
-            for (command in task.commands) {
-                project.xmakeExecutor.awaitBuild(
-                    command,
-                    XMakeConsoleOptions(showProblems = true, preserveAnsiEscapes = true),
-                    onTextAvailable = { text, outputType ->
-                        progress.output(text, ProcessOutputType.fromKey(outputType))
-                    },
-                    onProblems = { problems ->
-                        progress.reportProblems(problems)
-                    },
-                )
-            }
-            task.fetchOnSuccess?.let { generatedPath ->
-                val lastCommand = task.commands.last()
-                try {
-                    fetchGeneratedFile(
-                        project, lastCommand.toolkit, lastCommand.workingDirectory,
-                        project.xmakeProjectDirectories.resolveLocalSyncDirectory(), generatedPath)
-                } catch (error: CancellationException) {
-                    throw error
-                } catch (error: Exception) {
-                    progress.output(
-                        "Failed to fetch $generatedPath: ${error.message ?: error.toString()}\n",
-                        ProcessOutputType.STDERR,
+        session: BuildSession,
+    ): Result {
+        val progress = session.progress
+        return try {
+            for (task in tasks) {
+                for (command in task.commands) {
+                    project.xmakeExecutor.awaitBuild(
+                        command,
+                        XMakeConsoleOptions(showProblems = true, preserveAnsiEscapes = true),
+                        onTextAvailable = { text, outputType ->
+                            progress.output(text, ProcessOutputType.fromKey(outputType))
+                        },
+                        onProblems = { problems ->
+                            progress.reportProblems(problems)
+                        },
                     )
                 }
+                task.fetchOnSuccess?.let { generatedPath ->
+                    val lastCommand = task.commands.last()
+                    try {
+                        fetchGeneratedFile(
+                            project, lastCommand.toolkit, lastCommand.workingDirectory,
+                            project.xmakeProjectDirectories.resolveLocalSyncDirectory(), generatedPath)
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (error: Exception) {
+                        progress.output(
+                            "Failed to fetch $generatedPath: ${error.message ?: error.toString()}\n",
+                            ProcessOutputType.STDERR,
+                        )
+                    }
+                }
+            }
+
+            session.succeed()
+            result()
+        } catch (error: CancellationException) {
+            // ProcessCanceledException is a CancellationException on this platform.
+            session.cancel()
+            throw error
+        } catch (error: Exception) {
+            session.fail(error)
+            result(hasErrors = true)
+        }
+    }
+
+    private class BuildSession(
+        val progress: BuildProgress<BuildProgressDescriptor>,
+        private val processHandler: XMakeBuildProcessHandler,
+        private val title: String,
+    ) {
+        private val completed = AtomicBoolean()
+
+        fun succeed() = finish(SUCCESS_EXIT_CODE) {
+            progress.finish()
+        }
+
+        fun cancel() = finish(CANCELED_EXIT_CODE) {
+            progress.cancel(System.currentTimeMillis(), "$title was canceled")
+        }
+
+        fun fail(error: Throwable) {
+            val message = error.message ?: "$title failed"
+            finish(FAILED_EXIT_CODE) {
+                progress.output("$message\n", ProcessOutputType.STDERR)
+                progress.fail(System.currentTimeMillis(), message)
             }
         }
 
-        complete(processHandler, completed, SUCCESS_EXIT_CODE) {
-            progress.finish()
+        private inline fun finish(exitCode: Int, completion: () -> Unit) {
+            if (!completed.compareAndSet(false, true)) return
+            try {
+                completion()
+            } finally {
+                processHandler.finish(exitCode)
+            }
         }
-        result()
-    } catch (error: CancellationException) {
-        // ProcessCanceledException is a CancellationException on this platform.
-        cancel(progress, processHandler, completed, title)
-        throw error
-    } catch (error: Exception) {
-        fail(progress, processHandler, completed, error, title)
-        result(hasErrors = true)
-    }
 
-    private fun cancel(
-        progress: BuildProgress<BuildProgressDescriptor>,
-        processHandler: XMakeBuildProcessHandler,
-        completed: AtomicBoolean,
-        title: String,
-    ) {
-        complete(processHandler, completed, CANCELED_EXIT_CODE) {
-            progress.cancel(System.currentTimeMillis(), "$title was canceled")
-        }
-    }
-
-    private fun fail(
-        progress: BuildProgress<BuildProgressDescriptor>,
-        processHandler: XMakeBuildProcessHandler,
-        completed: AtomicBoolean,
-        error: Throwable,
-        title: String,
-    ) {
-        val message = error.message ?: "$title failed"
-        complete(processHandler, completed, FAILED_EXIT_CODE) {
-            progress.output("$message\n", ProcessOutputType.STDERR)
-            progress.fail(System.currentTimeMillis(), message)
-        }
-    }
-
-    private inline fun complete(
-        processHandler: XMakeBuildProcessHandler,
-        completed: AtomicBoolean,
-        exitCode: Int,
-        completion: () -> Unit,
-    ) {
-        if (!completed.compareAndSet(false, true)) return
-        try {
-            completion()
-        } finally {
-            processHandler.finish(exitCode)
+        companion object {
+            const val SUCCESS_EXIT_CODE = 0
+            const val FAILED_EXIT_CODE = 1
+            const val CANCELED_EXIT_CODE = 130
         }
     }
 
@@ -228,11 +226,6 @@ class XMakeProjectTaskRunner : ProjectTaskRunner() {
         override fun hasErrors(): Boolean = hasErrors
     }
 
-    private companion object {
-        const val SUCCESS_EXIT_CODE = 0
-        const val FAILED_EXIT_CODE = 1
-        const val CANCELED_EXIT_CODE = 130
-    }
 }
 
 /** The stop handle of the running build, put on every run context; invoking it stops that build
