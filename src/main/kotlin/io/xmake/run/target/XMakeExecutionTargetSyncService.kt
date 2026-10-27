@@ -26,6 +26,7 @@ import com.intellij.execution.RunnerAndConfigurationSettings
 import com.intellij.execution.configurations.RunConfiguration
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service
+import com.intellij.openapi.components.serviceOrNull
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
@@ -124,7 +125,7 @@ class XMakeExecutionTargetSyncService(
 
 class XMakeExecutionTargetSyncActivity : ProjectActivity {
     override suspend fun execute(project: Project) {
-        project.getService(XMakeExecutionTargetSyncService::class.java).start()
+        (project.serviceOrNull<XMakeExecutionTargetSyncService>() ?: error("Failed to get XMakeExecutionTargetSyncService for $project")).start()
     }
 }
 
