@@ -35,6 +35,8 @@
         <moduleBuilder builderClass="io.xmake.project.wizard.XMakeProjectModuleBuilder"/>
         <!-- directory-based IDE-->
         <directoryProjectGenerator implementation="io.xmake.project.wizard.XMakeProjectDirectoryGenerator"/>
+        <!-- opening an existing folder with a root xmake.lua -->
+        <directoryProjectConfigurator implementation="io.xmake.project.wizard.XMakeDirectoryProjectConfigurator"/>
 
         <!-- XMake project settings -->
         <projectConfigurable instance="io.xmake.project.XMakeSettingsConfigurable"

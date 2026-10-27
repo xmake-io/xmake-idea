@@ -36,21 +36,19 @@ import com.intellij.openapi.observable.properties.GraphProperty
 import com.intellij.openapi.observable.properties.ObservableProperty
 import com.intellij.openapi.observable.util.*
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.roots.ModuleRootModificationUtil
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import com.intellij.openapi.ui.getCanonicalPath
 import com.intellij.openapi.ui.shortenTextWithEllipsis
 import com.intellij.openapi.ui.validation.*
-import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.project.stateStore
 import com.intellij.platform.ide.progress.runWithModalProgressBlocking
 import com.intellij.ui.UIBundle
 import com.intellij.ui.dsl.builder.*
 import com.intellij.ui.util.getTextWidth
 import com.intellij.util.containers.map2Array
-import io.xmake.project.directory.XMakeProjectDirectoryState
 import io.xmake.project.directory.XMakeProjectDirectoryState.HostDirectory
+import io.xmake.project.directory.configureInitialXMakeProjectLayout
 import io.xmake.project.directory.ui.DirectoryBrowser
 import io.xmake.project.directory.xmakeProjectDirectories
 import io.xmake.project.profile.XMakeBuildProfile
@@ -81,7 +79,6 @@ import java.io.File
 import java.io.IOException
 import java.nio.file.Path
 import javax.swing.DefaultComboBoxModel
-import kotlin.io.path.Path
 import kotlin.time.Duration.Companion.seconds
 
 class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
@@ -340,29 +337,20 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
         module: Module,
         directories: WizardDirectories,
     ) {
-        ModuleRootModificationUtil.updateModel(module) { model ->
-            with(model.addContentEntry(VfsUtil.pathToUrl(contentEntryPath))) {
-                addSourceFolder(VfsUtil.fileToUrl(Path(contentEntryPath, "src").toFile()), false)
-                addExcludeFolder(VfsUtil.fileToUrl(project.stateStore.directoryStorePath!!.toFile()))
-                addExcludeFolder(VfsUtil.fileToUrl(Path(contentEntryPath, ".xmake").toFile()))
-            }
+        configureInitialXMakeProjectLayout(project, Path.of(contentEntryPath), module)
+        if (toolkit.host.type == SSH) {
+            // Same asymmetry as importLegacyDirectory: WSL folds into the local directory,
+            // only SSH keeps a host-specific entry.
+            project.xmakeProjectDirectories.replaceState(
+                project.xmakeProjectDirectories.state.copy(
+                    hostDirectories = mutableListOf(HostDirectory(toolkit.host.id.canonical, directories.host)),
+                ),
+            )
         }
 
         val profile = XMakeBuildProfile(
             name = project.name,
             toolkitId = toolkit.id,
-        )
-        project.xmakeProjectDirectories.replaceState(
-            XMakeProjectDirectoryState(
-                localDirectory = File(contentEntryPath).path,
-                // Same asymmetry as importLegacyDirectory: WSL folds into the
-                // local directory, only SSH keeps a host-specific entry.
-                hostDirectories = if (toolkit.host.type == SSH) {
-                    mutableListOf(HostDirectory(toolkit.host.id.canonical, directories.host))
-                } else {
-                    mutableListOf()
-                },
-            ),
         )
         project.xmakeBuildProfiles.replaceProfiles(listOf(profile))
         with(RunManager.getInstance(project)) {
