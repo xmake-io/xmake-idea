@@ -35,11 +35,9 @@ class XMakeToolWindowOutputPanel(project: Project) : SimpleToolWindowPanel(false
     // the toolbar
     val toolbar: ActionToolbar = run {
         val actionManager = ActionManager.getInstance()
-        actionManager.createActionToolbar(
-            "XMake Toolbar",
-            actionManager.getAction("XMake.ToolBar") as DefaultActionGroup,
-            false
-        )
+        val group = actionManager.getAction(TOOLBAR_ACTION_GROUP_ID) as? DefaultActionGroup
+            ?: error("Action '$TOOLBAR_ACTION_GROUP_ID' is not registered as a DefaultActionGroup; check the group in plugin.xml")
+        actionManager.createActionToolbar("XMake Toolbar", group, false)
     }
 
     // the console view
@@ -65,5 +63,9 @@ class XMakeToolWindowOutputPanel(project: Project) : SimpleToolWindowPanel(false
 
     // dispose
     override fun dispose() {
+    }
+
+    private companion object {
+        const val TOOLBAR_ACTION_GROUP_ID = "XMake.ToolBar"
     }
 }
