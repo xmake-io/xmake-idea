@@ -35,7 +35,7 @@ class XMakeToolWindowFactory : ToolWindowFactory, DumbAware {
         toolWindow.contentManager.addContent(outputTab)
 
         toolWindow.contentManager.setSelectedContent(outputTab)
-        project.xmakeConsoleService.register(toolWindow, outputPanel, outputTab)
+        XMakeConsoleManager.getInstance(project).register(toolWindow, outputPanel, outputTab)
     }
 }
 

@@ -40,7 +40,7 @@ import io.xmake.debug.XMakeDebugSupport
 import io.xmake.debug.prepareXMakeDebugBuild
 import io.xmake.debug.prepareXMakeDebugLaunch
 import io.xmake.project.console.XMakeConsole
-import io.xmake.project.console.xmakeConsoleService
+import io.xmake.project.console.XMakeConsoleManager
 import io.xmake.run.command.XMakeExecutor
 import io.xmake.run.command.xmakeExecutor
 import io.xmake.run.state.XMakeDebugState
@@ -131,7 +131,7 @@ class XMakeRunner : AsyncProgramRunner<RunnerSettings>() {
     }
 
     private suspend fun prepareConsole(project: Project): XMakeConsole {
-        val console = project.xmakeConsoleService.awaitReady()
+        val console = XMakeConsoleManager.getInstance(project).awaitReady()
         withContext(Dispatchers.EDT) {
             ensureProjectIsOpen(project)
             FileDocumentManager.getInstance().saveAllDocuments()

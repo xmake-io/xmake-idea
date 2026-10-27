@@ -22,7 +22,7 @@ import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
 import io.xmake.utils.notify
 import io.xmake.project.console.XMakeConsole
-import io.xmake.project.console.xmakeConsoleService
+import io.xmake.project.console.XMakeConsoleManager
 import io.xmake.project.directory.xmakeProjectDirectories
 import io.xmake.run.command.XMakeCommand
 import io.xmake.run.command.XMakeCommandFactory
@@ -43,7 +43,7 @@ abstract class XMakeCommandAction : XMakeProjectAction() {
         FileDocumentManager.getInstance().saveAllDocuments()
 
         project.xmakeExecutor.submit {
-            val console = project.xmakeConsoleService.awaitReady()
+            val console = XMakeConsoleManager.getInstance(project).awaitReady()
             withContext(Dispatchers.EDT) {
                 console.clear()
                 if (profile == null) {
@@ -61,7 +61,7 @@ abstract class XMakeCommandAction : XMakeProjectAction() {
             ) {
                 return@invokeOnCompletion
             }
-            project.xmakeConsoleService.whenReady { console ->
+            XMakeConsoleManager.getInstance(project).whenReady { console ->
                 console.reportCommandError(project, error)
             }
         }

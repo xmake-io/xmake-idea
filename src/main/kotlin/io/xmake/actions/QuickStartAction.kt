@@ -28,7 +28,7 @@ import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.wm.ToolWindowManager
 import io.xmake.utils.notify
-import io.xmake.project.console.xmakeConsoleService
+import io.xmake.project.console.XMakeConsoleManager
 import io.xmake.project.directory.hasRootXMakeLuaCached
 import io.xmake.project.directory.hasXMakeProjectDirectorySource
 import io.xmake.project.toolkit.ToolkitManager
@@ -91,7 +91,7 @@ class QuickStartAction : XMakeProjectAction() {
             project.basePath
                 ?.let(LocalFileSystem.getInstance()::findFileByPath)
                 ?.let { VfsUtil.markDirtyAndRefresh(true, true, true, it) }
-            project.xmakeConsoleService.whenReady { console -> console.showOutput() }
+            XMakeConsoleManager.getInstance(project).whenReady { console -> console.showOutput() }
         }
     }
 
