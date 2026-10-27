@@ -208,9 +208,14 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
     }
 
     // The wizard's listener order is not guaranteed; registering here is the main guarantee.
-    private fun registerSelectedToolkit(): Toolkit =
-        toolkit?.let { current -> toolkitManager.register(current.id, context.project) ?: current }
-            ?: throw IllegalStateException("An XMake toolkit must be selected to create a project")
+    private fun registerSelectedToolkit(): Toolkit {
+        val current = toolkit ?: throw IllegalStateException("An available XMake toolkit must be selected to create a project")
+        return toolkitManager.register(current.id, context.project)
+            ?: throw IllegalStateException(
+                "The selected XMake toolkit ${current.name} (${current.path}) could not be registered. " +
+                        "Choose another toolkit or fix its host connection.",
+            )
+    }
 
     private fun resolveDirectories(toolkit: Toolkit): WizardDirectories {
         val localDirectory = File(contentEntryPath).path
