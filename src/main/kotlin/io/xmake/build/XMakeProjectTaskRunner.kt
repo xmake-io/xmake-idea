@@ -30,9 +30,8 @@ import com.intellij.task.ProjectTaskContext
 import com.intellij.task.ProjectTaskRunner
 import io.xmake.project.console.FileReferenceFilter
 import io.xmake.project.directory.xmakeProjectDirectories
-import io.xmake.run.command.XMakeCommandProcessHandler
 import io.xmake.run.command.XMakeConsoleOptions
-import io.xmake.run.command.xmakeExecutionService
+import io.xmake.run.command.xmakeExecutor
 import io.xmake.shared.XMakeProblem
 import io.xmake.utils.execute.fetchGeneratedFile
 import kotlinx.coroutines.CancellationException
@@ -64,7 +63,7 @@ class XMakeProjectTaskRunner : ProjectTaskRunner() {
         val processHandler = XMakeBuildProcessHandler(title)
         val progress = createBuildProgress(project, context, buildTasks, processHandler, title)
         val completed = AtomicBoolean()
-        val operation = project.xmakeExecutionService.submit {
+        val operation = project.xmakeExecutor.submit {
             execute(project, buildTasks, progress, processHandler, completed, title)
         }
         val promise = operation.toPromiseWithoutLogError()
@@ -90,8 +89,7 @@ class XMakeProjectTaskRunner : ProjectTaskRunner() {
     ): Result = try {
         for (task in tasks) {
             for (command in task.commands) {
-                XMakeCommandProcessHandler(
-                    project,
+                project.xmakeExecutor.awaitBuild(
                     command,
                     XMakeConsoleOptions(showProblems = true, preserveAnsiEscapes = true),
                     onTextAvailable = { text, outputType ->
@@ -100,7 +98,7 @@ class XMakeProjectTaskRunner : ProjectTaskRunner() {
                     onProblems = { problems ->
                         progress.reportProblems(problems)
                     },
-                ).awaitSuccessfulCompletion()
+                )
             }
             task.fetchOnSuccess?.let { generatedPath ->
                 val lastCommand = task.commands.last()

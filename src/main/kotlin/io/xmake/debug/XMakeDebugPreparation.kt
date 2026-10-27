@@ -22,14 +22,14 @@ import com.intellij.openapi.project.Project
 import io.xmake.utils.notify
 import io.xmake.build.XMakeBuildTask
 import io.xmake.build.XMakeBuildTaskExecution
-import io.xmake.run.command.XMakeExecutionService
+import io.xmake.run.command.XMakeExecutor
 import io.xmake.run.state.XMakeDebugState
 import java.io.File
 
 /**
  * Builds the debug target through [com.intellij.task.ProjectTaskManager] (same path as the Build
  * action, so it shows in CLion's Build tool window). Must run *before* [prepareXMakeDebugLaunch]
- * acquires the XMake execution mutex — see [io.xmake.run.command.XMakeExecutionService.submitAfter].
+ * acquires the XMake execution mutex — see [io.xmake.run.command.XMakeExecutor.submitAfter].
  */
 internal suspend fun prepareXMakeDebugBuild(project: Project, state: XMakeDebugState) {
     warnAboutBuildMode(project, state.buildMode)
@@ -45,7 +45,7 @@ internal suspend fun prepareXMakeDebugBuild(project: Project, state: XMakeDebugS
 internal suspend fun prepareXMakeDebugLaunch(
     state: XMakeDebugState,
     project: Project,
-    execution: XMakeExecutionService,
+    execution: XMakeExecutor,
 ): XMakeDebugLaunch {
     val output = execution.captureStandardOutput(state.targetPathCommand)
     val debugTarget = resolveDebugTarget(state, output)

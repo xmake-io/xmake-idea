@@ -41,8 +41,8 @@ import io.xmake.debug.prepareXMakeDebugBuild
 import io.xmake.debug.prepareXMakeDebugLaunch
 import io.xmake.project.console.XMakeConsole
 import io.xmake.project.console.xmakeConsoleService
-import io.xmake.run.command.XMakeExecutionService
-import io.xmake.run.command.xmakeExecutionService
+import io.xmake.run.command.XMakeExecutor
+import io.xmake.run.command.xmakeExecutor
 import io.xmake.run.state.XMakeDebugState
 import io.xmake.run.state.XMakeRunState
 import kotlinx.coroutines.Dispatchers
@@ -66,15 +66,12 @@ class XMakeRunner : AsyncProgramRunner<RunnerSettings>() {
         state: RunProfileState,
     ): Promise<RunContentDescriptor?> {
         val project = environment.project
-        val execution = project.xmakeExecutionService
+        val execution = project.xmakeExecutor
         val deferred = when (state) {
             is XMakeRunState -> execution.submit {
                 val console = prepareConsole(project)
                 executeRun(execution, state, environment, console)
             }
-            // The build runs through ProjectTaskManager *before* the mutex is acquired: it takes
-            // the mutex itself internally, and the mutex is not reentrant (see
-            // XMakeExecutionService.submitAfter).
             is XMakeDebugState -> execution.submitAfter(
                 before = { prepareXMakeDebugBuild(project, state) },
                 task = { executeDebug(execution, state, environment) },
@@ -87,7 +84,7 @@ class XMakeRunner : AsyncProgramRunner<RunnerSettings>() {
     }
 
     private suspend fun executeRun(
-        execution: XMakeExecutionService,
+        execution: XMakeExecutor,
         state: XMakeRunState,
         environment: ExecutionEnvironment,
         console: XMakeConsole,
@@ -110,7 +107,7 @@ class XMakeRunner : AsyncProgramRunner<RunnerSettings>() {
     }
 
     private suspend fun executeDebug(
-        execution: XMakeExecutionService,
+        execution: XMakeExecutor,
         state: XMakeDebugState,
         environment: ExecutionEnvironment,
     ): RunContentDescriptor {

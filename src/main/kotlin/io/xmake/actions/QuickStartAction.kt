@@ -32,7 +32,7 @@ import io.xmake.project.console.xmakeConsoleService
 import io.xmake.project.directory.hasRootXMakeLuaCached
 import io.xmake.project.directory.hasXMakeProjectDirectorySource
 import io.xmake.project.toolkit.ToolkitManager
-import io.xmake.run.command.xmakeExecutionService
+import io.xmake.run.command.xmakeExecutor
 import io.xmake.utils.cli.xmake
 import io.xmake.utils.execute.ProcessTimeoutException
 import io.xmake.utils.execute.failureDetail
@@ -63,7 +63,7 @@ class QuickStartAction : XMakeProjectAction() {
             withWorkDirectory(resolvedProjectDirectoryPath)
         }
 
-        project.xmakeExecutionService.submit {
+        project.xmakeExecutor.submit {
             try {
                 val result = commandLine.execute(project, CREATE_TIMEOUT)
                 if (result.exitCode == 0) {

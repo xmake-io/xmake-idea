@@ -24,7 +24,7 @@ import io.xmake.utils.notify
 import io.xmake.project.console.XMakeConsole
 import io.xmake.project.console.xmakeConsoleService
 import io.xmake.run.command.XMakeCommandFactory
-import io.xmake.run.command.xmakeExecutionService
+import io.xmake.run.command.xmakeExecutor
 import io.xmake.run.command.xmakeCommands
 import io.xmake.run.target.activeOrSingleXMakeBuildProfile
 import kotlinx.coroutines.CancellationException
@@ -37,7 +37,7 @@ abstract class XMakeCommandAction : XMakeProjectAction() {
         val profile = project.activeOrSingleXMakeBuildProfile
         FileDocumentManager.getInstance().saveAllDocuments()
 
-        project.xmakeExecutionService.submit {
+        project.xmakeExecutor.submit {
             val console = project.xmakeConsoleService.awaitReady()
             withContext(Dispatchers.EDT) {
                 console.clear()

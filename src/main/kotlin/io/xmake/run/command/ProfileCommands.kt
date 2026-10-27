@@ -31,7 +31,7 @@ import kotlinx.coroutines.CancellationException
  *  every query. */
 internal class ProfileCommands internal constructor(
     private val factory: XMakeCommandFactory,
-    private val executor: XMakeExecutionService,
+    private val executor: XMakeExecutor,
 ) {
 
     /** One `xmake show -l <name>` listing. Older xmake versions reject the `--json` flag, so
@@ -92,7 +92,7 @@ internal suspend fun <T> Project.withProfileCommands(
     toolkit: Toolkit? = null,
     action: suspend ProfileCommands.() -> T,
 ): T {
-    val executor = xmakeExecutionService
+    val executor = xmakeExecutor
     return executor.runExclusive {
         ProfileCommands(XMakeCommandFactory(this@withProfileCommands, profile, toolkit), executor).action()
     }

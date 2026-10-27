@@ -25,7 +25,7 @@ import io.xmake.project.console.XMakeConsole
 import io.xmake.project.directory.xmakeProjectDirectories
 import io.xmake.run.command.XMakeCommandFactory
 import io.xmake.run.command.XMakeConsoleOptions
-import io.xmake.run.command.xmakeExecutionService
+import io.xmake.run.command.xmakeExecutor
 import io.xmake.utils.execute.fetchGeneratedFile
 import io.xmake.utils.execute.syncBeforeFetch
 
@@ -35,7 +35,7 @@ class UpdateCMakeListsAction : XMakeCommandAction() {
         console: XMakeConsole,
         commandFactory: XMakeCommandFactory,
     ) {
-        val execution = project.xmakeExecutionService
+        val execution = project.xmakeExecutor
         val updateCommand = commandFactory.createUpdateCMakeLists()
         val toolkit = updateCommand.toolkit
         val workingDirectory = updateCommand.workingDirectory
