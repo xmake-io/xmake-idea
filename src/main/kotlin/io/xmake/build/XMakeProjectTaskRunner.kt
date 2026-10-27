@@ -210,8 +210,8 @@ class XMakeProjectTaskRunner : ProjectTaskRunner() {
 
     private fun XMakeProblem.filePosition(): FilePosition? {
         val path = navigablePath ?: return null
-        val sourceLine = line?.toIntOrNull()?.minus(1)?.coerceAtLeast(0) ?: 0
-        val sourceColumn = column?.toIntOrNull()?.minus(1)?.coerceAtLeast(0) ?: 0
+        val sourceLine = (line - 1).coerceAtLeast(0)
+        val sourceColumn = (column - 1).coerceAtLeast(0)
         return FilePosition(path.normalize(), sourceLine, sourceColumn)
     }
 

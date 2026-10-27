@@ -25,8 +25,8 @@ import java.nio.file.Path
 
 data class XMakeProblem(
     val file: String? = null,
-    val line: String? = "0",
-    val column: String? = "0",
+    val line: Int = 0,
+    val column: Int = 0,
     val kind: String? = "error",
     val message: String? = "",
     val workingDirectory: Path? = null,
