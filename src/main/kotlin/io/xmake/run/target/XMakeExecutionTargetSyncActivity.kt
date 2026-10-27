@@ -41,7 +41,7 @@ import io.xmake.project.profile.xmakeBuildProfiles
 import io.xmake.project.directory.XMakeProjectDirectoryManager
 import io.xmake.project.directory.XMakeProjectDirectoryResolutionService
 import io.xmake.run.XMakeProfileRunConfiguration
-import io.xmake.run.command.XMakeCommandFactory
+import io.xmake.run.command.xmakeCommands
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -195,7 +195,7 @@ private class TargetSynchronizer(
                 withContext(Dispatchers.IO) {
                     XMakeBuildTask(
                         presentableName = "Configure '${profile.name}'",
-                        commands = listOf(XMakeCommandFactory(project, profile).createConfigure()),
+                        commands = listOf(project.xmakeCommands(profile).createConfigure()),
                     )
                 }
             } catch (error: CancellationException) {

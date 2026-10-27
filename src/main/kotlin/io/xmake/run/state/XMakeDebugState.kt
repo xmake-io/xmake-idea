@@ -24,8 +24,8 @@ import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.util.execution.ParametersListUtil
 import io.xmake.run.XMakeRunConfiguration
 import io.xmake.run.command.XMakeCommand
-import io.xmake.run.command.XMakeCommandFactory
 import io.xmake.run.command.resolveLaunchWorkingDirectory
+import io.xmake.run.command.xmakeCommands
 import io.xmake.run.target.requireXMakeBuildProfileFor
 
 internal class XMakeDebugState private constructor(
@@ -53,7 +53,7 @@ internal class XMakeDebugState private constructor(
             environment: ExecutionEnvironment,
         ): XMakeDebugState {
             val profile = configuration.project.requireXMakeBuildProfileFor(environment.executionTarget)
-            val commandFactory = XMakeCommandFactory(configuration.project, profile)
+            val commandFactory = configuration.project.xmakeCommands(profile)
             val buildCommand = commandFactory.createTargetBuild(configuration.runTarget)
             if (buildCommand.toolkit.requiresBackend) {
                 throw ExecutionException("XMake debugging is supported only for local toolkits")

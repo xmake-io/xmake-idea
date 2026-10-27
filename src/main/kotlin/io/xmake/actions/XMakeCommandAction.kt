@@ -25,6 +25,7 @@ import io.xmake.project.console.XMakeConsole
 import io.xmake.project.console.xmakeConsoleService
 import io.xmake.run.command.XMakeCommandFactory
 import io.xmake.run.command.xmakeExecutionService
+import io.xmake.run.command.xmakeCommands
 import io.xmake.run.target.activeOrSingleXMakeBuildProfile
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -45,7 +46,7 @@ abstract class XMakeCommandAction : XMakeProjectAction() {
                 }
             }
             if (profile != null) {
-                execute(project, console, XMakeCommandFactory(project, profile))
+                execute(project, console, project.xmakeCommands(profile))
             }
         }.invokeOnCompletion { error ->
             if (

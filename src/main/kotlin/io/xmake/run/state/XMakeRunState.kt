@@ -25,9 +25,9 @@ import com.intellij.execution.runners.ExecutionEnvironment
 import io.xmake.project.console.FileReferenceFilter
 import io.xmake.run.XMakeRunConfiguration
 import io.xmake.run.command.XMakeCommand
-import io.xmake.run.command.XMakeCommandFactory
 import io.xmake.run.command.XMakeConsoleOptions
 import io.xmake.run.command.XMakeCommandProcessHandler
+import io.xmake.run.command.xmakeCommands
 import io.xmake.run.target.requireXMakeBuildProfileFor
 
 internal class XMakeRunState private constructor(
@@ -66,7 +66,7 @@ internal class XMakeRunState private constructor(
             environment: ExecutionEnvironment,
         ): XMakeRunState {
             val profile = configuration.project.requireXMakeBuildProfileFor(environment.executionTarget)
-            val commandFactory = XMakeCommandFactory(configuration.project, profile)
+            val commandFactory = configuration.project.xmakeCommands(profile)
             return XMakeRunState(
                 environment,
                 commandFactory.createConfigure(),
