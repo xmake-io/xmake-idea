@@ -85,7 +85,7 @@ internal class XMakeDebugAdapterDescriptor(
             prependPath(driverDirectory)
         }
         return GeneralCommandLine(driverPath)
-            .withWorkDirectory(launch.workingDirectory.ifBlank { project.basePath })
+            .withWorkDirectory(launch.workingDirectory)
             .withEnvironment(environment)
     }
 

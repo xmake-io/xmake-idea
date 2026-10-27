@@ -30,7 +30,7 @@ internal class XMakeRunParameters(private val launch: XMakeDebugLaunch) : RunPar
         GeneralCommandLine(launch.executablePath)
             .withParameters(launch.arguments)
             .withEnvironment(launch.environment)
-            .withWorkDirectory(launch.workingDirectory.ifBlank { null }),
+            .withWorkDirectory(launch.workingDirectory),
     )
 
     override fun getDebuggerDriverConfiguration(): DebuggerDriverConfiguration = LLDBDriverConfiguration()

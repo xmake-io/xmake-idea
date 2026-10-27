@@ -81,26 +81,18 @@ private fun resolveDebugTarget(state: XMakeDebugState, output: String): DebugTar
     val targetPath = targetOutputLines.firstOrNull()
         ?: throw ExecutionException("Could not determine the executable path for ${state.targetName}")
 
-    val resolvedTargetPath = if (File(targetPath).isAbsolute) {
-        targetPath
-    } else {
-        File(state.targetPathCommand.workingDirectory, targetPath).absolutePath
-    }
-    val executableFile = File(resolvedTargetPath)
+    val baseDirectory = state.targetPathCommand.workingDirectory
+    val executableFile =
+        if (File(targetPath).isAbsolute) File(targetPath) else File(baseDirectory, targetPath)
     if (!executableFile.isFile) throw ExecutionException("Target executable not found: $targetPath")
 
-    val effectiveRunDirectoryPath = targetOutputLines.getOrNull(1)
-    val effectiveRunDirectory = if (effectiveRunDirectoryPath == null) {
-        executableFile.absoluteFile.parentFile
-    } else if (File(effectiveRunDirectoryPath).isAbsolute) {
-        File(effectiveRunDirectoryPath)
-    } else {
-        File(state.targetPathCommand.workingDirectory, effectiveRunDirectoryPath).absoluteFile
-    }
+    val effectiveRunDirectory = targetOutputLines.getOrNull(1)
+        ?.let { if (File(it).isAbsolute) File(it) else File(baseDirectory, it) }
+        ?: executableFile.parentFile
     if (!effectiveRunDirectory.isDirectory) {
         throw ExecutionException("Target run directory not found: ${effectiveRunDirectory.absolutePath}")
     }
-    return DebugTarget(executableFile.absoluteFile, effectiveRunDirectory)
+    return DebugTarget(executableFile.absoluteFile, effectiveRunDirectory.absoluteFile)
 }
 
 private suspend fun resolveDapDriver(project: Project, state: XMakeDebugState): XMakeDebugDriver.Dap {
