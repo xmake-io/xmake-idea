@@ -37,7 +37,6 @@ import io.xmake.utils.runCancellable
 import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.project.profile.XMakeBuildProfileManager
 import io.xmake.project.toolkit.ToolkitListener
-import io.xmake.run.command.configureBestEffort
 import io.xmake.run.command.executeInfoQuery
 import io.xmake.run.command.withProfileCommands
 import io.xmake.run.target.activeOrSingleXMakeBuildProfile
@@ -133,8 +132,6 @@ class XMakeInfoManager(
                     return@withContext
                 }
                 project.withProfileCommands(profile) { executionService ->
-                    configureBestEffort(executionService)
-
                     suspend fun <T> queryOrNull(queryName: String, parse: (String) -> T): T? =
                         runCancellable { parse(executeInfoQuery(queryName, executionService)) }
                             .getOrElse { error ->
@@ -147,12 +144,6 @@ class XMakeInfoManager(
                     val apisKey = apisCacheKey(profile)
                     val apisCached = apisKey != null && apisKey == cachedApisKey && xmakeInfo.apis.isNotEmpty()
                     val info = XMakeInfo(
-                        architectures = queryOrNull("architectures", XMakeInfo::parseArchitectures)
-                            ?: previous.architectures,
-                        buildModes = queryOrNull("buildmodes", XMakeInfo::parseBuildModes) ?: previous.buildModes,
-                        platforms = queryOrNull("platforms", XMakeInfo::parsePlatforms) ?: previous.platforms,
-                        targets = queryOrNull("targets", XMakeInfo::parseTargets) ?: previous.targets,
-                        toolchains = queryOrNull("toolchains", XMakeInfo::parseToolchains) ?: previous.toolchains,
                         apis = if (apisCached) {
                             xmakeInfo.apis
                         } else {
