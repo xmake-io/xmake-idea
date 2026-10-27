@@ -95,11 +95,18 @@ private fun resolveDebugTarget(state: XMakeDebugState, output: String): DebugTar
     return DebugTarget(executableFile.absoluteFile, effectiveRunDirectory.absoluteFile)
 }
 
+internal const val EMPTY_DAP_DRIVER_PATH_MESSAGE =
+    "The configured DAP driver path is empty. " +
+        "Enter the path to lldb-dap or a DAP-capable GDB in the debug configuration, or enable auto-detection."
 private suspend fun resolveDapDriver(project: Project, state: XMakeDebugState): XMakeDebugDriver.Dap {
-    val driverPath = if (!state.dapDriverAutoDetect) {
-        state.configuredDapDriverPath.trim()
-    } else {
+    val driverPath = if (state.dapDriverAutoDetect) {
         DapDriverDetector.findBestDriver()?.path.orEmpty()
+    } else {
+        state.configuredDapDriverPath.trim().ifEmpty {
+            // checkConfiguration usually rejects an empty path before launch; dumb-mode and
+            // settings-less launches skip that check, so guard here with the same message.
+            throw ExecutionException(EMPTY_DAP_DRIVER_PATH_MESSAGE)
+        }
     }
     if (driverPath.isBlank()) {
         throw ExecutionException(

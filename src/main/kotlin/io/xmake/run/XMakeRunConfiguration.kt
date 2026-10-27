@@ -38,6 +38,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.util.xmlb.XmlSerializer
 import com.intellij.util.xmlb.annotations.OptionTag
 import com.intellij.util.xmlb.annotations.Transient
+import io.xmake.debug.EMPTY_DAP_DRIVER_PATH_MESSAGE
 import io.xmake.migration.readLegacyBuildSettings
 import io.xmake.migration.removeLegacyBuildSettings
 import io.xmake.project.profile.xmakeBuildProfiles
@@ -142,7 +143,10 @@ class XMakeRunConfiguration(
         }
         if (useDapDriver && !dapDriverAutoDetect) {
             val driverPath = dapDriverPath.trim()
-            if (driverPath.isEmpty() || !File(driverPath).canExecute()) {
+            if (driverPath.isEmpty()) {
+                throw RuntimeConfigurationError(EMPTY_DAP_DRIVER_PATH_MESSAGE)
+            }
+            if (!File(driverPath).canExecute()) {
                 throw RuntimeConfigurationError("DAP driver path does not point to an executable: '$driverPath'")
             }
         }
