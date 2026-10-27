@@ -74,36 +74,36 @@ internal object DapDriverDetector {
         }
     }
 
-    private fun candidateDriverPaths(): List<String> = buildList {
-        when {
-            SystemInfo.isMac -> addAll(listOf(
-                "/Applications/Xcode.app/Contents/Developer/usr/bin/lldb-dap",
-                "/usr/local/opt/llvm/bin/lldb-dap",
-                "/opt/homebrew/opt/llvm/bin/lldb-dap",
-                "/usr/bin/lldb-dap",
-                "/usr/local/bin/lldb-dap",
-                "/usr/local/opt/llvm/bin/gdb",
-                "/opt/homebrew/opt/llvm/bin/gdb",
-                "/usr/bin/gdb",
-                "/usr/local/bin/gdb",
-            ))
+    private fun candidateDriverPaths(): List<String> = when {
+        SystemInfo.isMac -> listOf(
+            "/Applications/Xcode.app/Contents/Developer/usr/bin/lldb-dap",
+            "/usr/local/opt/llvm/bin/lldb-dap",
+            "/opt/homebrew/opt/llvm/bin/lldb-dap",
+            "/usr/bin/lldb-dap",
+            "/usr/local/bin/lldb-dap",
+            "/usr/local/opt/llvm/bin/gdb",
+            "/opt/homebrew/opt/llvm/bin/gdb",
+            "/usr/bin/gdb",
+            "/usr/local/bin/gdb",
+        )
 
-            SystemInfo.isLinux -> addAll(listOf(
-                "/usr/bin/lldb-dap",
-                "/usr/local/bin/lldb-dap",
-                "/usr/bin/gdb",
-                "/usr/local/bin/gdb",
-                "/snap/bin/gdb",
-                "/snap/bin/gdb-dap",
-            ))
+        SystemInfo.isLinux -> listOf(
+            "/usr/bin/lldb-dap",
+            "/usr/local/bin/lldb-dap",
+            "/usr/bin/gdb",
+            "/usr/local/bin/gdb",
+            "/snap/bin/gdb",
+            "/snap/bin/gdb-dap",
+        )
 
-            SystemInfo.isWindows -> addAll(listOf(
-                "C:\\Program Files\\LLVM\\bin\\lldb-dap.exe",
-                "C:\\Program Files (x86)\\LLVM\\bin\\lldb-dap.exe",
-                "C:\\msys64\\mingw64\\bin\\lldb-dap.exe",
-                "C:\\msys64\\mingw64\\bin\\gdb.exe",
-                "C:\\Program Files\\GDB\\bin\\gdb.exe",
-            ))
-        }
+        SystemInfo.isWindows -> listOf(
+            "C:\\Program Files\\LLVM\\bin\\lldb-dap.exe",
+            "C:\\Program Files (x86)\\LLVM\\bin\\lldb-dap.exe",
+            "C:\\msys64\\mingw64\\bin\\lldb-dap.exe",
+            "C:\\msys64\\mingw64\\bin\\gdb.exe",
+            "C:\\Program Files\\GDB\\bin\\gdb.exe",
+        )
+
+        else -> emptyList()
     }
 }

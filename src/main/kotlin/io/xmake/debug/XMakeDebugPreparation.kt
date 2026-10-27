@@ -143,7 +143,7 @@ private fun notifyGdbDapUnavailable(
             )
         is DapSupport.Unverified -> "GDB DAP support could not be verified" to (
             "Starting the DAP interpreter of the selected GDB failed or timed out.<br/>" +
-                "Run '${driver.path} -i dap -batch' in a terminal to check the driver directly.<br/><br/>" +
+                "Run '${GdbSupportDetector.detectionCommand(driver.path)}' in a terminal to check the driver directly.<br/><br/>" +
                 "driver=${driver.path}<br/><br/>${support.diagnostics}"
             )
         DapSupport.Supported -> return

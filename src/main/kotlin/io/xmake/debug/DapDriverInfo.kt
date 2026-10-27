@@ -24,6 +24,9 @@ import com.intellij.openapi.util.Version
 /** The lowest GDB release that speaks DAP. */
 internal val MIN_DAP_GDB_VERSION = Version(14, 1, 0)
 
+/** The GDB arguments that select the DAP interpreter, shared by detection and launch. */
+val GDB_DAP_INTERPRETER_ARGS = listOf("-i", "dap")
+
 enum class DapDriverType(val displayName: String) {
     LLDB("LLDB DAP"),
     GDB("GDB DAP"),

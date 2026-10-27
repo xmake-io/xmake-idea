@@ -32,6 +32,7 @@ import com.intellij.util.EnvironmentUtil
 import com.jetbrains.cidr.execution.debugger.breakpoints.CidrExceptionBreakpointType
 import com.jetbrains.cidr.execution.debugger.breakpoints.CidrLineBreakpointType
 import io.xmake.debug.DapDriverType
+import io.xmake.debug.GDB_DAP_INTERPRETER_ARGS
 import io.xmake.debug.XMakeDebugDriver
 import io.xmake.debug.XMakeDebugLaunch
 import io.xmake.utils.execute.runProcessBlocking
@@ -72,7 +73,7 @@ internal class XMakeDebugAdapterDescriptor(
     private fun createDriverCommandLine(launch: XMakeDebugLaunch, driver: XMakeDebugDriver.Dap): GeneralCommandLine =
         baseDriverCommandLine(launch, driver).apply {
             if (driver.info.type == DapDriverType.GDB) {
-                addParameters("-i", "dap")
+                withParameters(GDB_DAP_INTERPRETER_ARGS)
             }
         }
 
