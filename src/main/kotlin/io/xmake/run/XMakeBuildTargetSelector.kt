@@ -17,30 +17,23 @@
 package io.xmake.run
 
 import com.intellij.openapi.Disposable
-import com.intellij.openapi.application.EDT
-import com.intellij.openapi.application.ModalityState
-import com.intellij.openapi.application.asContextElement
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import io.xmake.project.profile.XMakeBuildProfile
-import io.xmake.project.target.discoverXMakeBuildTargets
 import io.xmake.utils.cli.DEFAULT_TARGET
-import io.xmake.utils.ui.LiveModelComboBox
+import io.xmake.utils.info.XMakeInfoManager
 import io.xmake.utils.runCancellable
+import io.xmake.utils.ui.uiEdt
+import io.xmake.utils.ui.loader
+import io.xmake.utils.ui.LiveModelComboBox
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.consumeAsFlow
-import kotlinx.coroutines.flow.transformLatest
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.swing.DefaultComboBoxModel
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class XMakeBuildTargetSelector(
     private val project: Project,
     parentDisposable: Disposable,
@@ -49,8 +42,21 @@ class XMakeBuildTargetSelector(
     private val buildTargetModel = DefaultComboBoxModel<String>()
     val component: LiveModelComboBox<String> = LiveModelComboBox(buildTargetModel)
 
-    private var buildTargetProfileSnapshot: XMakeBuildProfile? = null
-    private val targetRequests = Channel<XMakeBuildProfile>(Channel.CONFLATED)
+    private var loadedTargetsProfile: XMakeBuildProfile? = null
+    private val loadTargets = loader<XMakeBuildProfile>(scope) { requestedProfile ->
+        val buildTargets =
+            runCancellable { XMakeInfoManager.getInstance(project).loadBuildTargets(requestedProfile) }
+                .getOrElse { error ->
+                    // Keep the persisted target when profile discovery is unavailable.
+                    Log.warn("Failed to load XMake targets for profile ${requestedProfile.id}", error)
+                    return@loader
+                }
+        withContext(uiEdt) {
+            if (!project.isDisposed && loadedTargetsProfile == requestedProfile) {
+                replaceBuildTargetChoices(selectedTarget, buildTargets)
+            }
+        }
+    }
     private var editedConfiguration: XMakeProfileRunConfiguration? = null
 
     val selectedTarget: String
@@ -59,25 +65,6 @@ class XMakeBuildTargetSelector(
     init {
         Disposer.register(parentDisposable, component)
         Disposer.register(parentDisposable) { scope.cancel() }
-        scope.launch {
-            targetRequests.consumeAsFlow()
-                .transformLatest { profile ->
-                    runCancellable {
-                        emit(profile to project.discoverXMakeBuildTargets(profile))
-                    }.onFailure { error ->
-                        // Keep the persisted target when profile discovery is unavailable.
-                        Log.warn("Failed to load XMake targets for profile ${profile.id}", error)
-                    }
-                }
-                .collect { (requestedProfile, buildTargets) ->
-                    withContext(Dispatchers.EDT + ModalityState.any().asContextElement()) {
-                        if (project.isDisposed || buildTargetProfileSnapshot != requestedProfile) {
-                            return@withContext
-                        }
-                        replaceBuildTargetChoices(selectedTarget, buildTargets)
-                    }
-                }
-        }
         replaceBuildTargetChoices(DEFAULT_TARGET, emptyList())
         val connection = project.messageBus.connect(parentDisposable)
         connection.subscribeToContextChanges {
@@ -100,20 +87,12 @@ class XMakeBuildTargetSelector(
         if (profile == null) {
             resetBuildTargetChoices(configuration.runTarget)
         } else {
-            requestBuildTargets(profile)
+            loadTargets(profile)
         }
-    }
-
-    private fun requestBuildTargets(profile: XMakeBuildProfile) {
-        if (buildTargetProfileSnapshot != profile) {
-            buildTargetProfileSnapshot = profile
-            replaceBuildTargetChoices(selectedTarget, emptyList())
-        }
-        targetRequests.trySend(profile)
     }
 
     private fun resetBuildTargetChoices(selectedTarget: String) {
-        buildTargetProfileSnapshot = null
+        loadedTargetsProfile = null
         replaceBuildTargetChoices(selectedTarget, emptyList())
     }
 

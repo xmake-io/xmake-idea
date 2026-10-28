@@ -20,6 +20,7 @@
  */
 package io.xmake.utils.info
 
+import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.logger
@@ -27,27 +28,39 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.openapi.vfs.newvfs.BulkFileListener
 import com.intellij.openapi.vfs.newvfs.events.VFileEvent
+import com.intellij.util.messages.Topic
 import io.xmake.file.highlight.XMakeApiRegistry
 import io.xmake.project.directory.XMakeProjectDirectoryManager
 import io.xmake.project.directory.XMakeProjectDirectoryResolutionService
 import io.xmake.project.directory.hasRootXMakeLua
 import io.xmake.project.directory.hasXMakeProjectDirectorySource
 import io.xmake.project.directory.isXMakeLuaVfsEvent
-import io.xmake.utils.runCancellable
+import io.xmake.project.profile.XMakeBuildOptions
 import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.project.profile.XMakeBuildProfileManager
+import io.xmake.project.profile.queryXMakeBuildOptions
+import io.xmake.project.target.discoverXMakeBuildTargets
+import io.xmake.project.toolkit.Toolkit
+import io.xmake.project.toolkit.ToolkitInstallationKey
 import io.xmake.project.toolkit.ToolkitListener
-import io.xmake.run.command.configureBestEffort
-import io.xmake.run.command.executeInfoQuery
+import io.xmake.project.toolkit.installationKey
+import io.xmake.run.command.XMakeProjectVersionError
+import io.xmake.run.command.userMessage
 import io.xmake.run.command.withProfileCommands
 import io.xmake.run.target.activeOrSingleXMakeBuildProfile
-import kotlinx.coroutines.FlowPreview
+import io.xmake.utils.publish
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.time.Duration.Companion.milliseconds
@@ -66,7 +79,12 @@ class XMakeInfoManager(
 
     private var probedToolkitId: String? = null
 
-    private var cachedApisKey: Pair<String, String?>? = null
+    /** The installation the cached apis listing came from; remembered across toolkit switches,
+     *  because the apis listing answers for the installation, not the project. */
+    private var cachedApisKey: ToolkitInstallationKey? = null
+
+    private val buildOptions = CacheLayer<ToolkitInstallationKey, XMakeBuildOptions>(scope)
+    private val buildTargets = CacheLayer<XMakeBuildProfile, List<String>>(scope)
 
     private val messageBusConnection = project.messageBus.connect(this)
     private val probeRequests = Channel<XMakeBuildProfile>(Channel.CONFLATED)
@@ -74,27 +92,27 @@ class XMakeInfoManager(
     init {
         messageBusConnection.subscribe(
             ToolkitListener.TOPIC,
-            ToolkitListener { refreshProfileInfo() },
+            ToolkitListener { invalidateCaches() },
         )
         messageBusConnection.subscribe(
             XMakeBuildProfileManager.TOPIC,
-            XMakeBuildProfileManager.Listener { refreshProfileInfo() },
+            XMakeBuildProfileManager.Listener { enqueueActiveProfileProbe() },
         )
         messageBusConnection.subscribe(
             XMakeProjectDirectoryManager.TOPIC,
-            XMakeProjectDirectoryManager.Listener { refreshProfileInfo() },
+            XMakeProjectDirectoryManager.Listener { invalidateCaches() },
         )
         // A probe dropped while the cached directory awareness lagged behind is retried here.
         messageBusConnection.subscribe(
             XMakeProjectDirectoryResolutionService.TOPIC,
-            XMakeProjectDirectoryResolutionService.Listener { refreshProfileInfo() },
+            XMakeProjectDirectoryResolutionService.Listener { invalidateCaches() },
         )
         messageBusConnection.subscribe(
             VirtualFileManager.VFS_CHANGES,
             object : BulkFileListener {
                 override fun after(events: MutableList<out VFileEvent>) {
                     if (events.any { isXMakeLuaVfsEvent(it, includeContentChanges = true) }) {
-                        enqueueActiveProfileProbe()
+                        invalidateCaches()
                     }
                 }
             },
@@ -106,10 +124,26 @@ class XMakeInfoManager(
         }
     }
 
-    /** Recomputes everything derived from the active profile. No-op while unresolved; xmakeInfo
-     *  then keeps its last values until the next successful resolve. */
-    private fun refreshProfileInfo() {
-        // Directory changes can arrive before cached action awareness is refreshed.
+    /** Loads the build options for [toolkit]; the listings are profile-independent (see
+     *  [queryXMakeBuildOptions]), so the cache is keyed by the installation. */
+    internal suspend fun loadBuildOptions(profile: XMakeBuildProfile, toolkit: Toolkit): XMakeBuildOptions =
+        buildOptions.obtain(toolkit.installationKey()) {
+            project.queryXMakeBuildOptions(profile, toolkit)
+        }
+
+    /** Loads the build targets of one profile; the discovery keeps its configure side effect,
+     *  which a cache hit skips. */
+    internal suspend fun loadBuildTargets(profile: XMakeBuildProfile): List<String> =
+        buildTargets.obtain(profile) { project.discoverXMakeBuildTargets(it) }
+
+    /** Drops every cached query result; the apis listing keeps its installation memory,
+     *  because a toolkit switch must not re-query the installation it already answered for. */
+    private fun invalidateCaches() {
+        buildOptions.invalidate()
+        buildTargets.invalidate()
+        if (!project.isDisposed) {
+            project.publish(TOPIC) { cachesChanged() }
+        }
         enqueueActiveProfileProbe()
     }
 
@@ -132,31 +166,16 @@ class XMakeInfoManager(
                 if (!project.hasXMakeProjectDirectorySource && !project.hasRootXMakeLua) {
                     return@withContext
                 }
-                project.withProfileCommands(profile) { executionService ->
-                    configureBestEffort(executionService)
-
-                    suspend fun <T> queryOrNull(queryName: String, parse: (String) -> T): T? =
-                        runCancellable { parse(executeInfoQuery(queryName, executionService)) }
-                            .getOrElse { error ->
-                                Log.warn("Failed to query XMake '$queryName'; keeping its previous value", error)
-                                null
-                            }
-
+                project.withProfileCommands(profile) {
                     val previous = if (profile.toolkitId == probedToolkitId) xmakeInfo else XMakeInfo()
                     probedToolkitId = profile.toolkitId
                     val apisKey = apisCacheKey(profile)
                     val apisCached = apisKey != null && apisKey == cachedApisKey && xmakeInfo.apis.isNotEmpty()
                     val info = XMakeInfo(
-                        architectures = queryOrNull("architectures", XMakeInfo::parseArchitectures)
-                            ?: previous.architectures,
-                        buildModes = queryOrNull("buildmodes", XMakeInfo::parseBuildModes) ?: previous.buildModes,
-                        platforms = queryOrNull("platforms", XMakeInfo::parsePlatforms) ?: previous.platforms,
-                        targets = queryOrNull("targets", XMakeInfo::parseTargets) ?: previous.targets,
-                        toolchains = queryOrNull("toolchains", XMakeInfo::parseToolchains) ?: previous.toolchains,
                         apis = if (apisCached) {
                             xmakeInfo.apis
                         } else {
-                            queryOrNull("apis", XMakeInfo::parseApis) ?: previous.apis
+                            listing("apis", XMakeInfo::parseApis) ?: previous.apis
                         },
                     )
                     if (info.apis.isNotEmpty()) {
@@ -164,13 +183,21 @@ class XMakeInfoManager(
                     }
                     xmakeInfo = info
 
-                    if (info.apis.isNotEmpty()) {
+                    // The Lua lexer reads the registry, so editors opened before the probe keep
+                    // the old vocabulary unless the analyzer restarts.
+                    if (info.apis.isNotEmpty() && info.apis != XMakeApiRegistry.current) {
                         XMakeApiRegistry.update(info.apis)
+                        DaemonCodeAnalyzer.getInstance(project).restart("Xmake api set changed")
                     }
                 }
             }
         } catch (error: CancellationException) {
             throw error
+        } catch (error: XMakeProjectVersionError) {
+            val toolkit = profile.resolveToolkit(project)
+            if (toolkit != null) {
+                Log.warn(error.userMessage(toolkit))
+            }
         } catch (error: Exception) {
             Log.warn("Failed to probe XMake information for profile ${profile.id}", error)
         }
@@ -180,15 +207,99 @@ class XMakeInfoManager(
         messageBusConnection.disconnect()
     }
 
-    private fun apisCacheKey(profile: XMakeBuildProfile): Pair<String, String?>? =
-        profile.toolkitId?.let { id -> id to profile.resolveToolkit(project)?.version }
+    private fun apisCacheKey(profile: XMakeBuildProfile): ToolkitInstallationKey? =
+        profile.toolkitId?.let { id -> ToolkitInstallationKey(id, profile.resolveToolkit(project)?.version) }
+
+    fun interface Listener {
+        fun cachesChanged()
+    }
 
     companion object {
         private val PROBE_DEBOUNCE = 300.milliseconds
 
         private val Log = logger<XMakeInfoManager>()
 
+        @Topic.ProjectLevel
+        val TOPIC: Topic<Listener> = Topic.create(
+            "XMake info caches changed",
+            Listener::class.java,
+        )
+
         fun getInstance(project: Project): XMakeInfoManager =
             project.getService(XMakeInfoManager::class.java) ?: error("Failed to get XMakeInfoManager for $project")
+    }
+}
+
+/** One xmake installation at one version; the toolkit id already encodes the host and the
+ *  installation path, so the version is the only extra dimension. A null version marks a
+ *  toolkit that could not be resolved far enough to know it. */
+/** One map of cached query results, where in-flight loads join and invalidation cancels
+ *  pending loads and drops values by generation. */
+private class CacheLayer<K : Any, R : Any>(
+    private val scope: CoroutineScope,
+) {
+    private val lock = Any()
+    private val values = HashMap<K, R>()
+    private val pending = HashMap<K, Deferred<Result<R>>>()
+    private var generation = 0L
+
+    /** Loads the value for [key], joining an in-flight load; [load] is the first caller's one,
+     *  so concurrent callers with different loaders share its result. */
+    suspend fun obtain(key: K, load: suspend (K) -> R): R {
+        while (true) {
+            val startGeneration: Long
+            val deferred = synchronized(lock) {
+                values[key]?.let { return it }
+                startGeneration = generation
+                pending[key] ?: startLoad(key, load)
+            }
+            val value = try {
+                deferred.await().getOrThrow()
+            } catch (error: CancellationException) {
+                if (!currentCoroutineContext().isActive || !scope.isActive) {
+                    throw error
+                }
+                continue
+            }
+            if (synchronized(lock) { startGeneration == generation }) return value
+        }
+    }
+
+    /** The load runs in [scope] and captures its own failure, so a deferred nobody awaits
+     *  cannot leak its exception. */
+    private fun startLoad(key: K, load: suspend (K) -> R): Deferred<Result<R>> {
+        val startGeneration = generation
+        val deferred = scope.async(start = CoroutineStart.LAZY) {
+            val result = try {
+                Result.success(load(key))
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                Result.failure(error)
+            }
+            result.getOrNull()?.let { value ->
+                synchronized(lock) {
+                    if (startGeneration == generation) {
+                        values[key] = value
+                    }
+                }
+            }
+            result
+        }
+        pending[key] = deferred
+        deferred.invokeOnCompletion {
+            synchronized(lock) { pending.remove(key, deferred) }
+        }
+        deferred.start()
+        return deferred
+    }
+
+    fun invalidate() {
+        generation++
+        val cancelled = synchronized(lock) {
+            values.clear()
+            pending.values.toList().also { pending.clear() }
+        }
+        cancelled.forEach { deferred -> deferred.cancel() }
     }
 }

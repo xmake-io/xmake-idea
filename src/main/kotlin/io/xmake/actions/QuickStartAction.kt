@@ -22,7 +22,6 @@ package io.xmake.actions
 
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.AnActionEvent
-import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.LocalFileSystem
@@ -33,12 +32,13 @@ import io.xmake.project.console.xmakeConsoleService
 import io.xmake.project.directory.hasRootXMakeLuaCached
 import io.xmake.project.directory.hasXMakeProjectDirectorySource
 import io.xmake.project.toolkit.ToolkitManager
+import io.xmake.run.command.xmakeExecutionService
 import io.xmake.utils.cli.xmake
 import io.xmake.utils.execute.ProcessTimeoutException
 import io.xmake.utils.execute.failureDetail
 import io.xmake.utils.path.WorkingDirectoryResolver
 import kotlin.time.Duration.Companion.seconds
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CancellationException
 
 class QuickStartAction : XMakeProjectAction() {
 
@@ -63,9 +63,9 @@ class QuickStartAction : XMakeProjectAction() {
             withWorkDirectory(resolvedProjectDirectoryPath)
         }
 
-        ApplicationManager.getApplication().executeOnPooledThread {
+        project.xmakeExecutionService.submit {
             try {
-                val result = runBlocking { commandLine.execute(project, CREATE_TIMEOUT) }
+                val result = commandLine.execute(project, CREATE_TIMEOUT)
                 if (result.exitCode == 0) {
                     onQuickStartCreated(project)
                 } else {
@@ -76,6 +76,8 @@ class QuickStartAction : XMakeProjectAction() {
                 }
             } catch (e: ProcessTimeoutException) {
                 project.notify("xmake create timed out and was terminated.")
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 project.notify("Failed to start xmake create: ${e.message}")
             }

@@ -18,8 +18,6 @@ package io.xmake.project.target
 
 import com.intellij.openapi.project.Project
 import io.xmake.project.profile.XMakeBuildProfile
-import io.xmake.run.command.configureBestEffort
-import io.xmake.run.command.executeInfoQuery
 import io.xmake.run.command.withProfileCommands
 import io.xmake.utils.info.XMakeInfo
 import kotlinx.coroutines.Dispatchers
@@ -28,8 +26,8 @@ import kotlinx.coroutines.withContext
 /** Discovers the XMake build targets that are available for a build profile. */
 internal suspend fun Project.discoverXMakeBuildTargets(profile: XMakeBuildProfile): List<String> =
     withContext(Dispatchers.IO) {
-        withProfileCommands(profile) { executionService ->
-            configureBestEffort(executionService)
-            XMakeInfo.parseTargets(executeInfoQuery("targets", executionService))
+        withProfileCommands(profile) {
+            configureBestEffort()
+            XMakeInfo.parseTargets(listing("targets"))
         }
     }

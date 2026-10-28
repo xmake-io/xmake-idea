@@ -24,6 +24,7 @@ import io.xmake.utils.notify
 import io.xmake.build.XMakeBuildTask
 import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.run.command.XMakeCommandFactory
+import io.xmake.run.command.xmakeCommands
 import io.xmake.run.target.activeOrSingleXMakeBuildProfile
 
 abstract class XMakeBuildAction : XMakeProjectAction() {
@@ -37,7 +38,7 @@ abstract class XMakeBuildAction : XMakeProjectAction() {
         FileDocumentManager.getInstance().saveAllDocuments()
         ApplicationManager.getApplication().executeOnPooledThread {
             val task = try {
-                createTask(project, profile, XMakeCommandFactory(project, profile))
+                createTask(project, profile, project.xmakeCommands(profile))
             } catch (error: Exception) {
                 project.notify(error.message ?: "The XMake build profile is invalid")
                 return@executeOnPooledThread

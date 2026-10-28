@@ -27,12 +27,8 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
 
 
+/** The api set the info manager probes for Lua completion. */
 data class XMakeInfo(
-    val architectures: XMakeArchitectures = emptyMap(),
-    val buildModes: XMakeBuildModes = emptyList(),
-    val platforms: XMakePlatforms = emptyList(),
-    val targets: XMakeTargets = emptyList(),
-    val toolchains: XMakeToolchains = emptyMap(),
     val apis: XMakeApis = emptySet(),
 ) {
 

@@ -39,8 +39,9 @@ import io.xmake.project.directory.toolkitRunErrorMessage
 import io.xmake.project.directory.ui.DirectoryBrowser
 import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.project.profile.XMakeBuildOptions
-import io.xmake.project.profile.XMakeBuildOptionsCache
-import io.xmake.project.profile.xmakeBuildOptions
+import io.xmake.project.toolkit.ToolkitInstallationKey
+import io.xmake.utils.info.XMakeInfoManager
+import io.xmake.project.toolkit.installationKey
 import io.xmake.utils.runCancellable
 import io.xmake.project.directory.xmakeProjectDirectories
 import io.xmake.project.toolkit.Toolkit
@@ -48,15 +49,13 @@ import io.xmake.project.toolkit.ui.ToolkitComboBox
 import io.xmake.project.toolkit.ui.ToolkitListItem
 import io.xmake.utils.execute.SyncDirection
 import io.xmake.utils.execute.transferProjectFiles
+import io.xmake.utils.ui.uiEdt
+import io.xmake.utils.ui.loader
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.flow.consumeAsFlow
-import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.awt.event.HierarchyEvent
@@ -64,19 +63,27 @@ import java.awt.event.HierarchyListener
 import java.awt.event.ItemEvent
 import javax.swing.JComponent
 
-@OptIn(ExperimentalCoroutinesApi::class)
 internal class XMakeBuildProfileForm(
     private val project: Project,
 ) : Disposable {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val infoManager = XMakeInfoManager.getInstance(project)
     private var profile = XMakeBuildProfile()
     private var selectedToolkit: Toolkit? = null
     private var profileOptions = XMakeBuildOptions()
-    private var loadedOptionsKey: XMakeBuildOptionsCache.ToolkitCacheKey? = null
-    private val optionRequests = Channel<Pair<XMakeBuildProfile, Toolkit>>(Channel.CONFLATED)
+    private var loadedOptionsKey: ToolkitInstallationKey? = null
+    private val loadOptions = loader<Toolkit>(scope) { toolkit ->
+        val options = runCancellable {
+            infoManager.loadBuildOptions(profile, toolkit)
+        }.getOrElse { error ->
+            Log.debug("Unable to load XMake build options", error)
+            return@loader
+        }
+        withContext(uiEdt) { applyProfileOptions(toolkit, options) }
+    }
     private var isResetting = false
     private var isUpdatingOptions = false
-    private val optionsCacheConnection = project.messageBus.connect(this)
+    private val cachesConnection = project.messageBus.connect(this)
 
     private val toolkitComboBox = ToolkitComboBox(project)
     private val platformComboBox = XMakeBuildProfileOptionComboBox()
@@ -160,27 +167,10 @@ internal class XMakeBuildProfileForm(
     }
 
     init {
-        scope.launch {
-            optionRequests.consumeAsFlow()
-                .transformLatest { (requestedProfile, toolkit) ->
-                    val options = runCancellable {
-                        project.xmakeBuildOptions.load(requestedProfile, toolkit)
-                    }.getOrElse { error ->
-                        Log.debug("Unable to load XMake build options", error)
-                        null
-                    }
-                    emit(toolkit to options)
-                }
-                .collect { (toolkit, options) ->
-                    withContext(Dispatchers.EDT + ModalityState.any().asContextElement()) {
-                        options?.let { applyProfileOptions(toolkit, it) }
-                    }
-                }
-        }
         Disposer.register(this, toolkitComboBox)
-        optionsCacheConnection.subscribe(
-            XMakeBuildOptionsCache.TOPIC,
-            XMakeBuildOptionsCache.Listener {
+        cachesConnection.subscribe(
+            XMakeInfoManager.TOPIC,
+            XMakeInfoManager.Listener {
                 ApplicationManager.getApplication().invokeLater({
                     if (project.isDisposed) return@invokeLater
                     loadedOptionsKey = null
@@ -229,9 +219,6 @@ internal class XMakeBuildProfileForm(
         } finally {
             isResetting = false
         }
-        selectedToolkit?.takeIf(::canQueryOptions)?.let { toolkit ->
-            project.xmakeBuildOptions.get(toolkit)?.let { applyOptions(toolkit, it) }
-        }
         if (component.isShowing) requestProfileOptions()
     }
 
@@ -260,17 +247,19 @@ internal class XMakeBuildProfileForm(
     private fun onToolkitSelected(selectedToolkit: Toolkit?) {
         rebindDirectoryBrowsers()
         if (selectedToolkit == null) {
-            loadedOptionsKey = null
-            profileOptions = XMakeBuildOptions()
-            updateOptionModels()
+            clearProfileOptions()
             return
         }
-        if (project.xmakeBuildOptions.key(selectedToolkit) == loadedOptionsKey) return
+        if (selectedToolkit.installationKey() == loadedOptionsKey) return
 
+        clearProfileOptions()
+        requestProfileOptions()
+    }
+
+    private fun clearProfileOptions() {
         loadedOptionsKey = null
         profileOptions = XMakeBuildOptions()
         updateOptionModels()
-        requestProfileOptions()
     }
 
     private fun rebindDirectoryBrowsers() {
@@ -284,31 +273,19 @@ internal class XMakeBuildProfileForm(
 
         val toolkit = selectedToolkit?.takeIf(::canQueryOptions)
         if (toolkit == null) {
-            profileOptions = XMakeBuildOptions()
-            loadedOptionsKey = null
-            updateOptionModels()
+            clearProfileOptions()
             return
         }
-        if (project.xmakeBuildOptions.key(toolkit) == loadedOptionsKey) return
+        if (toolkit.installationKey() == loadedOptionsKey) return
 
-        val cached = project.xmakeBuildOptions.get(toolkit)
-        if (cached != null) {
-            applyOptions(toolkit, cached)
-            return
-        }
-        optionRequests.trySend(createProfileSnapshot(profile.name) to toolkit)
+        loadOptions(toolkit)
     }
 
     private fun applyProfileOptions(toolkit: Toolkit, options: XMakeBuildOptions) {
         if (project.isDisposed || !component.isShowing) return
-        val cache = project.xmakeBuildOptions
-        if (cache.key(selectedToolkit ?: return) != cache.key(toolkit)) return
-        applyOptions(toolkit, options)
-    }
-
-    private fun applyOptions(toolkit: Toolkit, options: XMakeBuildOptions) {
+        if ((selectedToolkit ?: return).installationKey() != toolkit.installationKey()) return
         profileOptions = options
-        loadedOptionsKey = project.xmakeBuildOptions.key(toolkit)
+        loadedOptionsKey = toolkit.installationKey()
         updateOptionModels()
     }
 

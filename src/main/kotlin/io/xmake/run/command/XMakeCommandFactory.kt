@@ -31,6 +31,7 @@ import io.xmake.project.xmakeSettings
 import io.xmake.utils.SystemUtils
 import io.xmake.utils.cli.XMakeCommandLine
 import io.xmake.utils.cli.DEFAULT_TARGET
+import io.xmake.utils.cli.QUERY_ENVIRONMENT
 import io.xmake.utils.cli.xmake
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.Path
@@ -41,7 +42,7 @@ import java.util.HexFormat
 internal class XMakeCommandFactory(
     private val project: Project,
     private val profile: XMakeBuildProfile,
-    selectedToolkit: Toolkit? = null,
+    toolkit: Toolkit? = null,
 ) {
     private val compileCommandsPath = project.xmakeSettings.state.compileCommandsPath
     val compileCommandsGeneratedPath: String = compileCommandsGeneratedPath(compileCommandsPath)
@@ -49,7 +50,7 @@ internal class XMakeCommandFactory(
     /** The toolkit every command from this factory runs on: the preview-selected installation,
      *  or the profile toolkit. Construction throws RuntimeConfigurationError when it is absent
      *  or unavailable. */
-    val toolkit: Toolkit = (selectedToolkit ?: profile.resolveToolkit(project))
+    val toolkit: Toolkit = toolkit ?: profile.resolveToolkit(project)
         ?.takeIf { it.isAvailable }
         ?: throw RuntimeConfigurationError(
             "XMake toolkit is not set, is unavailable in this project, or is no longer registered",
@@ -57,7 +58,7 @@ internal class XMakeCommandFactory(
 
     private val buildDirectoryOption = profile.buildDirectory.takeIf { it.isNotEmpty() }
 
-    private val configureArguments: List<String> = xmake(toolkit).apply {
+    private val configureArguments: List<String> = xmake(this.toolkit).apply {
         args("-m", profile.buildMode)
         option("-p" to profile.platform.takeUnless { it == XMakeBuildProfile.USE_XMAKE_DEFAULT })
         option("-a" to profile.architecture.takeUnless { it == XMakeBuildProfile.USE_XMAKE_DEFAULT })
@@ -73,10 +74,10 @@ internal class XMakeCommandFactory(
         }
     }.arguments
 
-    private val projectDirectory: String = project.xmakeProjectDirectories.resolveProjectDirectory(toolkit)
+    private val projectDirectory: String = project.xmakeProjectDirectories.resolveProjectDirectory(this.toolkit)
     private val configurationDirectory: String = profileConfigurationDirectory(
         profile.id,
-        toolkit,
+        this.toolkit,
         projectDirectory,
         configureArguments,
     )
@@ -252,11 +253,7 @@ internal class XMakeCommandFactory(
     }
 }
 
-/** Environment every informational xmake query runs with. */
-internal val QUERY_ENVIRONMENT = mapOf(
-    "XMAKE_SKIP_HISTORY" to "1",
-    "XMAKE_ROOT" to "y",
-    // xmake reads XMAKE_COLORTERM (core/base/tty.lua), not XMAKE_COLOR_TERM.
-    "XMAKE_COLORTERM" to "nocolor",
-)
-
+/** The project-scoped entry for building xmake commands outside the command context of
+ *  one build profile ([withProfileCommands]). */
+internal fun Project.xmakeCommands(profile: XMakeBuildProfile): XMakeCommandFactory =
+    XMakeCommandFactory(this, profile)

@@ -224,3 +224,11 @@ private val REMOTE_LOCATE_SCRIPT = buildString {
     appendLine($$"""; do [ -x "$path" ] && echo "$path"; done""")
     appendLine("exit 0")
 }
+
+/** Environment every informational xmake query runs with. */
+internal val QUERY_ENVIRONMENT = mapOf(
+    "XMAKE_SKIP_HISTORY" to "1",
+    "XMAKE_ROOT" to "y",
+    // xmake reads XMAKE_COLORTERM (core/base/tty.lua), not XMAKE_COLOR_TERM.
+    "XMAKE_COLORTERM" to "nocolor",
+)
