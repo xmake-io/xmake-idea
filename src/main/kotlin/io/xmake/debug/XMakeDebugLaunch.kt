@@ -20,6 +20,9 @@ package io.xmake.debug
  * Immutable boundary between cancellable background preparation and the
  * EDT-owned XDebugger session startup. Every value originates from the same
  * XMake run configuration captured before preparation begins.
+ *
+ * [workingDirectory] is never blank: preparation fills it with the target's
+ * effective run directory when the launch configuration leaves it empty.
  */
 data class XMakeDebugLaunch(
     val executablePath: String,

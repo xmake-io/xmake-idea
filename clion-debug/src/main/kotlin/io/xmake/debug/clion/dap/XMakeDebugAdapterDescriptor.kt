@@ -32,6 +32,7 @@ import com.intellij.util.EnvironmentUtil
 import com.jetbrains.cidr.execution.debugger.breakpoints.CidrExceptionBreakpointType
 import com.jetbrains.cidr.execution.debugger.breakpoints.CidrLineBreakpointType
 import io.xmake.debug.DapDriverType
+import io.xmake.debug.GDB_DAP_INTERPRETER_ARGS
 import io.xmake.debug.XMakeDebugDriver
 import io.xmake.debug.XMakeDebugLaunch
 import io.xmake.utils.execute.runProcessBlocking
@@ -69,14 +70,7 @@ internal class XMakeDebugAdapterDescriptor(
     @Suppress("DEPRECATION")
     override val breakpointsDescription: DapBreakpointsDescription = createBreakpointsDescription()
 
-    private fun createDriverCommandLine(launch: XMakeDebugLaunch, driver: XMakeDebugDriver.Dap): GeneralCommandLine =
-        baseDriverCommandLine(launch, driver).apply {
-            if (driver.info.type == DapDriverType.GDB) {
-                addParameters("-i", "dap")
-            }
-        }
-
-    private fun baseDriverCommandLine(launch: XMakeDebugLaunch, driver: XMakeDebugDriver.Dap): GeneralCommandLine {
+    private fun createDriverCommandLine(launch: XMakeDebugLaunch, driver: XMakeDebugDriver.Dap): GeneralCommandLine {
         val driverPath = driver.info.path
         val driverDirectory = File(driverPath).absoluteFile.parent
         val environment = EnvironmentUtil.getEnvironmentMap().toMutableMap().apply {
@@ -84,8 +78,13 @@ internal class XMakeDebugAdapterDescriptor(
             prependPath(driverDirectory)
         }
         return GeneralCommandLine(driverPath)
-            .withWorkDirectory(launch.workingDirectory.ifBlank { project.basePath })
+            .withWorkDirectory(launch.workingDirectory)
             .withEnvironment(environment)
+            .apply {
+                if (driver.info.type == DapDriverType.GDB) {
+                    withParameters(GDB_DAP_INTERPRETER_ARGS)
+                }
+            }
     }
 
     /**
@@ -96,17 +95,19 @@ internal class XMakeDebugAdapterDescriptor(
     private fun createBreakpointsDescription(): DapBreakpointsDescription {
         val lineBreakpointType = CidrLineBreakpointType::class.java
         val exceptionBreakpointType = CidrExceptionBreakpointType::class.java
-        val constructor = DapBreakpointsDescription::class.java.constructors
-            .filter { it.parameterTypes.all { type -> type == Class::class.java } }
-            .let { candidates ->
-                candidates.firstOrNull { it.parameterCount == 2 }
-                    ?: candidates.firstOrNull { it.parameterCount == 3 }
+        val (constructor, initargs) = DapBreakpointsDescription::class.java.constructors
+            .mapNotNull { candidate ->
+                if (!candidate.parameterTypes.all { it == Class::class.java }) return@mapNotNull null
+                val initargs: Array<Any?> = when (candidate.parameterCount) {
+                    2 -> arrayOf(lineBreakpointType, exceptionBreakpointType)
+                    3 -> arrayOf(lineBreakpointType, exceptionBreakpointType, null)
+                    else -> return@mapNotNull null
+                }
+                candidate to initargs
             }
+            .firstOrNull()
             ?: throw IllegalStateException("No compatible DapBreakpointsDescription constructor")
-        return when (constructor.parameterCount) {
-            2 -> constructor.newInstance(lineBreakpointType, exceptionBreakpointType)
-            else -> constructor.newInstance(lineBreakpointType, exceptionBreakpointType, null)
-        } as DapBreakpointsDescription
+        return constructor.newInstance(*initargs) as DapBreakpointsDescription
     }
 
     private fun MutableMap<String, String>.prependPath(directory: String?) {

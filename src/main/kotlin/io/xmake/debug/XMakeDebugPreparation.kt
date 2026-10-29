@@ -81,33 +81,32 @@ private fun resolveDebugTarget(state: XMakeDebugState, output: String): DebugTar
     val targetPath = targetOutputLines.firstOrNull()
         ?: throw ExecutionException("Could not determine the executable path for ${state.targetName}")
 
-    val resolvedTargetPath = if (File(targetPath).isAbsolute) {
-        targetPath
-    } else {
-        File(state.targetPathCommand.workingDirectory, targetPath).absolutePath
-    }
-    val executableFile = File(resolvedTargetPath)
+    val baseDirectory = state.targetPathCommand.workingDirectory
+    val executableFile =
+        if (File(targetPath).isAbsolute) File(targetPath) else File(baseDirectory, targetPath)
     if (!executableFile.isFile) throw ExecutionException("Target executable not found: $targetPath")
 
-    val effectiveRunDirectoryPath = targetOutputLines.getOrNull(1)
-    val effectiveRunDirectory = if (effectiveRunDirectoryPath == null) {
-        executableFile.absoluteFile.parentFile
-    } else if (File(effectiveRunDirectoryPath).isAbsolute) {
-        File(effectiveRunDirectoryPath)
-    } else {
-        File(state.targetPathCommand.workingDirectory, effectiveRunDirectoryPath).absoluteFile
-    }
+    val effectiveRunDirectory = targetOutputLines.getOrNull(1)
+        ?.let { if (File(it).isAbsolute) File(it) else File(baseDirectory, it) }
+        ?: executableFile.parentFile
     if (!effectiveRunDirectory.isDirectory) {
         throw ExecutionException("Target run directory not found: ${effectiveRunDirectory.absolutePath}")
     }
-    return DebugTarget(executableFile.absoluteFile, effectiveRunDirectory)
+    return DebugTarget(executableFile.absoluteFile, effectiveRunDirectory.absoluteFile)
 }
 
+internal const val EMPTY_DAP_DRIVER_PATH_MESSAGE =
+    "The configured DAP driver path is empty. " +
+        "Enter the path to lldb-dap or a DAP-capable GDB in the debug configuration, or enable auto-detection."
 private suspend fun resolveDapDriver(project: Project, state: XMakeDebugState): XMakeDebugDriver.Dap {
-    val driverPath = if (!state.dapDriverAutoDetect) {
-        state.configuredDapDriverPath.trim()
-    } else {
+    val driverPath = if (state.dapDriverAutoDetect) {
         DapDriverDetector.findBestDriver()?.path.orEmpty()
+    } else {
+        state.configuredDapDriverPath.trim().ifEmpty {
+            // checkConfiguration usually rejects an empty path before launch; dumb-mode and
+            // settings-less launches skip that check, so guard here with the same message.
+            throw ExecutionException(EMPTY_DAP_DRIVER_PATH_MESSAGE)
+        }
     }
     if (driverPath.isBlank()) {
         throw ExecutionException(
@@ -143,7 +142,7 @@ private fun notifyGdbDapUnavailable(
             )
         is DapSupport.Unverified -> "GDB DAP support could not be verified" to (
             "Starting the DAP interpreter of the selected GDB failed or timed out.<br/>" +
-                "Run '${driver.path} -i dap -batch' in a terminal to check the driver directly.<br/><br/>" +
+                "Run '${GdbSupportDetector.detectionCommand(driver.path)}' in a terminal to check the driver directly.<br/><br/>" +
                 "driver=${driver.path}<br/><br/>${support.diagnostics}"
             )
         DapSupport.Supported -> return

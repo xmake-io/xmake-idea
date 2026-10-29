@@ -27,8 +27,12 @@ import java.io.File
 import kotlin.time.Duration.Companion.seconds
 
 internal object GdbSupportDetector {
+    fun detectionCommand(path: String): String =
+        (listOf(path) + INTERPRETER_START_ARGUMENTS).joinToString(" ")
 
     private val DETECTION_TIMEOUT = 1.5.seconds
+
+    private val INTERPRETER_START_ARGUMENTS = GDB_DAP_INTERPRETER_ARGS + "-batch"
 
     /** The cache key includes the binary's timestamp and size, so an upgrade invalidates it. */
     private data class DriverIdentity(val path: String, val lastModified: Long, val size: Long) {
@@ -73,7 +77,7 @@ internal object GdbSupportDetector {
         // `--version` is answered before the interpreter initializes, so only starting the
         // interpreter shows whether this build carries one.
         val check = try {
-            runProcess(path, listOf("-i", "dap", "-batch"))
+            runProcess(path, INTERPRETER_START_ARGUMENTS)
         } catch (error: Throwable) {
             return DapSupport.Unverified(
                 "Failed to launch the DAP interpreter via $path: ${error.message ?: error.javaClass.simpleName}"
@@ -81,7 +85,7 @@ internal object GdbSupportDetector {
         }
         return when {
             check.isTimeout ->
-                DapSupport.Unverified("Timed out starting the DAP interpreter via $path -i dap -batch")
+                DapSupport.Unverified("Timed out starting the DAP interpreter via ${detectionCommand(path)}")
             check.exitCode == 0 -> DapSupport.Supported
             else -> DapSupport.Unsupported(interpreterFailure(version, check))
         }
