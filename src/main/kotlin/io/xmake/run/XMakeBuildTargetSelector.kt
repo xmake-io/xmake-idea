@@ -87,8 +87,18 @@ class XMakeBuildTargetSelector(
         if (profile == null) {
             resetBuildTargetChoices(configuration.runTarget)
         } else {
-            loadTargets(profile)
+            requestBuildTargets(profile)
         }
+    }
+
+    /** A profile change empties the list until its own discovery lands; a re-request of the
+     *  same profile keeps the list while it refreshes. */
+    private fun requestBuildTargets(profile: XMakeBuildProfile) {
+        if (loadedTargetsProfile != profile) {
+            loadedTargetsProfile = profile
+            replaceBuildTargetChoices(selectedTarget, emptyList())
+        }
+        loadTargets(profile)
     }
 
     private fun resetBuildTargetChoices(selectedTarget: String) {
