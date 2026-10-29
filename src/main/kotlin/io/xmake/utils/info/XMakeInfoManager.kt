@@ -43,10 +43,12 @@ import io.xmake.project.target.discoverXMakeBuildTargets
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitInstallationKey
 import io.xmake.project.toolkit.ToolkitListener
+import io.xmake.project.toolkit.XMakeVersionRefusal
 import io.xmake.project.toolkit.XMakeVersionRefusalException
 import io.xmake.project.toolkit.installationKey
 import io.xmake.run.command.withProfileCommands
 import io.xmake.run.target.activeOrSingleXMakeBuildProfile
+import io.xmake.utils.notify
 import io.xmake.utils.publish
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -55,6 +57,7 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.async
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.consumeAsFlow
@@ -77,6 +80,13 @@ class XMakeInfoManager(
         private set
 
     private var probedToolkitId: String? = null
+
+    /** The refusal per installation, so run configuration checks can refuse without querying. */
+    private val versionRefusals = ConcurrentHashMap<ToolkitInstallationKey, XMakeVersionRefusal>()
+
+    /** One proactive balloon per refused installation, whichever path answers first. */
+    @Volatile
+    private var notifiedRefusalKey: ToolkitInstallationKey? = null
 
     /** The installation the cached apis listing came from; remembered across toolkit switches,
      *  because the apis listing answers for the installation, not the project. */
@@ -125,10 +135,31 @@ class XMakeInfoManager(
 
     /** Loads the build options for [toolkit]; the listings are profile-independent (see
      *  [queryXMakeBuildOptions]), so the cache is keyed by the installation. */
-    internal suspend fun loadBuildOptions(profile: XMakeBuildProfile, toolkit: Toolkit): XMakeBuildOptions =
-        buildOptions.obtain(toolkit.installationKey()) {
+    internal suspend fun loadBuildOptions(profile: XMakeBuildProfile, toolkit: Toolkit): XMakeBuildOptions {
+        val options = buildOptions.obtain(toolkit.installationKey()) {
             project.queryXMakeBuildOptions(profile, toolkit)
         }
+        updateVersionRefusal(toolkit, options.versionRefusal)
+        return options
+    }
+
+    internal fun versionRefusal(toolkit: Toolkit): XMakeVersionRefusal? =
+        versionRefusals[toolkit.installationKey()]
+
+    /** A null refusal clears the entry; the next one raises the balloon again. */
+    private fun updateVersionRefusal(toolkit: Toolkit, refusal: XMakeVersionRefusal?) {
+        val key = toolkit.installationKey()
+        if (refusal == null) {
+            versionRefusals.remove(key)
+            if (notifiedRefusalKey == key) notifiedRefusalKey = null
+        } else {
+            versionRefusals[key] = refusal
+            if (notifiedRefusalKey != key) {
+                notifiedRefusalKey = key
+                project.notify(message = refusal.message, title = "The project needs a newer xmake")
+            }
+        }
+    }
 
     /** Loads the build targets of one profile; the discovery keeps its configure side effect,
      *  which a cache hit skips. */
@@ -170,13 +201,17 @@ class XMakeInfoManager(
                     probedToolkitId = profile.toolkitId
                     val apisKey = apisCacheKey(profile)
                     val apisCached = apisKey != null && apisKey == cachedApisKey && xmakeInfo.apis.isNotEmpty()
-                    val info = XMakeInfo(
-                        apis = if (apisCached) {
-                            xmakeInfo.apis
-                        } else {
-                            listing("apis", XMakeInfo::parseApis) ?: previous.apis
-                        },
-                    )
+                    val probedApis = if (apisCached) {
+                        xmakeInfo.apis
+                    } else {
+                        listing("apis", XMakeInfo::parseApis) ?: run {
+                            // The apis listing is rejected before the project script loads; the
+                            // toolchains listing loads the script and so can reveal the refusal.
+                            listing("toolchains", XMakeInfo::parseToolchains)
+                            previous.apis
+                        }
+                    }
+                    val info = XMakeInfo(apis = probedApis)
                     if (info.apis.isNotEmpty()) {
                         cachedApisKey = apisKey
                     }
@@ -189,11 +224,13 @@ class XMakeInfoManager(
                         DaemonCodeAnalyzer.getInstance(project).restart("Xmake api set changed")
                     }
                 }
+                profile.resolveToolkit(project)?.let { updateVersionRefusal(it, null) }
             }
         } catch (error: CancellationException) {
             throw error
         } catch (error: XMakeVersionRefusalException) {
             Log.warn(error.message)
+            updateVersionRefusal(error.refusal.toolkit, error.refusal)
         } catch (error: Exception) {
             Log.warn("Failed to probe XMake information for profile ${profile.id}", error)
         }
