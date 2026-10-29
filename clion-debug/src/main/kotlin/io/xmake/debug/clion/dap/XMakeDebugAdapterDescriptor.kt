@@ -25,21 +25,18 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.SystemInfo
 import com.intellij.platform.dap.DapBreakpointsDescription
 import com.intellij.platform.dap.DebugAdapterDescriptor
-import com.intellij.openapi.diagnostic.logger
 import com.intellij.platform.dap.connection.CommandLineDebugAdapterHandle
 import com.intellij.platform.dap.connection.DebugAdapterHandle
 import com.intellij.util.EnvironmentUtil
 import com.jetbrains.cidr.execution.debugger.breakpoints.CidrExceptionBreakpointType
 import com.jetbrains.cidr.execution.debugger.breakpoints.CidrLineBreakpointType
+import io.xmake.debug.DapDriverDiagnostics
 import io.xmake.debug.DapDriverType
 import io.xmake.debug.GDB_DAP_INTERPRETER_ARGS
 import io.xmake.debug.XMakeDebugDriver
 import io.xmake.debug.XMakeDebugLaunch
-import io.xmake.utils.execute.runProcessBlocking
 import io.xmake.utils.notify
 import java.io.File
-import java.util.concurrent.ConcurrentHashMap
-import kotlin.time.Duration.Companion.seconds
 
 internal class XMakeDebugAdapterDescriptor(
     private val project: Project,
@@ -63,7 +60,9 @@ internal class XMakeDebugAdapterDescriptor(
         val state = this.state
             ?: throw ExecutionException("XMake DAP launch is not resolved; the debug state was not prepared.")
         val commandLine = createDriverCommandLine(state.launch, state.driver)
-        diagnoseWindowsDriver(commandLine)
+        if (DapDriverDiagnostics.diagnoseWindowsDllFailure(commandLine)) {
+            notifyMissingDriverDependency(commandLine.exePath)
+        }
         return CommandLineDebugAdapterHandle(commandLine)
     }
 
@@ -118,35 +117,6 @@ internal class XMakeDebugAdapterDescriptor(
         put(key, if (currentPath.isBlank()) directory else "$directory${File.pathSeparator}$currentPath")
     }
 
-    private fun diagnoseWindowsDriver(commandLine: GeneralCommandLine) {
-        // Runs inside launchDebugAdapter, which the platform executes on Dispatchers.IO, so the
-        // synchronous check below never touches the EDT.
-        if (!SystemInfo.isWindows) return
-        val driverPath = commandLine.exePath
-        if (!DIAGNOSTIC_CACHE.add(driverPath)) {
-            return
-        }
-
-        val probe = GeneralCommandLine(driverPath)
-            .withWorkDirectory(commandLine.workDirectory)
-            .withEnvironment(commandLine.environment)
-            .withParameters("--version")
-        try {
-            val output = probe.runProcessBlocking(DRIVER_DIAGNOSTIC_TIMEOUT)
-            if (output.isTimeout) {
-                DIAGNOSTIC_CACHE.remove(driverPath)
-                Log.warn("Timed out while checking $driverPath")
-                return
-            }
-            if (output.exitCode == STATUS_DLL_NOT_FOUND.toInt()) {
-                notifyMissingDriverDependency(driverPath)
-            }
-        } catch (error: Exception) {
-            DIAGNOSTIC_CACHE.remove(driverPath)
-            Log.warn("Failed to check $driverPath: ${error.message}")
-        }
-    }
-
     private fun notifyMissingDriverDependency(driverPath: String) {
         project.notify(
             "Failed to start ${File(driverPath).name} (0xC0000135). " +
@@ -155,14 +125,4 @@ internal class XMakeDebugAdapterDescriptor(
         )
     }
 
-    private companion object {
-        private val Log = logger<XMakeDebugAdapterDescriptor>()
-        val DRIVER_DIAGNOSTIC_TIMEOUT = 1.5.seconds
-
-        /** Windows exit code STATUS_DLL_NOT_FOUND (0xC0000135): the driver failed to load a required DLL. */
-        const val STATUS_DLL_NOT_FOUND = 0xC0000135L
-
-        /** Drivers with a definite probe result are not probed again in this session. */
-        val DIAGNOSTIC_CACHE: MutableSet<String> = ConcurrentHashMap.newKeySet()
-    }
 }
