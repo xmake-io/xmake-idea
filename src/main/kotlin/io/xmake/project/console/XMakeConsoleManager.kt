@@ -5,6 +5,7 @@ import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.components.Service
+import com.intellij.openapi.components.serviceOrNull
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
@@ -13,7 +14,7 @@ import com.intellij.ui.content.Content
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-private val Log = logger<XMakeConsoleService>()
+private val Log = logger<XMakeConsoleManager>()
 
 class XMakeConsole internal constructor(
     private val project: Project,
@@ -48,7 +49,7 @@ class XMakeConsole internal constructor(
 }
 
 @Service(Service.Level.PROJECT)
-class XMakeConsoleService(private val project: Project) {
+class XMakeConsoleManager(private val project: Project) {
     private var console: XMakeConsole? = null
 
     internal fun register(
@@ -82,7 +83,7 @@ class XMakeConsoleService(private val project: Project) {
     }
 
     suspend fun awaitReady(): XMakeConsole = withContext(Dispatchers.EDT) {
-        getOrInitializeConsole()
+        console ?: createConsole()
     }
 
     private fun runWhenReady(
@@ -90,25 +91,26 @@ class XMakeConsoleService(private val project: Project) {
         action: (XMakeConsole) -> Unit
     ) {
         try {
-            action(getOrInitializeConsole())
+            action(console ?: createConsole())
         } catch (error: Throwable) {
             onUnavailable(error)
         }
     }
 
-    private fun getOrInitializeConsole(): XMakeConsole {
+    private fun createConsole(): XMakeConsole {
         check(ApplicationManager.getApplication().isDispatchThread)
         check(!project.isDisposed) { "Project was disposed before the XMake console was initialized" }
 
-        console?.let { return it }
-        val toolWindow = ToolWindowManager.getInstance(project).getToolWindow(XMAKE_TOOL_WINDOW_ID)
+                val toolWindow = ToolWindowManager.getInstance(project).getToolWindow(XMAKE_TOOL_WINDOW_ID)
             ?: error("XMake tool window is not registered")
 
         // Accessing the content manager initializes descriptor-owned tool window content.
         toolWindow.contentManager
         return console ?: error("XMake console was not initialized")
     }
-}
 
-val Project.xmakeConsoleService: XMakeConsoleService
-    get() = getService(XMakeConsoleService::class.java)
+    companion object {
+        fun getInstance(project: Project): XMakeConsoleManager =
+            project.serviceOrNull() ?: error("Failed to get XMakeConsoleManager for $project")
+    }
+}

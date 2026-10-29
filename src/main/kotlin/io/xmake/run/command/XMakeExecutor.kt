@@ -20,19 +20,29 @@ import com.intellij.execution.ExecutionException
 import com.intellij.execution.process.ProcessOutputType
 import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.openapi.components.Service
+import com.intellij.openapi.components.serviceOrNull
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
 import io.xmake.project.console.XMakeConsole
 import io.xmake.project.toolkit.Toolkit
+import io.xmake.shared.XMakeProblem
+import io.xmake.utils.execute.ProcessTimeoutException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeout
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
 
 @Service(Service.Level.PROJECT)
-internal class XMakeExecutionService(
+/** The one xmake command runner of this project. Every public entry other than [submit],
+ *  [submitAfter], and [runExclusive] assumes the caller is inside one of those three. */
+internal class XMakeExecutor(
     private val project: Project,
     private val coroutineScope: CoroutineScope,
 ) {
@@ -64,7 +74,8 @@ internal class XMakeExecutionService(
         options: XMakeConsoleOptions = XMakeConsoleOptions(),
     ) = runAndAwait(
         command,
-        options,
+        timeout = BUILD_TIMEOUT,
+        options = options,
         onTextAvailable = { text, outputType ->
             console.print(text, ConsoleViewContentType.getConsoleViewType(outputType))
         },
@@ -72,7 +83,7 @@ internal class XMakeExecutionService(
     )
 
     suspend fun executeSilently(command: XMakeCommand) {
-        runAndAwait(command)
+        runAndAwait(command, timeout = ACTION_TIMEOUT)
     }
 
     /** Captures stdout of one command. A project script that refuses this xmake version
@@ -83,6 +94,7 @@ internal class XMakeExecutionService(
         try {
             runAndAwait(
                 command,
+                timeout = QUERY_TIMEOUT,
                 onTextAvailable = { text, outputType ->
                     if (ProcessOutputType.isStdout(outputType)) output.append(text)
                 },
@@ -96,11 +108,27 @@ internal class XMakeExecutionService(
         return output.toString()
     }
 
-    /** Runs [command] to successful completion. The caller holds the execution mutex. */
+    /** Awaits one build command with the Build view's output callbacks. */
+    suspend fun awaitBuild(
+        command: XMakeCommand,
+        options: XMakeConsoleOptions,
+        onTextAvailable: (String, Key<*>) -> Unit,
+        onProblems: (List<XMakeProblem>) -> Unit,
+    ) = runAndAwait(
+        command,
+        timeout = BUILD_TIMEOUT,
+        options = options,
+        onTextAvailable = onTextAvailable,
+        onProblems = onProblems,
+    )
+
+    /** Runs [command] to successful completion. */
     private suspend fun runAndAwait(
         command: XMakeCommand,
+        timeout: Duration,
         options: XMakeConsoleOptions = XMakeConsoleOptions(),
         onTextAvailable: (String, Key<*>) -> Unit = { _, _ -> },
+        onProblems: (List<XMakeProblem>) -> Unit = {},
         beforeStart: () -> Unit = {},
     ) {
         if (project.isDisposed) {
@@ -108,14 +136,28 @@ internal class XMakeExecutionService(
         }
 
         beforeStart()
-        XMakeCommandProcessHandler(project, command, options, onTextAvailable)
-            .awaitSuccessfulCompletion()
+        try {
+            withTimeout(timeout) {
+                XMakeCommandProcessHandler(project, command, options, onTextAvailable, onProblems)
+                    .awaitSuccessfulCompletion()
+            }
+        } catch (error: TimeoutCancellationException) {
+            throw ProcessTimeoutException(
+                "XMake command did not finish within $timeout: ${command.commandLine.commandLineString}",
+                error,
+            )
+        }
+    }
+
+    private companion object {
+        val BUILD_TIMEOUT = 2.hours
+        val ACTION_TIMEOUT = 10.minutes
+        val QUERY_TIMEOUT = 5.minutes
     }
 }
 
-internal val Project.xmakeExecutionService: XMakeExecutionService
-    get() = getService(XMakeExecutionService::class.java)
-        ?: error("Failed to get XMakeExecutionService for $this")
+internal val Project.xmakeExecutor: XMakeExecutor
+    get() = serviceOrNull() ?: error("Failed to get XMakeExecutor for $this")
 
 /** The project script refused this xmake version; the message is the failed command's
  *  report and carries xmake's own refusal text. */

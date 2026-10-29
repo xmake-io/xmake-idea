@@ -28,11 +28,11 @@ import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.wm.ToolWindowManager
 import io.xmake.utils.notify
-import io.xmake.project.console.xmakeConsoleService
+import io.xmake.project.console.XMakeConsoleManager
 import io.xmake.project.directory.hasRootXMakeLuaCached
 import io.xmake.project.directory.hasXMakeProjectDirectorySource
 import io.xmake.project.toolkit.ToolkitManager
-import io.xmake.run.command.xmakeExecutionService
+import io.xmake.run.command.xmakeExecutor
 import io.xmake.utils.cli.xmake
 import io.xmake.utils.execute.ProcessTimeoutException
 import io.xmake.utils.execute.failureDetail
@@ -63,7 +63,7 @@ class QuickStartAction : XMakeProjectAction() {
             withWorkDirectory(resolvedProjectDirectoryPath)
         }
 
-        project.xmakeExecutionService.submit {
+        project.xmakeExecutor.submit {
             try {
                 val result = commandLine.execute(project, CREATE_TIMEOUT)
                 if (result.exitCode == 0) {
@@ -91,7 +91,7 @@ class QuickStartAction : XMakeProjectAction() {
             project.basePath
                 ?.let(LocalFileSystem.getInstance()::findFileByPath)
                 ?.let { VfsUtil.markDirtyAndRefresh(true, true, true, it) }
-            project.xmakeConsoleService.whenReady { console -> console.showOutput() }
+            XMakeConsoleManager.getInstance(project).whenReady { console -> console.showOutput() }
         }
     }
 

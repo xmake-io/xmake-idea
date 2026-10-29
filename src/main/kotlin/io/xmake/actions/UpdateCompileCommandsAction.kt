@@ -22,12 +22,7 @@ package io.xmake.actions
 
 import com.intellij.openapi.project.Project
 import io.xmake.project.console.XMakeConsole
-import io.xmake.project.directory.xmakeProjectDirectories
 import io.xmake.run.command.XMakeCommandFactory
-import io.xmake.run.command.XMakeConsoleOptions
-import io.xmake.run.command.xmakeExecutionService
-import io.xmake.utils.execute.fetchGeneratedFile
-import io.xmake.utils.execute.syncBeforeFetch
 
 class UpdateCompileCommandsAction : XMakeCommandAction() {
     override suspend fun execute(
@@ -35,18 +30,12 @@ class UpdateCompileCommandsAction : XMakeCommandAction() {
         console: XMakeConsole,
         commandFactory: XMakeCommandFactory,
     ) {
-        val execution = project.xmakeExecutionService
-        val updateCommand = commandFactory.createUpdateCompileCommands()
-        val toolkit = updateCommand.toolkit
-        val workingDirectory = updateCommand.workingDirectory
-        val localDirectory = project.xmakeProjectDirectories.resolveLocalSyncDirectory()
-        syncBeforeFetch(project, toolkit, workingDirectory, localDirectory)
-        execution.execute(console, commandFactory.createConfigure())
-        execution.execute(
+        updateGeneratedArtifact(
+            project,
             console,
-            updateCommand,
-            XMakeConsoleOptions(showConsole = false, showProblems = true, showExitCode = true),
+            commandFactory,
+            commandFactory.createUpdateCompileCommands(),
+            commandFactory.compileCommandsGeneratedPath,
         )
-        fetchGeneratedFile(project, toolkit, workingDirectory, localDirectory, commandFactory.compileCommandsGeneratedPath)
     }
 }

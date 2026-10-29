@@ -16,7 +16,7 @@
  */
 package io.xmake.actions
 
-import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.EDT
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
 import com.intellij.task.ProjectTaskManager
@@ -24,8 +24,11 @@ import io.xmake.utils.notify
 import io.xmake.build.XMakeBuildTask
 import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.run.command.XMakeCommandFactory
+import io.xmake.run.command.xmakeExecutor
 import io.xmake.run.command.xmakeCommands
 import io.xmake.run.target.activeOrSingleXMakeBuildProfile
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 abstract class XMakeBuildAction : XMakeProjectAction() {
     final override fun execute(project: Project) {
@@ -36,14 +39,14 @@ abstract class XMakeBuildAction : XMakeProjectAction() {
         }
 
         FileDocumentManager.getInstance().saveAllDocuments()
-        ApplicationManager.getApplication().executeOnPooledThread {
+        project.xmakeExecutor.submit {
             val task = try {
                 createTask(project, profile, project.xmakeCommands(profile))
             } catch (error: Exception) {
                 project.notify(error.message ?: "The XMake build profile is invalid")
-                return@executeOnPooledThread
+                return@submit
             }
-            ApplicationManager.getApplication().invokeLater {
+            withContext(Dispatchers.EDT) {
                 if (!project.isDisposed) {
                     ProjectTaskManager.getInstance(project).run(task)
                 }

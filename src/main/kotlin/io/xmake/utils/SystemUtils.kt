@@ -26,6 +26,7 @@ import io.xmake.shared.XMakeProblem
 import java.util.concurrent.ConcurrentHashMap
 import java.io.File
 import java.nio.file.Path
+import java.util.regex.Matcher
 import java.util.regex.Pattern
 
 object SystemUtils {
@@ -34,7 +35,7 @@ object SystemUtils {
 
     private val extractedResources = ConcurrentHashMap<String, File>()
 
-    private val GCC_STYLE = Pattern.compile("^(error: )?(.*?):([0-9]*):([0-9]*): (.*?): (.*)$")
+    private val GCC_STYLE = Pattern.compile("^(?:error: )?(.*?):([0-9]*):([0-9]*): (.*?): (.*)$")
     private val MSVC_FAMILY = Pattern.compile("^(.*?)\\(([0-9]+)(?:,([0-9]+))?\\): (.*?): (.*)$")
     private val ARM_CC_STYLE = Pattern.compile("^\"(.*)\", line ([0-9]+): (.*?): (.*)$")
     private val IAR_STYLE = Pattern.compile("^\"(.*)\",([0-9]+)\\s+(Error|Warning)\\[Pe[0-9]+]: (.*)$")
@@ -63,11 +64,11 @@ object SystemUtils {
         val matcher = pattern.matcher(info)
         if (!matcher.find()) return null
         return XMakeProblem(
-            file = matcher.group(2),
-            line = matcher.group(3),
-            column = matcher.group(4),
-            kind = matcher.group(5),
-            message = matcher.group(6),
+            file = matcher.group(1),
+            line = matcher.intGroup(2),
+            column = matcher.intGroup(3),
+            kind = matcher.group(4),
+            message = matcher.group(5),
             workingDirectory = workingDirectory,
         )
     }
@@ -79,8 +80,8 @@ object SystemUtils {
         if (!matcher.find()) return null
         return XMakeProblem(
             file = matcher.group(1).unquote(),
-            line = matcher.group(2),
-            column = matcher.group(3) ?: "0",
+            line = matcher.intGroup(2),
+            column = matcher.intGroup(3),
             kind = matcher.group(4),
             message = matcher.group(5),
             workingDirectory = workingDirectory,
@@ -94,8 +95,7 @@ object SystemUtils {
         if (!matcher.find()) return null
         return XMakeProblem(
             file = matcher.group(1),
-            line = matcher.group(2),
-            column = "0",
+            line = matcher.intGroup(2),
             kind = matcher.group(3),
             message = matcher.group(4),
             workingDirectory = workingDirectory,
@@ -109,8 +109,7 @@ object SystemUtils {
         if (!matcher.find()) return null
         return XMakeProblem(
             file = matcher.group(1),
-            line = matcher.group(2),
-            column = "0",
+            line = matcher.intGroup(2),
             kind = matcher.group(3),
             message = matcher.group(4),
             workingDirectory = workingDirectory,
@@ -124,8 +123,7 @@ object SystemUtils {
         if (!matcher.find()) return null
         return XMakeProblem(
             file = matcher.group(1),
-            line = matcher.group(2),
-            column = "0",
+            line = matcher.intGroup(2),
             kind = matcher.group(3),
             message = matcher.group(4),
             workingDirectory = workingDirectory,
@@ -133,6 +131,9 @@ object SystemUtils {
     }
 
     private fun String.unquote(): String = removePrefix("\"").removeSuffix("\"")
+
+    private fun Matcher.intGroup(index: Int): Int = group(index)?.toIntOrNull() ?: 0
+
     fun getResourceFilePath(resourceName: String, resourceDir: String): String? {
         val resourcePath = "/$resourceDir/$resourceName"
         val url = SystemUtils::class.java.getResource(resourcePath)

@@ -31,6 +31,12 @@ internal object XMakeBuildTaskExecution {
 
     private val Log = logger<XMakeBuildTaskExecution>()
 
+    /**
+     * Runs the build task and suspends until the platform reports a result.
+     *
+     * The platform promise has no cancellation API: when the awaiting coroutine is
+     * cancelled, the underlying build keeps running and its result is dropped.
+     */
     suspend fun run(project: Project, task: XMakeBuildTask) {
         if (project.isDisposed) {
             throw ExecutionException("Project was disposed before XMake could start")

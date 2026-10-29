@@ -40,9 +40,9 @@ import io.xmake.debug.XMakeDebugSupport
 import io.xmake.debug.prepareXMakeDebugBuild
 import io.xmake.debug.prepareXMakeDebugLaunch
 import io.xmake.project.console.XMakeConsole
-import io.xmake.project.console.xmakeConsoleService
-import io.xmake.run.command.XMakeExecutionService
-import io.xmake.run.command.xmakeExecutionService
+import io.xmake.project.console.XMakeConsoleManager
+import io.xmake.run.command.XMakeExecutor
+import io.xmake.run.command.xmakeExecutor
 import io.xmake.run.state.XMakeDebugState
 import io.xmake.run.state.XMakeRunState
 import kotlinx.coroutines.Dispatchers
@@ -66,20 +66,17 @@ class XMakeRunner : AsyncProgramRunner<RunnerSettings>() {
         state: RunProfileState,
     ): Promise<RunContentDescriptor?> {
         val project = environment.project
-        val execution = project.xmakeExecutionService
+        val executor = project.xmakeExecutor
         val deferred = when (state) {
-            is XMakeRunState -> execution.submit {
+            is XMakeRunState -> executor.submit {
                 val console = prepareConsole(project)
-                executeRun(execution, state, environment, console)
+                executeRun(executor, state, environment, console)
             }
-            // The build runs through ProjectTaskManager *before* the mutex is acquired: it takes
-            // the mutex itself internally, and the mutex is not reentrant (see
-            // XMakeExecutionService.submitAfter).
-            is XMakeDebugState -> execution.submitAfter(
+            is XMakeDebugState -> executor.submitAfter(
                 before = { prepareXMakeDebugBuild(project, state) },
-                task = { executeDebug(execution, state, environment) },
+                task = { executeDebug(executor, state, environment) },
             )
-            else -> execution.submit {
+            else -> executor.submit {
                 throw ExecutionException("Unsupported XMake run profile state: ${state::class.java.name}")
             }
         }
@@ -87,12 +84,12 @@ class XMakeRunner : AsyncProgramRunner<RunnerSettings>() {
     }
 
     private suspend fun executeRun(
-        execution: XMakeExecutionService,
+        executor: XMakeExecutor,
         state: XMakeRunState,
         environment: ExecutionEnvironment,
         console: XMakeConsole,
     ): RunContentDescriptor {
-        execution.execute(console, state.configureCommand)
+        executor.execute(console, state.configureCommand)
 
         val processHandler = state.startProcess()
         return try {
@@ -110,13 +107,13 @@ class XMakeRunner : AsyncProgramRunner<RunnerSettings>() {
     }
 
     private suspend fun executeDebug(
-        execution: XMakeExecutionService,
+        executor: XMakeExecutor,
         state: XMakeDebugState,
         environment: ExecutionEnvironment,
     ): RunContentDescriptor {
         val debugSupport = XMakeDebugSupport.find()
             ?: throw ExecutionException("XMake debugging requires the CLion debugger integration")
-        val launch = prepareXMakeDebugLaunch(state, environment.project, execution)
+        val launch = prepareXMakeDebugLaunch(state, environment.project, executor)
 
         return withContext(Dispatchers.EDT) {
             ensureProjectIsOpen(environment.project)
@@ -134,7 +131,7 @@ class XMakeRunner : AsyncProgramRunner<RunnerSettings>() {
     }
 
     private suspend fun prepareConsole(project: Project): XMakeConsole {
-        val console = project.xmakeConsoleService.awaitReady()
+        val console = XMakeConsoleManager.getInstance(project).awaitReady()
         withContext(Dispatchers.EDT) {
             ensureProjectIsOpen(project)
             FileDocumentManager.getInstance().saveAllDocuments()

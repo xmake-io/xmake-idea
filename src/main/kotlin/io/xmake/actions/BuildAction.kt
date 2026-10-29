@@ -37,11 +37,11 @@ open class BuildAction : XMakeBuildAction() {
         commands = buildList {
             add(commandFactory.createConfigure())
             add(commandFactory.createBuild())
-            if (project.xmakeSettings.state.autoUpdateCompileCommands) {
+            if (project.xmakeSettings.autoUpdateCompileCommands) {
                 add(commandFactory.createUpdateCompileCommands())
             }
         },
-        fetchOnSuccess = if (project.xmakeSettings.state.autoUpdateCompileCommands) {
+        fetchOnSuccess = if (project.xmakeSettings.autoUpdateCompileCommands) {
             commandFactory.compileCommandsGeneratedPath
         } else null,
     )

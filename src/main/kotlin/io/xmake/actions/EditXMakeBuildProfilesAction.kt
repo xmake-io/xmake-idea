@@ -48,11 +48,9 @@ class EditXMakeBuildProfilesAction : AnAction() {
         }
 
         val hasDirectorySource = project.hasXMakeProjectDirectorySource
-        e.presentation.isVisible = true
-        if (e.place == EXECUTION_TARGETS_COMBO_ACTION_PLACE) {
-            e.presentation.isVisible =
+        val inTargetsCombo = e.place == EXECUTION_TARGETS_COMBO_ACTION_PLACE
+        e.presentation.isVisible = !inTargetsCombo ||
                 RunManager.getInstanceIfCreated(project)?.selectedConfiguration?.configuration is XMakeRunConfiguration
-        }
         e.presentation.isEnabled = true
         e.presentation.text = if (hasDirectorySource) {
             EDIT_TEXT
@@ -64,7 +62,7 @@ class EditXMakeBuildProfilesAction : AnAction() {
         } else {
             "Select the directory containing the project root xmake.lua."
         }
-        e.presentation.icon = if (e.place == EXECUTION_TARGETS_COMBO_ACTION_PLACE) {
+        e.presentation.icon = if (inTargetsCombo) {
             null
         } else {
             AllIcons.General.Settings
