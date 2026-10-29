@@ -72,6 +72,12 @@ internal class XMakeCommandLine internal constructor(installation: CliInstallati
         option("-t" to kind)
     }
 
+    /** Adds `create --list`: lists the available project templates, generating no project. */
+    fun listTemplates(): XMakeCommandLine = apply {
+        beginAction("create")
+        flag("--list")
+    }
+
     fun build(configure: BuildScope.() -> Unit): XMakeCommandLine = apply {
         val options = BuildScope().apply(configure)
         beginAction("build")
