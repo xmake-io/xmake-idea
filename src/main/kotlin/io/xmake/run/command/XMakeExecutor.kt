@@ -102,7 +102,7 @@ internal class XMakeExecutor(
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (error: Exception) {
-            throw error.message?.takeIf(VERSION_REQUIREMENT::containsMatchIn)
+            throw (error as? XMakeCommandException)?.output?.takeIf(VERSION_REQUIREMENT::containsMatchIn)
                 ?.let(::XMakeProjectVersionError) ?: error
         }
         return output.toString()
