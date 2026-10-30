@@ -109,19 +109,19 @@ class XMakeInfoManager(
         )
         messageBusConnection.subscribe(
             XMakeProjectDirectoryManager.TOPIC,
-            XMakeProjectDirectoryManager.Listener { invalidateCaches() },
+            XMakeProjectDirectoryManager.Listener { invalidateProjectCaches() },
         )
         // A probe dropped while the cached directory awareness lagged behind is retried here.
         messageBusConnection.subscribe(
             XMakeProjectDirectoryResolutionService.TOPIC,
-            XMakeProjectDirectoryResolutionService.Listener { invalidateCaches() },
+            XMakeProjectDirectoryResolutionService.Listener { invalidateProjectCaches() },
         )
         messageBusConnection.subscribe(
             VirtualFileManager.VFS_CHANGES,
             object : BulkFileListener {
                 override fun after(events: MutableList<out VFileEvent>) {
                     if (events.any { isXMakeLuaVfsEvent(it, includeContentChanges = true) }) {
-                        invalidateCaches()
+                        invalidateProjectCaches()
                     }
                 }
             },
@@ -166,8 +166,8 @@ class XMakeInfoManager(
     internal suspend fun loadBuildTargets(profile: XMakeBuildProfile): List<String> =
         buildTargets.obtain(profile) { project.discoverXMakeBuildTargets(it) }
 
-    /** Drops every cached query result; the apis listing keeps its installation memory,
-     *  because a toolkit switch must not re-query the installation it already answered for. */
+    /** Drops every cached query result; the cached apis listing survives, because it answers
+     *  for the installation, not the project. */
     private fun invalidateCaches() {
         buildOptions.invalidate()
         buildTargets.invalidate()
@@ -175,6 +175,13 @@ class XMakeInfoManager(
             project.publish(TOPIC) { cachesChanged() }
         }
         enqueueActiveProfileProbe()
+    }
+
+    /** The project script or directory changed; the cached apis listing drops too, because
+     *  the version refusal answers for the project, not the installation. */
+    private fun invalidateProjectCaches() {
+        cachedApisKey = null
+        invalidateCaches()
     }
 
     fun probeActiveBuildProfile() {
