@@ -82,6 +82,7 @@ internal class XMakeBuildProfileForm(
     private var loadedOptionsKey: ToolkitInstallationKey? = null
     private val toolkitValidator = ComponentValidator(this)
     private val loadOptions = loader<Toolkit>(scope) { toolkit ->
+        withContext(uiEdt) { applyKnownRefusal(toolkit) }
         val options = runCancellable {
             infoManager.loadBuildOptions(profile, toolkit)
         }.getOrElse { error ->
@@ -308,6 +309,13 @@ internal class XMakeBuildProfileForm(
         if (toolkit.installationKey() == loadedOptionsKey) return
 
         loadOptions(toolkit)
+    }
+
+    // The known refusal applies at once; the loaded options replace it when they answer.
+    private fun applyKnownRefusal(toolkit: Toolkit) {
+        if ((selectedToolkit ?: return).installationKey() != toolkit.installationKey()) return
+        profileOptions = XMakeBuildOptions(versionRefusal = infoManager.versionRefusal(toolkit))
+        updateOptionModels()
     }
 
     private fun applyProfileOptions(toolkit: Toolkit, options: XMakeBuildOptions) {
