@@ -268,21 +268,31 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
         // setupProject runs on the EDT inside the wizard commit; a failed creation aborts
         // via IOException, which the wizard reports without opening a half-built project.
         runWithModalProgressBlocking(project, "Creating XMake project") {
-            val result = try {
-                commandLine.execute(project, XMAKE_CREATE_TIMEOUT)
-            } catch (e: ProcessNotCreatedException) {
-                throw IOException("Failed to start xmake (${toolkit.path}): ${e.message}", e)
-            } catch (e: IOException) {
-                // Local and WSL starts throw a raw IOException from ProcessBuilder.
-                throw IOException("Failed to start xmake (${toolkit.path}): ${e.message}", e)
-            } catch (e: ProcessTimeoutException) {
-                throw IOException("xmake create timed out and was terminated", e)
-            }
-            val output = result.stdOut.trim()
-            Log.debug("Create output: $output")
-            if (result.exitCode != 0) {
-                val diagnostics = failureDetail((output + result.stdErr).trim())
-                throw IOException("xmake create failed (exit=${result.exitCode}): $diagnostics")
+            try {
+                val result = try {
+                    commandLine.execute(project, XMAKE_CREATE_TIMEOUT)
+                } catch (e: ProcessNotCreatedException) {
+                    throw IOException("Failed to start xmake (${toolkit.path}): ${e.message}", e)
+                } catch (e: IOException) {
+                    // Local and WSL starts throw a raw IOException from ProcessBuilder.
+                    throw IOException("Failed to start xmake (${toolkit.path}): ${e.message}", e)
+                } catch (e: ProcessTimeoutException) {
+                    throw IOException("xmake create timed out and was terminated", e)
+                }
+                val output = result.stdOut.trim()
+                Log.debug("Create output: $output")
+                if (result.exitCode != 0) {
+                    val diagnostics = failureDetail((output + result.stdErr).trim())
+                    throw IOException("xmake create failed (exit=${result.exitCode}): $diagnostics")
+                }
+            } catch (error: IOException) {
+                directories.tempDirectory?.let { temp ->
+                    val tempDirectory = File(temp)
+                    if (tempDirectory.exists() && !tempDirectory.deleteRecursively()) {
+                        Log.warn("Failed to remove the partial temp directory $temp")
+                    }
+                }
+                throw error
             }
         }
     }
