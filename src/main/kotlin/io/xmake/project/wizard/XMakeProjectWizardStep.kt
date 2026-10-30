@@ -234,54 +234,65 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
     private fun resolveDirectories(toolkit: Toolkit): WizardDirectories {
         val localDirectory = File(contentEntryPath).path
         return if (toolkit.requiresBackend) {
-            WizardDirectories(remoteContentEntryPath, remoteContentEntryPath)
+            WizardDirectories(hostDirectory = remoteContentEntryPath, tempDirectory = null)
         } else {
-            WizardDirectories(localDirectory, localDirectory + GENERATION_DIR_SUFFIX)
+            WizardDirectories(localDirectory, localDirectory + TEMP_DIRECTORY_SUFFIX)
         }
     }
 
     private fun createProject(project: Project, toolkit: Toolkit, directories: WizardDirectories) {
         val commandLine = xmake(toolkit)
-            .create(directories.generation, language, kind)
+            .create(directories.tempDirectory ?: directories.hostDirectory, language, kind)
 
-        if (!toolkit.requiresBackend) {
-            val leftover = File(directories.generation)
+        val tempDirectory = directories.tempDirectory
+        if (tempDirectory != null) {
+            val leftover = File(tempDirectory)
             if (leftover.exists() && !leftover.deleteRecursively()) {
                 throw IOException(
-                    "Failed to remove the leftover temp directory ${directories.generation} from an earlier attempt",
+                    "Failed to remove the leftover temp directory $tempDirectory from an earlier attempt",
                 )
             }
             // xmake create refuses a non-empty directory; the copy step would
             // overwrite same-named files.
-            if (File(directories.host).list()?.isNotEmpty() == true) {
+            if (File(directories.hostDirectory).list()?.isNotEmpty() == true) {
                 throw IOException(
-                    "${directories.host} is not empty; pick an empty directory or remove its contents first",
+                    "${directories.hostDirectory} is not empty; pick an empty directory or remove its contents first",
                 )
             }
         }
 
         Log.info("contentEntry path: $contentEntryPath")
         Log.info("remote contentEntry path: $remoteContentEntryPath")
-        Log.info("host directory: ${directories.host}")
+        Log.info("host directory: ${directories.hostDirectory}")
 
         // setupProject runs on the EDT inside the wizard commit; a failed creation aborts
         // via IOException, which the wizard reports without opening a half-built project.
         runWithModalProgressBlocking(project, "Creating XMake project") {
-            val result = try {
-                commandLine.execute(project, XMAKE_CREATE_TIMEOUT)
-            } catch (e: ProcessNotCreatedException) {
-                throw IOException("Failed to start xmake (${toolkit.path}): ${e.message}", e)
-            } catch (e: IOException) {
-                // Local and WSL starts throw a raw IOException from ProcessBuilder.
-                throw IOException("Failed to start xmake (${toolkit.path}): ${e.message}", e)
-            } catch (e: ProcessTimeoutException) {
-                throw IOException("xmake create timed out and was terminated", e)
-            }
-            val output = result.stdOut.trim()
-            Log.debug("Create output: $output")
-            if (result.exitCode != 0) {
-                val diagnostics = failureDetail((output + result.stdErr).trim())
-                throw IOException("xmake create failed (exit=${result.exitCode}): $diagnostics")
+            try {
+                val result = try {
+                    commandLine.execute(project, XMAKE_CREATE_TIMEOUT)
+                } catch (e: ProcessNotCreatedException) {
+                    throw IOException("Failed to start xmake (${toolkit.path}): ${e.message}", e)
+                } catch (e: IOException) {
+                    // Local and WSL starts throw a raw IOException from ProcessBuilder.
+                    throw IOException("Failed to start xmake (${toolkit.path}): ${e.message}", e)
+                } catch (e: ProcessTimeoutException) {
+                    throw IOException("xmake create timed out and was terminated", e)
+                }
+                val output = result.stdOut.trim()
+                Log.debug("Create output: $output")
+                if (result.exitCode != 0) {
+                    val diagnostics = failureDetail((output + result.stdErr).trim())
+                    throw IOException("xmake create failed (exit=${result.exitCode}): $diagnostics")
+                }
+            } catch (error: IOException) {
+                directories.tempDirectory?.let { temp ->
+                    val tempDirectory = File(temp)
+                    if (tempDirectory.exists() && !tempDirectory.deleteRecursively()) {
+                        Log.warn("Failed to remove the partial temp directory $temp")
+                    }
+                }
+                throw error
             }
         }
     }
@@ -294,7 +305,7 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
                     project,
                     toolkit,
                     SyncDirection.REMOTE_TO_LOCAL,
-                    directories.host,
+                    directories.hostDirectory,
                     project.xmakeProjectDirectories.resolveLocalSyncDirectory(),
                 )
             }
@@ -302,15 +313,15 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
     }
 
     private fun copyLocalProject(directories: WizardDirectories) {
-        val tempDirectory = File(directories.generation)
+        val tempDirectory = directories.tempDirectory?.let(::File) ?: return
         if (tempDirectory.exists()) {
             try {
-                tempDirectory.copyRecursively(File(directories.host), true)
+                tempDirectory.copyRecursively(File(directories.hostDirectory), true)
             } catch (error: IOException) {
                 // A leftover temp directory would block the next xmake create.
                 val cleaned = tempDirectory.deleteRecursively()
                 throw IOException(
-                    "Failed to move the generated XMake project to ${directories.host}, which may hold a partial copy" +
+                    "Failed to move the generated XMake project to ${directories.hostDirectory}, which may hold a partial copy" +
                             (if (cleaned) "" else "; delete the temp directory $tempDirectory before retrying"),
                     error,
                 )
@@ -343,7 +354,7 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
             // only SSH keeps a host-specific entry.
             project.xmakeProjectDirectories.replaceState(
                 project.xmakeProjectDirectories.state.copy(
-                    hostDirectories = mutableListOf(HostDirectory(toolkit.host.id.canonical, directories.host)),
+                    hostDirectories = mutableListOf(HostDirectory(toolkit.host.id.canonical, directories.hostDirectory)),
                 ),
             )
         }
@@ -367,7 +378,9 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
         )
     }
 
-    private data class WizardDirectories(val host: String, val generation: String)
+    /** The project's final location, and the temp sibling xmake create writes into first
+     *  (null when a backend toolkit generates straight into the final location). */
+    private data class WizardDirectories(val hostDirectory: String, val tempDirectory: String?)
 
     init {
         Disposer.register(context.disposable, toolkitComboBox)
@@ -389,7 +402,7 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
         // moduleBuilder but no moduleType; this id only has to stay stable and unique.
         private const val FALLBACK_MODULE_TYPE_ID = "NPW.XMakeProjectModuleBuilder"
 
-        private const val GENERATION_DIR_SUFFIX = ".tmpdir"
+        private const val TEMP_DIRECTORY_SUFFIX = ".tmpdir"
 
         private const val LOCATION_COMMENT_RATIO = 0.9f // Less than 1.0
 
