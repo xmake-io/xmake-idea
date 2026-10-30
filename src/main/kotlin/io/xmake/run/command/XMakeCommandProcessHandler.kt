@@ -30,7 +30,6 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
 import io.xmake.shared.XMakeProblem
 import io.xmake.utils.SystemUtils.parseProblem
-import io.xmake.utils.execute.failureDetail
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.nio.file.InvalidPathException
 import java.nio.file.Path
@@ -69,17 +68,14 @@ internal class XMakeCommandProcessHandler(
                         continuation.resume(Unit)
                     } else {
                         // xmake prints its version refusal to stdout, so both streams feed
-                        // the failure detail.
-                        val detail = listOf(stdErr.toString(), stdOut.toString())
+                        // the captured output.
+                        val output = listOf(stdErr.toString(), stdOut.toString())
                             .map(String::trim).filter(String::isNotEmpty).joinToString("\n")
-                            .takeIf(String::isNotEmpty)
-                            ?.let(::failureDetail)
-                            ?.let { text -> ": $text" }
-                            .orEmpty()
                         continuation.resumeWithException(
-                            ExecutionException(
-                                "XMake command failed with exit code ${event.exitCode}$detail. " +
-                                        "Command: ${command.commandLine.commandLineString}",
+                            XMakeCommandException(
+                                event.exitCode,
+                                command.commandLine.commandLineString,
+                                output,
                             ),
                         )
                     }
@@ -183,3 +179,11 @@ internal class XMakeCommandProcessHandler(
         val LINE_BREAK_REGEX = Regex("\\r\\n|\\n|\\r")
     }
 }
+
+/** One failed XMake command; the message stays short because [output] was already streamed
+ *  live by the console. */
+internal class XMakeCommandException(
+    val exitCode: Int,
+    commandLine: String,
+    val output: String,
+) : ExecutionException("XMake command failed with exit code $exitCode. Command: $commandLine")

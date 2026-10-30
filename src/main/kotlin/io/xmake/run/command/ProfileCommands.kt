@@ -21,13 +21,14 @@ import com.intellij.openapi.project.Project
 import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitInstallationKey
+import io.xmake.project.toolkit.XMakeVersionRefusalException
 import io.xmake.project.toolkit.installationKey
 import io.xmake.utils.runCancellable
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
 
 /** The command context of one build profile: one xmake run at a time, with the version
- *  refusals ([XMakeProjectVersionError]) rethrown and the tolerated failures shared by
+ *  refusals ([XMakeVersionRefusalException]) rethrown and the tolerated failures shared by
  *  every query. */
 internal class ProfileCommands internal constructor(
     private val factory: XMakeCommandFactory,
@@ -36,7 +37,7 @@ internal class ProfileCommands internal constructor(
 
     /** One `xmake show -l <name>` listing. Older xmake versions reject the `--json` flag, so
      *  a failed listing retries the plain form, and that version keeps using it. A refusal
-     *  caused by the project requiring a newer xmake becomes [XMakeProjectVersionError]. */
+     *  caused by the project requiring a newer xmake becomes [XMakeVersionRefusalException]. */
     suspend fun listing(name: String): String {
         if (factory.toolkit.installationKey() in PLAIN_LISTING_TOOLKITS) {
             return executor.captureStandardOutput(factory.createInfoQuery(name, jsonOutput = false))
@@ -44,6 +45,8 @@ internal class ProfileCommands internal constructor(
         return runCancellable {
             executor.captureStandardOutput(factory.createInfoQuery(name, jsonOutput = true))
         }.getOrElse { error ->
+            // The refusal is not about --json; the retry would only repeat it.
+            if (error is XMakeVersionRefusalException) throw error
             Log.debug(
                 "XMake ${factory.toolkit.version} listing '$name' failed, retrying without --json",
                 error,
@@ -64,7 +67,7 @@ internal class ProfileCommands internal constructor(
             parse(listing(name))
         } catch (error: CancellationException) {
             throw error
-        } catch (error: XMakeProjectVersionError) {
+        } catch (error: XMakeVersionRefusalException) {
             throw error
         } catch (error: Exception) {
             Log.warn("Failed to load the XMake '$name' listing on ${factory.toolkit.name}", error)
