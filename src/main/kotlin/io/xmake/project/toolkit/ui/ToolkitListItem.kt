@@ -64,8 +64,7 @@ sealed class ToolkitListItem(
         tertiaryText = if (!toolkit.isAvailable) {
             unavailableReason(toolkit)
         } else {
-            // XMake appends build metadata after `+`; list labels need only the release version.
-            toolkit.version.substringBefore('+').trim()
+            toolkit.presentableVersion
         },
         caption = if (toolkit.isRegistered) "Registered" else toolkit.host.type.name,
         isCaptionVisible = true,

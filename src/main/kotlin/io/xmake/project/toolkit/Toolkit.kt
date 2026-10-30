@@ -53,6 +53,11 @@ data class Toolkit(
     val requiresBackend: Boolean
         get() = host.type == ToolkitHostType.WSL || host.type == ToolkitHostType.SSH
 
+    /** XMake prefixes `v` and appends build metadata after `+`. */
+    @get:Transient
+    val presentableVersion: String
+        get() = version.substringBefore('+').trim().removePrefix("v")
+
     /** Equal persisted state backed by the same resolved runtime instance. */
     internal fun isSameResolvedToolkitAs(other: Toolkit): Boolean =
         this == other &&
