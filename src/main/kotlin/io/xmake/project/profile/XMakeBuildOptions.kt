@@ -16,8 +16,11 @@
  */
 package io.xmake.project.profile
 
+import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import io.xmake.project.toolkit.Toolkit
+import io.xmake.project.toolkit.XMakeVersionRefusal
+import io.xmake.project.toolkit.XMakeVersionRefusalException
 import io.xmake.run.command.withProfileCommands
 import io.xmake.utils.info.XMakeArchitectures
 import io.xmake.utils.info.XMakeBuildModes
@@ -34,6 +37,7 @@ internal data class XMakeBuildOptions(
     val buildModes: XMakeBuildModes = emptyList(),
     val platforms: XMakePlatforms = emptyList(),
     val toolchains: XMakeToolchains = emptyMap(),
+    val versionRefusal: XMakeVersionRefusal? = null,
 )
 
 /** Queries the build options available in one build profile's command context. The profile only
@@ -42,19 +46,26 @@ internal data class XMakeBuildOptions(
 internal suspend fun Project.queryXMakeBuildOptions(
     profile: XMakeBuildProfile,
     toolkit: Toolkit,
-): XMakeBuildOptions = withContext(Dispatchers.IO) {
-    withProfileCommands(profile, toolkit) {
-        coroutineScope {
-            val architectures = async { listing("architectures", XMakeInfo::parseArchitectures) }
-            val buildModes = async { listing("buildmodes", XMakeInfo::parseBuildModes) }
-            val platforms = async { listing("platforms", XMakeInfo::parsePlatforms) }
-            val toolchains = async { listing("toolchains", XMakeInfo::parseToolchains) }
-            XMakeBuildOptions(
-                architectures = architectures.await()?.toSortedMap() ?: emptyMap(),
-                buildModes = buildModes.await()?.distinct()?.sorted() ?: emptyList(),
-                platforms = platforms.await()?.distinct()?.sorted() ?: emptyList(),
-                toolchains = toolchains.await()?.toSortedMap() ?: emptyMap(),
-            )
+): XMakeBuildOptions = try {
+    withContext(Dispatchers.IO) {
+        withProfileCommands(profile, toolkit) {
+            coroutineScope {
+                val architectures = async { listing("architectures", XMakeInfo::parseArchitectures) }
+                val buildModes = async { listing("buildmodes", XMakeInfo::parseBuildModes) }
+                val platforms = async { listing("platforms", XMakeInfo::parsePlatforms) }
+                val toolchains = async { listing("toolchains", XMakeInfo::parseToolchains) }
+                XMakeBuildOptions(
+                    architectures = architectures.await()?.toSortedMap() ?: emptyMap(),
+                    buildModes = buildModes.await()?.distinct()?.sorted() ?: emptyList(),
+                    platforms = platforms.await()?.distinct()?.sorted() ?: emptyList(),
+                    toolchains = toolchains.await()?.toSortedMap() ?: emptyMap(),
+                )
+            }
         }
     }
+} catch (error: XMakeVersionRefusalException) {
+    Log.warn(error.message)
+    XMakeBuildOptions(versionRefusal = error.refusal)
 }
+
+private val Log = logger<XMakeBuildOptions>()
