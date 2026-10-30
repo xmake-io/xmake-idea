@@ -22,15 +22,23 @@ import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.application.asContextElement
 import com.intellij.openapi.diagnostic.logger
+import com.intellij.openapi.observable.properties.ObservableMutableProperty
+import com.intellij.openapi.observable.properties.PropertyGraph
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.ComponentValidator
 import com.intellij.openapi.ui.Messages
+import com.intellij.openapi.ui.ValidationInfo
 import com.intellij.openapi.util.Disposer
+import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.platform.ide.progress.withBackgroundProgress
+import com.intellij.ui.JBColor
 import com.intellij.ui.RawCommandLineEditor
 import com.intellij.ui.components.JBCheckBox
 import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.AlignY
+import com.intellij.ui.dsl.builder.Cell
 import com.intellij.ui.dsl.builder.IntelliJSpacingConfiguration
+import com.intellij.ui.dsl.builder.MAX_LINE_LENGTH_NO_WRAP
 import com.intellij.ui.dsl.builder.RowLayout
 import com.intellij.ui.dsl.builder.panel
 import com.intellij.ui.dsl.gridLayout.toJBEmptyBorder
@@ -72,6 +80,7 @@ internal class XMakeBuildProfileForm(
     private var selectedToolkit: Toolkit? = null
     private var profileOptions = XMakeBuildOptions()
     private var loadedOptionsKey: ToolkitInstallationKey? = null
+    private val toolkitValidator = ComponentValidator(this)
     private val loadOptions = loader<Toolkit>(scope) { toolkit ->
         val options = runCancellable {
             infoManager.loadBuildOptions(profile, toolkit)
@@ -103,9 +112,14 @@ internal class XMakeBuildProfileForm(
     private val verbose = JBCheckBox("Enable verbose output")
     private val configureArguments = RawCommandLineEditor()
 
+    private val propertyGraph = PropertyGraph()
+    private val minimumVersionLine = propertyGraph.property("")
+
     val component: JComponent = panel {
         row("XMake toolkit:") {
-            cell(toolkitComboBox).align(AlignX.FILL)
+            cell(toolkitComboBox)
+                .align(AlignX.FILL)
+                .errorComment(minimumVersionLine)
         }
 
         row {
@@ -163,11 +177,26 @@ internal class XMakeBuildProfileForm(
         if ((event.changeFlags and HierarchyEvent.SHOWING_CHANGED.toLong()) == 0L) {
             return@HierarchyListener
         }
-        if (component.isShowing) requestProfileOptions()
+        if (component.isShowing) {
+            refreshProjectScript()
+            requestProfileOptions()
+        }
+    }
+
+    /** An external edit reaches the cached options only after a VFS refresh; a real change
+     *  re-queries through the topic, an unchanged file keeps the cache. */
+    private fun refreshProjectScript() {
+        val script = project.basePath
+            ?.let { LocalFileSystem.getInstance().findFileByPath(it) }
+            ?.findChild("xmake.lua")
+            ?: return
+        LocalFileSystem.getInstance()
+            .refreshFiles(mutableListOf(script), /* async = */ true, /* recursive = */ false) {}
     }
 
     init {
         Disposer.register(this, toolkitComboBox)
+        toolkitValidator.installOn(toolkitComboBox)
         cachesConnection.subscribe(
             XMakeInfoManager.TOPIC,
             XMakeInfoManager.Listener {
@@ -295,6 +324,18 @@ internal class XMakeBuildProfileForm(
         toolkit.isAvailable && toolkitRunErrorMessage(toolkit) == null
 
     private fun updateOptionModels() {
+        val refusal = profileOptions.versionRefusal
+        toolkitValidator.updateInfo(refusal?.let { ValidationInfo(it.message, toolkitComboBox) })
+        minimumVersionLine.set(
+            refusal?.minimumVersion
+                ?.let { "The project requires xmake $it or newer" }
+                .orEmpty(),
+        )
+        // No choice under a refused toolkit can build, so the dropdowns give up editing.
+        platformComboBox.isEnabled = refusal == null
+        architectureComboBox.isEnabled = refusal == null
+        toolchainComboBox.isEnabled = refusal == null
+        buildModeComboBox.isEnabled = refusal == null
         isUpdatingOptions = true
         try {
             platformComboBox.updateOptions(
@@ -363,5 +404,19 @@ internal class XMakeBuildProfileForm(
 
     private companion object {
         val Log = logger<XMakeBuildProfileForm>()
+    }
+}
+
+/** Adds a red comment under a cell, bound to [text]; empty text hides the line. */
+private fun Cell<*>.errorComment(text: ObservableMutableProperty<String>) {
+    comment("", MAX_LINE_LENGTH_NO_WRAP)
+    val line = comment!!.apply {
+        foreground = JBColor.RED
+        isVisible = false
+    }
+    text.afterChange { value ->
+        line.isVisible = value.isNotEmpty()
+        line.text = value
+        line.parent?.revalidate()
     }
 }
