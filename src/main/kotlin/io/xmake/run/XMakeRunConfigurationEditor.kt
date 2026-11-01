@@ -31,12 +31,11 @@ import com.intellij.ui.components.JBScrollPane
 import com.intellij.ui.dsl.builder.AlignX
 import com.intellij.ui.dsl.builder.panel
 import io.xmake.debug.DapDriverDetector
+import io.xmake.utils.ui.coroutineScope
 import io.xmake.debug.DapDriverType
 import io.xmake.project.directory.ui.DirectoryBrowser
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -94,7 +93,7 @@ class XMakeRunConfigurationEditor(
     private val profileSelectionConnection = project.messageBus.connect(this)
 
     /** Auto-detection scans files and may run version detection, so it runs off the EDT. */
-    private val detectScope = CoroutineScope(SupervisorJob())
+    private val detectScope = coroutineScope()
     private var detectJob: Job? = null
 
     init {

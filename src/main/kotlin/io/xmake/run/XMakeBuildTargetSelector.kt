@@ -21,16 +21,13 @@ import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import io.xmake.project.profile.XMakeBuildProfile
+import io.xmake.utils.ui.coroutineScope
 import io.xmake.utils.cli.DEFAULT_TARGET
 import io.xmake.utils.info.XMakeInfoManager
 import io.xmake.utils.runCancellable
 import io.xmake.utils.ui.uiEdt
 import io.xmake.utils.ui.loader
 import io.xmake.utils.ui.LiveModelComboBox
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.withContext
 import javax.swing.DefaultComboBoxModel
 
@@ -38,7 +35,7 @@ class XMakeBuildTargetSelector(
     private val project: Project,
     parentDisposable: Disposable,
 ) {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val scope = parentDisposable.coroutineScope()
     private val buildTargetModel = DefaultComboBoxModel<String>()
     val component: LiveModelComboBox<String> = LiveModelComboBox(buildTargetModel)
 
@@ -64,7 +61,6 @@ class XMakeBuildTargetSelector(
 
     init {
         Disposer.register(parentDisposable, component)
-        Disposer.register(parentDisposable) { scope.cancel() }
         replaceBuildTargetChoices(DEFAULT_TARGET, emptyList())
         val connection = project.messageBus.connect(parentDisposable)
         connection.subscribeToContextChanges {

@@ -69,11 +69,8 @@ import io.xmake.utils.execute.transferProjectFiles
 import io.xmake.utils.info.XMakeProjectTemplates
 import io.xmake.utils.info.probeXMakeProjectTemplates
 import io.xmake.utils.ui.uiEdt
+import io.xmake.utils.ui.coroutineScope
 import io.xmake.utils.ui.loader
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
@@ -122,7 +119,7 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
     private val browser = DirectoryBrowser(context.project)
     private val toolkitComboBox = ToolkitComboBox(context.project)
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val scope = context.disposable.coroutineScope()
     private val loadTemplates = loader<Toolkit>(scope) { toolkit ->
         val templates = probeXMakeProjectTemplates(toolkit, context.project, TEMPLATE_LISTING_TIMEOUT)
             ?: return@loader
@@ -384,7 +381,6 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
 
     init {
         Disposer.register(context.disposable, toolkitComboBox)
-        Disposer.register(context.disposable) { scope.cancel() }
     }
 
     companion object {

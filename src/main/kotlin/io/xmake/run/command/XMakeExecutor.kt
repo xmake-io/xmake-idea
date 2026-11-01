@@ -24,7 +24,6 @@ import com.intellij.openapi.components.serviceOrNull
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
 import io.xmake.project.console.XMakeConsole
-import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.XMakeVersionRefusal
 import io.xmake.project.toolkit.XMakeVersionRefusalException
 import io.xmake.shared.XMakeProblem
@@ -34,8 +33,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
@@ -48,18 +47,18 @@ internal class XMakeExecutor(
     private val project: Project,
     private val coroutineScope: CoroutineScope,
 ) {
-    private val taskMutex = Mutex()
+    private val lane = Dispatchers.Default.limitedParallelism(1)
 
     /** Keeps the commands in one submitted operation from interleaving with another operation. */
     fun <T> submit(task: suspend () -> T): Deferred<T> =
         coroutineScope.async { runExclusive(task) }
 
     /**
-     * Runs [before] first (outside the exclusive lock — typically another mutex-guarded
-     * operation, e.g. a [com.intellij.task.ProjectTaskManager] build, that must fully finish
-     * before [task] starts), then runs [task] without interleaving it with another XMake
-     * operation. Never call this with a [before] that itself calls [submit]/[runExclusive]
-     * concurrently with the returned [Deferred] still pending — the mutex is not reentrant.
+     * Runs [before] first (outside the exclusive section — typically another separately
+     * guarded operation, e.g. a [com.intellij.task.ProjectTaskManager] build, that must fully
+     * finish before [task] starts), then runs [task] without interleaving it with another
+     * XMake operation. The lane is entered with a plain dispatcher hop, so re-entering it
+     * from [before] is safe.
      */
     fun <T> submitAfter(before: suspend () -> Unit, task: suspend () -> T): Deferred<T> =
         coroutineScope.async {
@@ -68,7 +67,7 @@ internal class XMakeExecutor(
         }
 
     /** Runs a command operation without interleaving it with another XMake operation. */
-    suspend fun <T> runExclusive(task: suspend () -> T): T = taskMutex.withLock { task() }
+    suspend fun <T> runExclusive(task: suspend () -> T): T = withContext(lane) { task() }
 
     suspend fun execute(
         console: XMakeConsole,

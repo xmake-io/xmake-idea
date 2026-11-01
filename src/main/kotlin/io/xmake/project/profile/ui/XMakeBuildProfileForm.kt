@@ -58,11 +58,10 @@ import io.xmake.project.toolkit.ui.ToolkitListItem
 import io.xmake.utils.execute.SyncDirection
 import io.xmake.utils.execute.transferProjectFiles
 import io.xmake.utils.ui.uiEdt
+import io.xmake.utils.ui.coroutineScope
 import io.xmake.utils.ui.loader
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -74,7 +73,7 @@ import javax.swing.JComponent
 internal class XMakeBuildProfileForm(
     private val project: Project,
 ) : Disposable {
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val scope = coroutineScope()
     private val infoManager = XMakeInfoManager.getInstance(project)
     private var profile = XMakeBuildProfile()
     private var selectedToolkit: Toolkit? = null

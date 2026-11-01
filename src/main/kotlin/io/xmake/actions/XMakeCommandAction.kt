@@ -18,6 +18,7 @@ package io.xmake.actions
 
 import com.intellij.execution.ui.ConsoleViewContentType
 import com.intellij.openapi.application.EDT
+import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
 import io.xmake.utils.notify
@@ -43,26 +44,27 @@ abstract class XMakeCommandAction : XMakeProjectAction() {
         FileDocumentManager.getInstance().saveAllDocuments()
 
         project.xmakeExecutor.submit {
-            val console = XMakeConsoleManager.getInstance(project).awaitReady()
-            withContext(Dispatchers.EDT) {
-                console.clear()
-                if (profile == null) {
-                    console.reportMissingBuildProfile(project)
+            try {
+                val console = XMakeConsoleManager.getInstance(project).awaitReady()
+                withContext(Dispatchers.EDT) {
+                    console.clear()
+                    if (profile == null) {
+                        console.reportMissingBuildProfile(project)
+                    }
                 }
-            }
-            if (profile != null) {
-                execute(project, console, project.xmakeCommands(profile))
-            }
-        }.invokeOnCompletion { error ->
-            if (
-                error == null ||
-                error is CancellationException ||
-                project.isDisposed
-            ) {
-                return@invokeOnCompletion
-            }
-            XMakeConsoleManager.getInstance(project).whenReady { console ->
-                console.reportCommandError(project, error)
+                if (profile != null) {
+                    execute(project, console, project.xmakeCommands(profile))
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                if (!project.isDisposed) {
+                    try {
+                        XMakeConsoleManager.getInstance(project).awaitReady().reportCommandError(project, error)
+                    } catch (consoleFailure: Exception) {
+                        Log.warn("XMake console is unavailable", consoleFailure)
+                    }
+                }
             }
         }
     }
@@ -108,3 +110,5 @@ private fun XMakeConsole.reportCommandError(project: Project, error: Throwable) 
     project.notify(error.message.orEmpty(), title = "XMake Command Failed")
 }
 
+
+private val Log = logger<XMakeCommandAction>()

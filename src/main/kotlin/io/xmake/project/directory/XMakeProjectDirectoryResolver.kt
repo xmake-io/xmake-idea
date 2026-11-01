@@ -75,7 +75,7 @@ internal class XMakeProjectDirectoryResolver(
         try {
             validateAbsoluteHostDirectory(directoryPath)
         } catch (error: RuntimeConfigurationError) {
-            Log.warn("Ignored invalid XMake host directory '$directoryPath': ${error.message}")
+            Log.warn("Ignored invalid XMake host directory '$directoryPath': ${error.localizedMessage}")
             null
         }
 

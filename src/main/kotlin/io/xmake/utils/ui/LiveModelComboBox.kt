@@ -20,7 +20,7 @@ import com.intellij.openapi.Disposable
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.ui.ComboBox
 import javax.swing.ComboBoxModel
-import javax.swing.Timer
+import com.intellij.util.ui.update.DebouncedUpdates
 
 private const val LIVE_MODEL_PROPERTY = "ComboBox.jbPopup.supportUpdateModel"
 private const val POPUP_REFRESH_DELAY_MS = 50
@@ -31,11 +31,14 @@ private const val POPUP_REFRESH_DELAY_MS = 50
  */
 open class LiveModelComboBox<T>(model: ComboBoxModel<T>) : ComboBox<T>(model), Disposable {
 
-    private val popupRefreshTimer = Timer(POPUP_REFRESH_DELAY_MS) {
-        refreshPopupFromModel()
-    }.apply {
-        isRepeats = false
-    }
+    private val popupRefresh = DebouncedUpdates.forComponent<Unit>(
+        this,
+        "LiveModelPopupRefresh",
+        POPUP_REFRESH_DELAY_MS,
+    )
+        .restartTimerOnAdd(true)
+        .runLatest { refreshPopupFromModel() }
+        .cancelOnDispose(this)
 
     protected var isSelectionHandlingSuppressed = false
         private set
@@ -54,7 +57,7 @@ open class LiveModelComboBox<T>(model: ComboBoxModel<T>) : ComboBox<T>(model), D
     }
 
     protected fun schedulePopupRefresh() {
-        popupRefreshTimer.restart()
+        popupRefresh.queue(Unit)
     }
 
     protected fun <R> withSelectionHandlingSuppressed(action: () -> R): R {
@@ -67,7 +70,6 @@ open class LiveModelComboBox<T>(model: ComboBoxModel<T>) : ComboBox<T>(model), D
     }
 
     override fun dispose() {
-        popupRefreshTimer.stop()
     }
 
     private companion object {
