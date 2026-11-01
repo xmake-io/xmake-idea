@@ -21,7 +21,8 @@
 package io.xmake.utils.extension
 
 import com.intellij.execution.configurations.GeneralCommandLine
-import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.EDT
+import com.intellij.openapi.application.asContextElement
 import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
@@ -43,17 +44,23 @@ import io.xmake.project.toolkit.ToolkitHostType
 import io.xmake.project.toolkit.ToolkitHost
 import io.xmake.utils.execute.defaultSyncExcludedEntryNames
 import io.xmake.utils.execute.SyncDirection
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
 import java.awt.event.ActionListener
 import java.io.File
 
 class SshToolkitHostExtensionImpl : ToolkitHostExtension {
+    /** This extension is an application-lifetime singleton, so its scope lives as long as the
+     *  services' injected ones. */
+    private val browseScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     override val hostType: ToolkitHostType = ToolkitHostType.SSH
 
@@ -117,23 +124,17 @@ class SshToolkitHostExtensionImpl : ToolkitHostExtension {
         val sshConfig = host.requireSshConfig()
 
         return ActionListener {
-            val application = ApplicationManager.getApplication()
             val pathToExpand = browser.text.takeIf(String::isNotBlank)
-            application.executeOnPooledThread {
+            browseScope.launch {
                 val channel = try {
-                    connectionBuilder(sshConfig).openFailSafeSftpChannel()
+                    withContext(Dispatchers.IO) { connectionBuilder(sshConfig).openFailSafeSftpChannel() }
                 } catch (error: Exception) {
                     browser.showBrowseError(error)
-                    return@executeOnPooledThread
+                    return@launch
                 }
-
-                application.invokeLater(
-                    {
-                        if (browser.project?.isDisposed == true) {
-                            application.executeOnPooledThread(channel::close)
-                            return@invokeLater
-                        }
-                        try {
+                try {
+                    withContext(Dispatchers.EDT + ModalityState.any().asContextElement()) {
+                        if (browser.project?.isDisposed != true) {
                             val dialog = RemoteBrowserDialog(
                                 remoteBrowserProvider = SftpRemoteBrowserProvider(channel),
                                 project = browser.project,
@@ -143,14 +144,13 @@ class SshToolkitHostExtensionImpl : ToolkitHostExtension {
                                 withCreateDirectoryButton = true,
                             )
                             if (dialog.showAndGet()) browser.text = dialog.getResult()
-                        } catch (error: Exception) {
-                            browser.showBrowseError(error)
-                        } finally {
-                            application.executeOnPooledThread(channel::close)
                         }
-                    },
-                    ModalityState.any(),
-                )
+                    }
+                } catch (error: Exception) {
+                    browser.showBrowseError(error)
+                } finally {
+                    withContext(Dispatchers.IO) { channel.close() }
+                }
             }
         }
     }
@@ -174,8 +174,8 @@ class SshToolkitHostExtensionImpl : ToolkitHostExtension {
 
     private fun DirectoryBrowser.showBrowseError(error: Exception) {
         Log.warn("Failed to open the SSH directory browser", error)
-        ApplicationManager.getApplication().invokeLater(
-            {
+        browseScope.launch {
+            withContext(Dispatchers.EDT + ModalityState.any().asContextElement()) {
                 if (project?.isDisposed != true) {
                     Messages.showErrorDialog(
                         project,
@@ -183,9 +183,8 @@ class SshToolkitHostExtensionImpl : ToolkitHostExtension {
                         "SSH Directory Browser",
                     )
                 }
-            },
-            ModalityState.any(),
-        )
+            }
+        }
     }
 
     private fun joinRemotePath(parent: String, child: String): String =
