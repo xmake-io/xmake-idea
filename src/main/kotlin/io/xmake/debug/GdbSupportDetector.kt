@@ -23,28 +23,15 @@ import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.process.ProcessOutput
 import com.intellij.openapi.util.Version
 import io.xmake.utils.execute.runProcessBlocking
-import java.io.File
-import kotlin.time.Duration.Companion.seconds
 
 internal object GdbSupportDetector {
     fun detectionCommand(path: String): String =
         (listOf(path) + INTERPRETER_START_ARGUMENTS).joinToString(" ")
 
-    private val DETECTION_TIMEOUT = 1.5.seconds
-
     private val INTERPRETER_START_ARGUMENTS = GDB_DAP_INTERPRETER_ARGS + "-batch"
 
-    /** The cache key includes the binary's timestamp and size, so an upgrade invalidates it. */
-    private data class DriverIdentity(val path: String, val lastModified: Long, val size: Long) {
-        companion object {
-            fun of(path: String): DriverIdentity {
-                val file = File(path)
-                return DriverIdentity(path, file.lastModified(), file.length())
-            }
-        }
-    }
-
-    private val cache: MutableMap<DriverIdentity, DapSupport> = mutableMapOf()
+    /** The cache is keyed by the binary's release, so an upgrade invalidates it. */
+    private val cache = mutableMapOf<DriverIdentity, DapSupport>()
 
     @Synchronized
     fun detect(path: String): DapSupport {
@@ -61,7 +48,7 @@ internal object GdbSupportDetector {
 
     fun versionOutput(path: String): String = try {
         runProcess(path, listOf("--version")).combinedOutput()
-    } catch (error: Throwable) {
+    } catch (_: Throwable) {
         ""
     }
 
@@ -102,7 +89,7 @@ internal object GdbSupportDetector {
         GeneralCommandLine(executable)
             .withParameters(args)
             .withCharset(Charsets.UTF_8)
-            .runProcessBlocking(DETECTION_TIMEOUT)
+            .runProcessBlocking(DRIVER_CHECK_TIMEOUT)
 
     private fun ProcessOutput.combinedOutput(): String = (stdout + "\n" + stderr).trim()
 

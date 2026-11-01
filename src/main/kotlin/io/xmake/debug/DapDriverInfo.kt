@@ -20,12 +20,28 @@
 package io.xmake.debug
 
 import com.intellij.openapi.util.Version
+import java.io.File
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
 /** The lowest GDB release that speaks DAP. */
 internal val MIN_DAP_GDB_VERSION = Version(14, 1, 0)
 
 /** The GDB arguments that select the DAP interpreter, shared by detection and launch. */
 val GDB_DAP_INTERPRETER_ARGS = listOf("-i", "dap")
+
+/** How long a driver binary gets to answer a quick check. */
+internal val DRIVER_CHECK_TIMEOUT: Duration = 1.5.seconds
+
+/** Identifies one release of a driver binary; an upgrade changes the identity. */
+internal data class DriverIdentity(val path: String, val lastModified: Long, val size: Long) {
+    companion object {
+        fun of(path: String): DriverIdentity {
+            val file = File(path)
+            return DriverIdentity(path, file.lastModified(), file.length())
+        }
+    }
+}
 
 enum class DapDriverType(val displayName: String) {
     LLDB("LLDB DAP"),
