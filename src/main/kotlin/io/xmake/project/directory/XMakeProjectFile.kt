@@ -35,7 +35,7 @@ internal fun isXMakeLuaVfsEvent(event: VFileEvent, includeContentChanges: Boolea
                     }
 
         is VFileContentChangeEvent -> includeContentChanges &&
-                event.file?.name?.equals("xmake.lua", ignoreCase = true) == true
+                event.file.name.equals("xmake.lua", ignoreCase = true)
 
         else -> false
     }

@@ -58,13 +58,12 @@ internal class XMakeProjectDirectoryPanel(private val project: Project) {
         val editedDirectories = hostDirectoryFields.associate { field ->
             field.hostId to field.directoryBrowser.text
         }
-        hostDirectoryFields = createHostDirectoryFields().map { field ->
+        hostDirectoryFields = createHostDirectoryFields().onEach { field ->
             field.directoryBrowser.text = editedDirectories[field.hostId]
                 ?: baselineState.hostDirectories
                     .firstOrNull { it.hostId == field.hostId }
                     ?.directory
                     .orEmpty()
-            field
         }
         rebuildHostDirectoryFields()
     }

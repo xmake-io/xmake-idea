@@ -128,30 +128,35 @@ class SshToolkitHostExtensionImpl : ToolkitHostExtension {
                 }
 
                 application.invokeLater(
-                    {
-                        if (browser.project?.isDisposed == true) {
-                            application.executeOnPooledThread(channel::close)
-                            return@invokeLater
-                        }
-                        try {
-                            val dialog = RemoteBrowserDialog(
-                                remoteBrowserProvider = SftpRemoteBrowserProvider(channel),
-                                project = browser.project,
-                                foldersOnly = true,
-                                hostName = sshConfig.presentableShortName,
-                                pathToExpand = pathToExpand,
-                                withCreateDirectoryButton = true,
-                            )
-                            if (dialog.showAndGet()) browser.text = dialog.getResult()
-                        } catch (error: Exception) {
-                            browser.showBrowseError(error)
-                        } finally {
-                            application.executeOnPooledThread(channel::close)
-                        }
-                    },
+                    { showRemoteBrowserDialog(browser, sshConfig, channel, pathToExpand) },
                     ModalityState.any(),
                 )
             }
+        }
+    }
+
+    private fun showRemoteBrowserDialog(
+        browser: DirectoryBrowser,
+        sshConfig: SshConfig,
+        channel: SftpChannel,
+        pathToExpand: String?,
+    ) {
+        val application = ApplicationManager.getApplication()
+        try {
+            if (browser.project?.isDisposed == true) return
+            val dialog = RemoteBrowserDialog(
+                remoteBrowserProvider = SftpRemoteBrowserProvider(channel),
+                project = browser.project,
+                foldersOnly = true,
+                hostName = sshConfig.presentableShortName,
+                pathToExpand = pathToExpand,
+                withCreateDirectoryButton = true,
+            )
+            if (dialog.showAndGet()) browser.text = dialog.getResult()
+        } catch (error: Exception) {
+            browser.showBrowseError(error)
+        } finally {
+            application.executeOnPooledThread(channel::close)
         }
     }
 
