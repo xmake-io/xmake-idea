@@ -28,6 +28,13 @@ import com.intellij.ui.content.ContentFactory
 
 class XMakeToolWindowFactory : ToolWindowFactory, DumbAware {
 
+    @Deprecated("Deprecated in ToolWindowFactory", ReplaceWith("isApplicableAsync(project)"))
+    override fun isApplicable(project: Project): Boolean = true
+    override suspend fun isApplicableAsync(project: Project): Boolean = true
+
+    @Deprecated("Deprecated in ToolWindowFactory")
+    override val isDoNotActivateOnStart: Boolean = false
+
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
         val outputPanel = XMakeToolWindowOutputPanel(project)
         val outputTab = ContentFactory.getInstance().createContent(outputPanel, "Output", false)
