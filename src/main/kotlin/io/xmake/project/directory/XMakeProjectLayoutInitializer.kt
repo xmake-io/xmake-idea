@@ -13,9 +13,6 @@
  * limitations under the License.
  *
  * Copyright (C) 2015-present, Xmake Open Source Community.
- *
- * @file        XMakeProjectLayoutInitializer.kt
- *
  */
 package io.xmake.project.directory
 
@@ -26,15 +23,6 @@ import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.project.stateStore
 import java.nio.file.Path
 
-/**
- * Applies the initial XMake layout of one project directory at most once, and persists it
- * as the project directory when none is configured yet (first-wins, so a later manual
- * configuration is never overwritten).
- *
- * The wizard calls this from its setupProject once `xmake create` succeeded, and the directory
- * configurator calls it when an existing folder with a root xmake.lua is opened; both entry
- * points converge here.
- */
 fun configureInitialXMakeProjectLayout(project: Project, baseDir: Path, module: Module) {
     val baseUrl = VfsUtil.pathToUrl(baseDir.toString())
     ModuleRootModificationUtil.updateModel(module) { model ->
@@ -44,9 +32,15 @@ fun configureInitialXMakeProjectLayout(project: Project, baseDir: Path, module: 
             project.stateStore.directoryStorePath
                 ?.let { addExcludeFolder(VfsUtil.fileToUrl(it.toFile())) }
             addExcludeFolder(VfsUtil.fileToUrl(baseDir.resolve(".xmake").toFile()))
-            addExcludeFolder(VfsUtil.fileToUrl(baseDir.resolve("build").toFile()))
+            for (url in XMakeBuildDirectoryExclusions.buildDirectoryUrls(project)) {
+                addExcludeFolder(url)
+            }
         }
     }
+    configureInitialProjectDirectory(project, baseDir)
+}
+
+fun configureInitialProjectDirectory(project: Project, baseDir: Path) {
     val directories = project.xmakeProjectDirectories
     val current = directories.state
     if (current.localDirectory.isBlank() && current.hostDirectories.isEmpty()) {

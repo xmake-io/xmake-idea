@@ -21,6 +21,7 @@ package io.xmake.project.wizard
 
 import com.intellij.openapi.application.EDT
 import com.intellij.openapi.application.runWriteAction
+import com.intellij.openapi.externalSystem.ExternalSystemModulePropertyManager
 import com.intellij.openapi.module.Module
 import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.module.ModuleTypeManager
@@ -30,6 +31,7 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.platform.DirectoryProjectConfigurator
 import com.intellij.project.stateStore
 import io.xmake.project.directory.configureInitialXMakeProjectLayout
+import io.xmake.project.directory.configureInitialProjectDirectory
 import io.xmake.project.directory.hasRootXMakeLua
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -46,6 +48,9 @@ import kotlinx.coroutines.withContext
  */
 class XMakeDirectoryProjectConfigurator : DirectoryProjectConfigurator.AsyncDirectoryProjectConfigurator() {
 
+    private fun isPlainModule(module: Module): Boolean =
+        ExternalSystemModulePropertyManager.getInstance(module).getExternalSystemId() == null
+
     override suspend fun configure(
         project: Project,
         baseDir: VirtualFile,
@@ -57,15 +62,21 @@ class XMakeDirectoryProjectConfigurator : DirectoryProjectConfigurator.AsyncDire
         if (!hasRootXMakeLua(baseDirPath.toString())) return
         withContext(Dispatchers.EDT) {
             if (project.isDisposed) return@withContext
-            val storeDirectory = project.stateStore.directoryStorePath ?: return@withContext
+            configureInitialProjectDirectory(project, baseDirPath)
+            val modules = ModuleManager.getInstance(project).modules
             val module = moduleRef.get()
-                ?: ModuleManager.getInstance(project).modules.firstOrNull()
-                ?: runWriteAction {
-                    ModuleManager.getInstance(project).newModule(
-                        storeDirectory.resolve(project.name),
-                        ModuleTypeManager.getInstance().getDefaultModuleType().id,
-                    )
-                }.also(moduleRef::set)
+                ?: modules.firstOrNull(::isPlainModule)
+                ?: if (modules.isEmpty()) {
+                    val storeDirectory = project.stateStore.directoryStorePath ?: return@withContext
+                    runWriteAction {
+                        ModuleManager.getInstance(project).newModule(
+                            storeDirectory.resolve(project.name),
+                            ModuleTypeManager.getInstance().getDefaultModuleType().id,
+                        )
+                    }.also(moduleRef::set)
+                } else {
+                    return@withContext
+                }
             configureInitialXMakeProjectLayout(project, baseDirPath, module)
         }
     }
