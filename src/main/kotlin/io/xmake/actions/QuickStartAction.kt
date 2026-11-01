@@ -26,9 +26,10 @@ import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtil
-import com.intellij.openapi.wm.ToolWindowManager
 import io.xmake.utils.notify
 import io.xmake.project.console.XMakeConsoleManager
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import io.xmake.project.directory.hasRootXMakeLuaCached
 import io.xmake.project.directory.hasXMakeProjectDirectorySource
 import io.xmake.project.toolkit.ToolkitManager
@@ -84,14 +85,13 @@ class QuickStartAction : XMakeProjectAction() {
         }
     }
 
-    private fun onQuickStartCreated(project: Project) {
+    private suspend fun onQuickStartCreated(project: Project) {
         project.notify("XMake project created successfully!", NotificationType.INFORMATION)
-        ToolWindowManager.getInstance(project).invokeLater {
-            if (project.isDisposed) return@invokeLater
-            project.basePath
-                ?.let(LocalFileSystem.getInstance()::findFileByPath)
-                ?.let { VfsUtil.markDirtyAndRefresh(true, true, true, it) }
-            XMakeConsoleManager.getInstance(project).whenReady { console -> console.showOutput() }
+        project.basePath
+            ?.let { withContext(Dispatchers.IO) { LocalFileSystem.getInstance().findFileByPath(it) } }
+            ?.let { VfsUtil.markDirtyAndRefresh(true, true, true, it) }
+        if (!project.isDisposed) {
+            XMakeConsoleManager.getInstance(project).awaitReady().showOutput()
         }
     }
 
