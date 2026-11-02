@@ -147,7 +147,7 @@ class XMakeInfoManager(
         versionRefusals[toolkit.installationKey()]
 
     /** A null refusal clears the entry; the next one raises the balloon again. */
-    private fun updateVersionRefusal(toolkit: Toolkit, refusal: XMakeVersionRefusal?) {
+    internal fun updateVersionRefusal(toolkit: Toolkit, refusal: XMakeVersionRefusal?) {
         val key = toolkit.installationKey()
         if (refusal == null) {
             versionRefusals.remove(key)
