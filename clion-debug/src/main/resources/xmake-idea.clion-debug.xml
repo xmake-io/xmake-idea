@@ -10,6 +10,10 @@
         <debugSupport implementation="io.xmake.debug.clion.ClionDebugSupport"/>
     </extensions>
 
+    <extensions defaultExtensionNs="com.intellij">
+        <postStartupActivity implementation="io.xmake.debug.XMakeCompDBAutoLinkActivity"/>
+    </extensions>
+
     <extensions defaultExtensionNs="com.intellij.platform.dap">
         <debugAdapterSupportProvider implementation="io.xmake.debug.clion.dap.XMakeDebugAdapterProvider"/>
     </extensions>

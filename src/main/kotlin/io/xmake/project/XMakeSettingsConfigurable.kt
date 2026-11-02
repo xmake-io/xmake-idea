@@ -110,6 +110,10 @@ class XMakeSettingsConfigurable(private val project: Project) :
                     checkBox("Auto-update compile_commands.json after build")
                         .bindSelected(settings.state::autoUpdateCompileCommands)
                 }
+                row {
+                    checkBox("Link the compilation database when the project opens")
+                        .bindSelected(settings.state::autoLinkCompilationDatabase)
+                }
             }
 
             groupRowsRange("Toolkit", indent = false) {

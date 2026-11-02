@@ -22,5 +22,6 @@ dependencies {
         bundledModule("intellij.platform.dap")
         bundledModule("intellij.cidr.debugger.core")
         bundledPlugin("com.intellij.nativeDebug")
+            bundledPlugin("com.intellij.clion-compdb")
     }
 }
