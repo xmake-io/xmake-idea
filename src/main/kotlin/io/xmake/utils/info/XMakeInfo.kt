@@ -97,7 +97,7 @@ data class XMakeInfo(
             parseShowOutput(output, { json.decodeFromString(it) }, { lines -> lines.flatMap(::plainTokens) })
 
         fun parseTargets(output: String): XMakeTargets =
-            parseShowOutput(output, { json.decodeFromString(it) }, { it })
+            parseShowOutput(output, { json.decodeFromString(it) }, { lines -> lines.flatMap(::plainTokens) })
 
         fun parseToolchains(output: String): XMakeToolchains =
             parseShowOutput(
