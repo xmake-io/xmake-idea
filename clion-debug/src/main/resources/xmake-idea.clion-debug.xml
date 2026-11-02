@@ -4,6 +4,7 @@
         <module name="intellij.cidr.debugger.core"/>
         <plugin id="com.intellij.modules.clion"/>
         <plugin id="com.intellij.nativeDebug"/>
+        <plugin id="com.intellij.clion-compdb"/>
     </dependencies>
 
     <extensions defaultExtensionNs="io.xmake">
