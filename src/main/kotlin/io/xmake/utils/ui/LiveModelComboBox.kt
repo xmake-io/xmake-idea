@@ -31,14 +31,17 @@ private const val POPUP_REFRESH_DELAY_MS = 50
  */
 open class LiveModelComboBox<T>(model: ComboBoxModel<T>) : ComboBox<T>(model), Disposable {
 
-    private val popupRefresh = DebouncedUpdates.forComponent<Unit>(
-        this,
-        "LiveModelPopupRefresh",
-        POPUP_REFRESH_DELAY_MS,
-    )
-        .restartTimerOnAdd(true)
-        .runLatest { refreshPopupFromModel() }
-        .cancelOnDispose(this)
+    // cancelOnDispose joins the Disposer tree; lazy keeps non-debouncing combos out.
+    private val popupRefresh by lazy {
+        DebouncedUpdates.forComponent<Unit>(
+            this,
+            "LiveModelPopupRefresh",
+            POPUP_REFRESH_DELAY_MS,
+        )
+            .restartTimerOnAdd(true)
+            .runLatest { refreshPopupFromModel() }
+            .cancelOnDispose(this)
+    }
 
     protected var isSelectionHandlingSuppressed = false
         private set
