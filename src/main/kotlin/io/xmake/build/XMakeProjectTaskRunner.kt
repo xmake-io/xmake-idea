@@ -156,7 +156,7 @@ class XMakeProjectTaskRunner : ProjectTaskRunner() {
             val message = error.message ?: "$title failed"
             finish(FAILED_EXIT_CODE) {
                 progress.output("$message\n", ProcessOutputType.STDERR)
-                progress.fail(System.currentTimeMillis(), message)
+                progress.fail(System.currentTimeMillis(), "$title failed")
             }
         }
 

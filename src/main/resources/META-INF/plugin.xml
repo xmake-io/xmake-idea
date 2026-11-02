@@ -58,7 +58,8 @@
         <projectTaskRunner implementation="io.xmake.build.XMakeProjectTaskRunner"/>
 
         <!-- notifications -->
-        <notificationGroup id="XMake.NotificationGroup" displayType="BALLOON"/>
+        <notificationGroup id="XMake.NotificationGroup" displayType="BALLOON"
+                           bundle="messages.XMakeBundle" key="notification.group.name"/>
 
         <postStartupActivity implementation="io.xmake.project.directory.XMakeProjectDirectoryResolutionActivity"/>
         <postStartupActivity implementation="io.xmake.utils.info.XMakeInfoActivity"/>

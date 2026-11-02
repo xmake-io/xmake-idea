@@ -223,7 +223,7 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
         val current = toolkit ?: throw IllegalStateException("An available XMake toolkit must be selected to create a project")
         return toolkitManager.register(current.id, context.project)
             ?: throw IllegalStateException(
-                "The selected XMake toolkit ${current.name} (${current.path}) could not be registered. " +
+                "The selected XMake toolkit '${current.name}' (${current.path}) could not be registered. " +
                         "Choose another toolkit or fix its host connection.",
             )
     }

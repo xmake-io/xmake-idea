@@ -181,9 +181,9 @@ internal class XMakeCommandProcessHandler(
 }
 
 /** One failed XMake command; the message stays short because [output] was already streamed
- *  live by the console. */
+ *  live by the console, except on the captured path, which reads [output] itself. */
 internal class XMakeCommandException(
     val exitCode: Int,
     commandLine: String,
     val output: String,
-) : ExecutionException("XMake command failed with exit code $exitCode. Command: $commandLine")
+) : ExecutionException("XMake command failed with exit code $exitCode (command: $commandLine)")

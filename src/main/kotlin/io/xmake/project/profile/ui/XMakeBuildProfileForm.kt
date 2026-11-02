@@ -400,8 +400,8 @@ internal class XMakeBuildProfileForm(
                     if (!project.isDisposed) {
                         Messages.showErrorDialog(
                             project,
-                            error.message ?: "Unable to transfer XMake project files",
-                            "XMake Project File Transfer",
+                            error.message ?: "The transfer did not complete",
+                            "XMake File Transfer Failed",
                         )
                     }
                 }

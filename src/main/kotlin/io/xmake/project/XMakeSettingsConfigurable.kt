@@ -84,7 +84,7 @@ class XMakeSettingsConfigurable(private val project: Project) :
                 ?: return@setRemoveAction
             if (Messages.showYesNoDialog(
                     project,
-                    "Unregister ${toolkit.name}?",
+                    "Unregister '${toolkit.name}'?",
                     "Unregister Toolkit",
                     Messages.getQuestionIcon()
                 ) == Messages.YES

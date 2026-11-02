@@ -111,7 +111,7 @@ private suspend fun resolveDapDriver(project: Project, state: XMakeDebugState): 
     }
     if (driverPath.isBlank()) {
         throw ExecutionException(
-            "No DAP driver found. Please install lldb-dap or GDB with DAP support, " +
+            "No DAP driver found. Install lldb-dap or a GDB with DAP support, " +
             "or specify a custom path in the debug configuration.",
         )
     }

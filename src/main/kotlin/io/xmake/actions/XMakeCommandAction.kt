@@ -100,13 +100,13 @@ abstract class XMakeCommandAction : XMakeProjectAction() {
 }
 
 private fun XMakeConsole.reportMissingBuildProfile(project: Project) {
-    print("Please select an XMake build profile first!\n", ConsoleViewContentType.ERROR_OUTPUT)
+    print("XMake build profile is not selected\n", ConsoleViewContentType.ERROR_OUTPUT)
     project.notifyMissingBuildProfile()
 }
 
 private fun XMakeConsole.reportCommandError(project: Project, error: Throwable) {
     print(
-        "XMake command failed: ${error.message}\n",
+        (error.message?.takeIf { it.isNotBlank() } ?: "XMake command failed") + "\n",
         ConsoleViewContentType.ERROR_OUTPUT,
     )
     project.notify(
@@ -114,6 +114,5 @@ private fun XMakeConsole.reportCommandError(project: Project, error: Throwable) 
         StringUtil.escapeXmlEntities(error.message?.takeIf { it.isNotBlank() } ?: "The XMake command did not run"),
     )
 }
-
 
 private val Log = logger<XMakeCommandAction>()

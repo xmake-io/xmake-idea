@@ -174,6 +174,6 @@ class ToolkitComboBox(
             transformParameter { ::selectedToolkit }
 
         val REQUIRE_TOOLKIT_SELECTION: DialogValidation.WithParameter<() -> Toolkit?> =
-            validationErrorIf("XMake toolkit is not set!") { toolkit: Toolkit? -> toolkit == null }
+            validationErrorIf("XMake toolkit is not set") { toolkit: Toolkit? -> toolkit == null }
     }
 }

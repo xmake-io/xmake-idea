@@ -11,7 +11,7 @@ class DebugAction : XMakeProjectAction() {
         if (!XMakeDebugSupport.isAvailable()) {
             Messages.showErrorDialog(
                 project,
-                "Debugging is unavailable: the CLion debugger integration is not available in this IDE.",
+                "The CLion debugger integration is not available in this IDE",
                 "XMake Debug",
             )
             return
