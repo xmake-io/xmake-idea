@@ -227,6 +227,7 @@ class XMakeProjectTaskRunner : ProjectTaskRunner() {
     private fun XMakeProblem.messageKind(): MessageEvent.Kind = when {
         kind?.contains("warning", ignoreCase = true) == true -> MessageEvent.Kind.WARNING
         kind?.contains("note", ignoreCase = true) == true -> MessageEvent.Kind.INFO
+        kind?.contains("remark", ignoreCase = true) == true -> MessageEvent.Kind.INFO
         else -> MessageEvent.Kind.ERROR
     }
 
