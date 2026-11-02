@@ -19,13 +19,12 @@
  */
 package io.xmake.debug
 
-import com.intellij.openapi.application.EDT
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.jetbrains.cidr.cpp.compdb.CompDBUtil
 import io.xmake.project.XMakeSettings
-import kotlinx.coroutines.Dispatchers
+import io.xmake.utils.ui.uiEdt
 import kotlinx.coroutines.withContext
 
 class XMakeCompDBAutoLinkActivity : ProjectActivity {
@@ -33,7 +32,7 @@ class XMakeCompDBAutoLinkActivity : ProjectActivity {
         if (project.isDisposed) return
         if (!XMakeSettings.getInstance(project).state.autoLinkCompilationDatabase) return
 
-        withContext(Dispatchers.EDT) {
+        withContext(uiEdt) {
             if (CompDBUtil.linkedProjectSettings(project).isNotEmpty()) return@withContext
             XMakeSettings.getInstance(project).state.compileCommandsPath.takeIf { it.isNotBlank() }
                 ?.let { path ->

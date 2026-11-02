@@ -30,9 +30,8 @@ import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.launch
 import kotlin.coroutines.CoroutineContext
 
-/** The EDT dispatcher that also runs under an open modal dialog, for applying loaded
- *  results to the UI. */
-internal val uiEdt: CoroutineContext
+/** The EDT dispatcher that also runs under an open modal dialog. */
+val uiEdt: CoroutineContext
     get() = Dispatchers.EDT + ModalityState.any().asContextElement()
 
 /** Decorates one suspend block into a UI-triggerable load: each call runs the block for the
