@@ -32,9 +32,11 @@ import io.xmake.build.XMakeBuildTask
 import io.xmake.build.XMakeBuildTaskExecution
 import io.xmake.project.XMakeSettings
 import io.xmake.project.directory.isXMakeLuaVfsEvent
-import io.xmake.project.profile.XMakeBuildProfile
+import io.xmake.project.directory.xmakeProjectDirectories
+import io.xmake.project.profile.XMakeBuildProfileManager
 import io.xmake.run.target.activeOrSingleXMakeBuildProfile
 import io.xmake.utils.info.XMakeInfoManager
+import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
@@ -61,9 +63,18 @@ class XMakeCompileCommandsSynchronizer(
                 }
             }
         }
-        project.messageBus.connect(this).subscribe(
+        val connection = project.messageBus.connect(this)
+        connection.subscribe(
             ExecutionTargetManager.TOPIC,
             ExecutionTargetListener { scheduleRefresh() },
+        )
+        connection.subscribe(
+            XMakeInfoManager.TOPIC,
+            XMakeInfoManager.Listener { scheduleRefresh() },
+        )
+        connection.subscribe(
+            XMakeBuildProfileManager.TOPIC,
+            XMakeBuildProfileManager.Listener { scheduleRefresh() },
         )
         VirtualFileManager.getInstance().addAsyncFileListener({ events ->
             if (events.any { isXMakeLuaVfsEvent(it, includeContentChanges = true) }) {
@@ -79,6 +90,18 @@ class XMakeCompileCommandsSynchronizer(
     fun scheduleRefresh() {
         if (project.isDisposed) return
         refreshRequests.trySend(Unit)
+    }
+
+    /** The open-time refresh only fills a missing file; every change has its own trigger. */
+    fun scheduleInitialRefresh() {
+        if (project.isDisposed) return
+        if (!compileCommandsFileExists()) scheduleRefresh()
+    }
+
+    private fun compileCommandsFileExists(): Boolean {
+        val directory = project.xmakeProjectDirectories.resolveLocalSyncDirectory()
+        val generatedPath = compileCommandsGeneratedPath(XMakeSettings.getInstance(project).state.compileCommandsPath)
+        return File(directory, generatedPath).isFile
     }
 
     private suspend fun refreshCompileCommands() {
@@ -102,7 +125,7 @@ class XMakeCompileCommandsSynchronizer(
 
 class XMakeCompileCommandsSyncActivity : ProjectActivity {
     override suspend fun execute(project: Project) {
-        project.service<XMakeCompileCommandsSynchronizer>().scheduleRefresh()
+        project.service<XMakeCompileCommandsSynchronizer>().scheduleInitialRefresh()
     }
 }
 

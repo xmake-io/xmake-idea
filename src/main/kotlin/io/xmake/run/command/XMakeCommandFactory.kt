@@ -195,15 +195,6 @@ internal class XMakeCommandFactory(
     private companion object {
         private const val ANDROID_PLATFORM = "android"
 
-        /** Generated file path relative to the project directory; xmake always names the file
-         *  compile_commands.json, so only the directory part of [setting] applies. */
-        private fun compileCommandsGeneratedPath(setting: String): String {
-            val normalized = setting.trim().replace('\\', '/').trimEnd('/')
-            if (normalized.isEmpty()) return "compile_commands.json"
-            val directory = normalized.substringBeforeLast('/', "")
-            return if (directory.isEmpty()) "compile_commands.json" else "$directory/compile_commands.json"
-        }
-
         private fun compileCommandsOutputDirectory(generatedPath: String): String? =
             generatedPath.substringBeforeLast('/', "").takeIf { it.isNotEmpty() }
 
@@ -257,3 +248,12 @@ internal class XMakeCommandFactory(
  *  one build profile ([withProfileCommands]). */
 internal fun Project.xmakeCommands(profile: XMakeBuildProfile): XMakeCommandFactory =
     XMakeCommandFactory(this, profile)
+
+/** Generated file path relative to the project directory; xmake always names the file
+ *  compile_commands.json, so only the directory part of [setting] applies. */
+internal fun compileCommandsGeneratedPath(setting: String): String {
+    val normalized = setting.trim().replace('\\', '/').trimEnd('/')
+    if (normalized.isEmpty()) return "compile_commands.json"
+    val directory = normalized.substringBeforeLast('/', "")
+    return if (directory.isEmpty()) "compile_commands.json" else "$directory/compile_commands.json"
+}
