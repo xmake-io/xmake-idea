@@ -25,6 +25,7 @@ import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.openapi.vfs.newvfs.BulkFileListener
 import com.intellij.openapi.vfs.newvfs.events.VFileEvent
@@ -156,7 +157,7 @@ class XMakeInfoManager(
             versionRefusals[key] = refusal
             if (notifiedRefusalKey != key) {
                 notifiedRefusalKey = key
-                project.notify(message = refusal.message, title = "The project needs a newer xmake")
+                project.notify("The project needs a newer xmake", StringUtil.escapeXmlEntities(refusal.message))
             }
         }
     }

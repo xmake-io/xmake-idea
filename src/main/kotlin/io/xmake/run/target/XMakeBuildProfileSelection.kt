@@ -19,9 +19,11 @@ package io.xmake.run.target
 import com.intellij.execution.ExecutionException
 import com.intellij.execution.ExecutionTarget
 import com.intellij.execution.ExecutionTargetManager
+import com.intellij.notification.NotificationType
 import com.intellij.openapi.project.Project
 import io.xmake.project.profile.XMakeBuildProfile
 import io.xmake.project.profile.xmakeBuildProfiles
+import io.xmake.utils.notify
 
 internal fun Project.findXMakeBuildProfileFor(target: ExecutionTarget): XMakeBuildProfile? {
     val profileId = (target as? XMakeBuildProfileExecutionTarget)?.profileId ?: return null
@@ -36,3 +38,9 @@ internal fun Project.requireXMakeBuildProfileFor(target: ExecutionTarget): XMake
 internal val Project.activeOrSingleXMakeBuildProfile: XMakeBuildProfile?
     get() = findXMakeBuildProfileFor(ExecutionTargetManager.getActiveTarget(this))
         ?: xmakeBuildProfiles.profiles.singleOrNull()
+
+internal fun Project.notifyMissingBuildProfile() = notify(
+    "No XMake build profile is selected",
+    "Select an XMake build profile first",
+    NotificationType.WARNING,
+)

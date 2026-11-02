@@ -30,7 +30,7 @@ internal object GdbSupportDetector {
 
     private val INTERPRETER_START_ARGUMENTS = GDB_DAP_INTERPRETER_ARGS + "-batch"
 
-    /** The cache is keyed by the binary's release, so an upgrade invalidates it. */
+    /** The cache is keyed by the binary's path, size, and modification time, so an upgrade invalidates it. */
     private val cache = mutableMapOf<DriverIdentity, DapSupport>()
 
     @Synchronized
@@ -80,7 +80,7 @@ internal object GdbSupportDetector {
 
     private fun interpreterFailure(version: Version?, check: ProcessOutput): String {
         val owner = version?.let { " of GDB ${it.toCompactString()}" } ?: ""
-        val detail = check.combinedOutput().lineSequence().firstOrNull { it.isNotBlank() }?.take(600)
+        val detail = check.combinedOutput().lineSequence().firstOrNull { it.isNotBlank() }?.trimEnd('.', ' ')?.take(600)
             ?: "exit=${check.exitCode}"
         return "The DAP interpreter$owner failed to start: $detail."
     }

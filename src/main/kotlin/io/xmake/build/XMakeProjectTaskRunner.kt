@@ -26,6 +26,7 @@ import com.intellij.execution.process.ProcessOutputType
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
+import com.intellij.openapi.util.text.StringUtil
 import com.intellij.task.ProjectTask
 import com.intellij.task.ProjectTaskContext
 import com.intellij.task.ProjectTaskRunner
@@ -114,9 +115,10 @@ class XMakeProjectTaskRunner : ProjectTaskRunner() {
                             .lineSequence().firstOrNull { it.isNotBlank() } ?: "failed"
                         progress.output("Failed to fetch $generatedPath: $detail\n", ProcessOutputType.STDERR)
                         project.notify(
-                            "The existing $generatedPath is kept and may not match the project. $detail",
+                            "Compile commands were not updated",
+                            "The existing ${StringUtil.escapeXmlEntities(generatedPath)} is kept and may not " +
+                                "match the project. ${StringUtil.escapeXmlEntities(detail)}",
                             NotificationType.WARNING,
-                            title = "Compile commands were not updated",
                         )
                         throw error
                     }

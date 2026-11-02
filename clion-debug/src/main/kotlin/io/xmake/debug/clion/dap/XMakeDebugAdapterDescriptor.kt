@@ -23,6 +23,7 @@ import com.intellij.execution.configurations.RunProfileState
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.SystemInfo
+import com.intellij.openapi.util.text.StringUtil
 import com.intellij.platform.dap.DapBreakpointsDescription
 import com.intellij.platform.dap.DebugAdapterDescriptor
 import com.intellij.platform.dap.connection.CommandLineDebugAdapterHandle
@@ -119,9 +120,9 @@ internal class XMakeDebugAdapterDescriptor(
 
     private fun notifyMissingDriverDependency(driverPath: String) {
         project.notify(
+            "DAP driver is missing a DLL",
             "Failed to start ${File(driverPath).name} (0xC0000135). " +
-                "Run '$driverPath --version' in a terminal to identify the missing dependency.",
-            title = "DAP driver is missing a DLL",
+                "Run '${StringUtil.escapeXmlEntities(driverPath)} --version' in a terminal to identify the missing dependency.",
         )
     }
 
