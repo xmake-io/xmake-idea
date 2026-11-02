@@ -23,12 +23,14 @@ import com.intellij.build.events.MessageEvent
 import com.intellij.build.progress.BuildProgress
 import com.intellij.build.progress.BuildProgressDescriptor
 import com.intellij.execution.process.ProcessOutputType
+import com.intellij.notification.NotificationType
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
 import com.intellij.task.ProjectTask
 import com.intellij.task.ProjectTaskContext
 import com.intellij.task.ProjectTaskRunner
 import io.xmake.project.console.FileReferenceFilter
+import io.xmake.utils.notify
 import io.xmake.project.directory.xmakeProjectDirectories
 import io.xmake.run.command.XMakeConsoleOptions
 import io.xmake.run.command.xmakeExecutor
@@ -108,10 +110,15 @@ class XMakeProjectTaskRunner : ProjectTaskRunner() {
                     } catch (error: CancellationException) {
                         throw error
                     } catch (error: Exception) {
-                        progress.output(
-                            "Failed to fetch $generatedPath: ${error.message ?: error.toString()}\n",
-                            ProcessOutputType.STDERR,
+                        val detail = (error.message ?: error.toString())
+                            .lineSequence().firstOrNull { it.isNotBlank() } ?: "failed"
+                        progress.output("Failed to fetch $generatedPath: $detail\n", ProcessOutputType.STDERR)
+                        project.notify(
+                            "The existing $generatedPath is kept and may not match the project. $detail",
+                            NotificationType.WARNING,
+                            title = "Compile commands were not updated",
                         )
+                        throw error
                     }
                 }
             }

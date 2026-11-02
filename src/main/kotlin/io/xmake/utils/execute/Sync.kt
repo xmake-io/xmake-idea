@@ -32,23 +32,29 @@ import io.xmake.project.toolkit.Toolkit
 import io.xmake.project.toolkit.ToolkitHost
 import io.xmake.project.toolkit.ToolkitHostType
 import io.xmake.utils.extension.ToolkitHostExtension
+import java.io.File
+import java.io.IOException
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.FileVisitResult
+import java.nio.file.Files
+import java.nio.file.NoSuchFileException
+import java.nio.file.Path as NioPath
+import java.nio.file.Paths
+import java.nio.file.SimpleFileVisitor
+import java.nio.file.StandardCopyOption.ATOMIC_MOVE
+import java.nio.file.StandardCopyOption.COPY_ATTRIBUTES
+import java.nio.file.StandardCopyOption.REPLACE_EXISTING
+import java.nio.file.attribute.BasicFileAttributes
+import kotlin.io.path.Path
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
-import java.io.File
-import java.io.IOException
-import java.nio.file.FileVisitResult
-import java.nio.file.Files
-import java.nio.file.NoSuchFileException
-import java.nio.file.Path as NioPath
-import java.nio.file.StandardCopyOption.COPY_ATTRIBUTES
-import java.nio.file.StandardCopyOption.REPLACE_EXISTING
-import java.nio.file.SimpleFileVisitor
-import java.nio.file.attribute.BasicFileAttributes
-import kotlin.io.path.Path
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 
 enum class SyncDirection { LOCAL_TO_REMOTE, REMOTE_TO_LOCAL }
 
@@ -363,6 +369,9 @@ suspend fun syncBeforeFetch(
     }
 }
 
+/** Fetches one generated file to a temporary sibling, validates it, and only then replaces
+ *  the local file; an invalid or failed fetch keeps the existing file. Local toolkits write
+ *  in place, so for them the fetch only refreshes the virtual file system. */
 suspend fun fetchGeneratedFile(
     project: Project,
     toolkit: Toolkit,
@@ -371,13 +380,55 @@ suspend fun fetchGeneratedFile(
     generatedFileRelativePath: String,
 ) {
     withBackgroundProgress(project, "Sync directory", cancellable = true) {
-        transferProjectFiles(
-            project,
-            toolkit,
-            SyncDirection.REMOTE_TO_LOCAL,
-            hostDirectoryPath,
-            localDirectoryPath,
-            generatedFileRelativePath,
-        )
+        if (toolkit.host.type == ToolkitHostType.LOCAL) {
+            transferProjectFiles(
+                project,
+                toolkit,
+                SyncDirection.REMOTE_TO_LOCAL,
+                hostDirectoryPath,
+                localDirectoryPath,
+                generatedFileRelativePath,
+            )
+            return@withBackgroundProgress
+        }
+        val tempRelativePath = "$generatedFileRelativePath.tmp"
+        try {
+            transferProjectFiles(
+                project,
+                toolkit,
+                SyncDirection.REMOTE_TO_LOCAL,
+                hostDirectoryPath,
+                localDirectoryPath,
+                tempRelativePath,
+            )
+            replaceFileIfValid(localDirectoryPath, tempRelativePath, generatedFileRelativePath)
+        } finally {
+            Files.deleteIfExists(Paths.get(localDirectoryPath, tempRelativePath))
+            refreshVirtualFileSystem(localDirectoryPath)
+        }
+    }
+}
+
+/** Replaces the destination file only when the fetched candidate is a non-empty JSON array. */
+private fun replaceFileIfValid(localDirectoryPath: String, tempRelativePath: String, destinationRelativePath: String) {
+    val tempFile = Paths.get(localDirectoryPath, tempRelativePath)
+    val element = try {
+        Json.parseToJsonElement(Files.readString(tempFile))
+    } catch (_: SerializationException) {
+        throw IllegalStateException("The fetched $destinationRelativePath is not valid JSON. The existing file is kept.")
+    } catch (_: NoSuchFileException) {
+        throw IllegalStateException("The fetched $destinationRelativePath is missing. The existing file is kept.")
+    } catch (error: IOException) {
+        throw IllegalStateException("The fetched $destinationRelativePath is unreadable. The existing file is kept.", error)
+    }
+    if (element !is JsonArray || element.isEmpty()) {
+        throw IllegalStateException("The fetched $destinationRelativePath is empty. The existing file is kept.")
+    }
+    val destinationFile = Paths.get(localDirectoryPath, destinationRelativePath)
+    Files.createDirectories(destinationFile.parent)
+    try {
+        Files.move(tempFile, destinationFile, REPLACE_EXISTING, ATOMIC_MOVE)
+    } catch (_: AtomicMoveNotSupportedException) {
+        Files.move(tempFile, destinationFile, REPLACE_EXISTING)
     }
 }
