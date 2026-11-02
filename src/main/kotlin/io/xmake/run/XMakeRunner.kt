@@ -39,6 +39,8 @@ import com.intellij.xdebugger.XDebuggerManager
 import io.xmake.debug.XMakeDebugSupport
 import io.xmake.debug.prepareXMakeDebugBuild
 import io.xmake.debug.prepareXMakeDebugLaunch
+import io.xmake.project.toolkit.XMakeVersionRefusalException
+import io.xmake.utils.info.XMakeInfoManager
 import io.xmake.project.console.XMakeConsole
 import io.xmake.project.console.XMakeConsoleManager
 import io.xmake.run.command.XMakeExecutor
@@ -113,7 +115,13 @@ class XMakeRunner : AsyncProgramRunner<RunnerSettings>() {
     ): RunContentDescriptor {
         val debugSupport = XMakeDebugSupport.find()
             ?: throw ExecutionException("XMake debugging requires the CLion debugger integration")
-        val launch = prepareXMakeDebugLaunch(state, environment.project, executor)
+        val launch = try {
+            prepareXMakeDebugLaunch(state, environment.project, executor)
+        } catch (error: XMakeVersionRefusalException) {
+            XMakeInfoManager.getInstance(environment.project)
+                .updateVersionRefusal(error.refusal.toolkit, error.refusal)
+            throw ExecutionException(error.refusal.message, error)
+        }
 
         return withContext(Dispatchers.EDT) {
             ensureProjectIsOpen(environment.project)
