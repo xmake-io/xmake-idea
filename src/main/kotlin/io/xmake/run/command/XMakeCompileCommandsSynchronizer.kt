@@ -115,6 +115,7 @@ class XMakeCompileCommandsSynchronizer(
                 project,
                 XMakeBuildTask(
                     presentableName = "Update compile commands for '${profile.name}'",
+                    fetchOnSuccess = commands.compileCommandsGeneratedPath,
                     commands = listOf(commands.createConfigure(), commands.createUpdateCompileCommands()),
                 ),
             )
