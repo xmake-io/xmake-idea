@@ -1,7 +1,9 @@
 <idea-plugin>
     <dependencies>
         <module name="intellij.platform.dap"/>
-        <module name="intellij.cidr.debugger.core"/>
+        <!-- Contains CPPEnvironment directly and exposes the internal cidr.debugger.profiles
+             module (the debug profile manager) transitively. -->
+        <module name="intellij.clion.toolchains"/>
         <plugin id="com.intellij.modules.clion"/>
         <plugin id="com.intellij.nativeDebug"/>
         <plugin id="com.intellij.clion-compdb"/>
@@ -18,4 +20,7 @@
     <extensions defaultExtensionNs="com.intellij.platform.dap">
         <debugAdapterSupportProvider implementation="io.xmake.debug.clion.dap.XMakeDebugAdapterProvider"/>
     </extensions>
+
+
+
 </idea-plugin>
