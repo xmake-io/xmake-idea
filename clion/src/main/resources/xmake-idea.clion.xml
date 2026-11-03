@@ -1,7 +1,7 @@
 <idea-plugin>
     <dependencies>
         <module name="intellij.platform.dap"/>
-        <module name="intellij.cidr.debugger.core"/>
+        <module name="intellij.clion.toolchains"/>
         <plugin id="com.intellij.modules.clion"/>
         <plugin id="com.intellij.nativeDebug"/>
         <plugin id="com.intellij.clion-compdb"/>
@@ -18,4 +18,12 @@
     <extensions defaultExtensionNs="com.intellij.platform.dap">
         <debugAdapterSupportProvider implementation="io.xmake.debug.clion.dap.XMakeDebugAdapterProvider"/>
     </extensions>
+
+    <actions>
+        <action id="XMakeProfileSwitcher"
+                class="io.xmake.debug.clion.XMakeProfileSwitcherAction">
+            <add-to-group group-id="ExecutionTargetsToolbarGroup"/>
+            <add-to-group group-id="ToolbarRunGroup" anchor="before" relative-to-action="RunConfiguration"/>
+        </action>
+    </actions>
 </idea-plugin>

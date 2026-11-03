@@ -40,7 +40,7 @@ class ClionDebugSupport : XMakeDebugSupport {
                 "driver=${launch.driver.displayName}, target=${launch.executablePath}",
         )
         return when (val driver = launch.driver) {
-            XMakeDebugDriver.BundledLldb -> XMakeLocalDebugProcessStarter(launch)
+            XMakeDebugDriver.Native -> XMakeLocalDebugProcessStarter(launch)
             is XMakeDebugDriver.Dap -> DapProcessStarter(
                 environment,
                 environment.executor,

@@ -14,9 +14,17 @@
  *
  * Copyright (C) 2015-present, Xmake Open Source Community.
  */
+@file:Suppress("UnstableApiUsage") // CidrDebugProfileManager is the only cross-module door
 package io.xmake.debug.clion.native
 
+import com.intellij.cidr.debugger.profiles.CidrDebugProfileManager
+import com.intellij.execution.ExecutionException
 import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.openapi.diagnostic.logger
+import com.intellij.openapi.project.Project
+import com.intellij.util.system.OS
+import com.jetbrains.cidr.cpp.toolchains.CPPEnvironment
+import com.jetbrains.cidr.cpp.toolchains.CPPToolchains.Toolchain
 import com.jetbrains.cidr.execution.Installer
 import com.jetbrains.cidr.execution.RunParameters
 import com.jetbrains.cidr.execution.TrivialInstaller
@@ -24,7 +32,12 @@ import com.jetbrains.cidr.execution.debugger.backend.DebuggerDriverConfiguration
 import com.jetbrains.cidr.execution.debugger.backend.lldb.LLDBDriverConfiguration
 import io.xmake.debug.XMakeDebugLaunch
 
-internal class XMakeRunParameters(private val launch: XMakeDebugLaunch) : RunParameters() {
+internal class XMakeRunParameters(
+    private val launch: XMakeDebugLaunch,
+    project: Project,
+) : RunParameters() {
+
+    private val debuggerDriverConfiguration = currentProfileDriverConfiguration(project)
 
     override fun getInstaller(): Installer = TrivialInstaller(
         GeneralCommandLine(launch.executablePath)
@@ -33,7 +46,24 @@ internal class XMakeRunParameters(private val launch: XMakeDebugLaunch) : RunPar
             .withWorkDirectory(launch.workingDirectory),
     )
 
-    override fun getDebuggerDriverConfiguration(): DebuggerDriverConfiguration = LLDBDriverConfiguration()
+    override fun getDebuggerDriverConfiguration(): DebuggerDriverConfiguration = debuggerDriverConfiguration
 
     override fun getArchitectureId(): String? = null
+
+    private fun currentProfileDriverConfiguration(project: Project): DebuggerDriverConfiguration = try {
+        val manager = CidrDebugProfileManager.getInstance()
+        val profile = manager.getCurrentDebugProfile(project)
+            ?: manager.getDebugProfiles(project).firstOrNull()
+            ?: return LLDBDriverConfiguration()
+        profile.createDriverConfiguration(project, isElevated = false, isEmulateTerminal = false, cppEnvironment)
+    } catch (error: LinkageError) {
+        Log.warn("CLion debug profiles are unavailable, falling back to the bundled LLDB", error)
+        LLDBDriverConfiguration()
+    }
+
+    private companion object {
+        val Log = logger<XMakeRunParameters>()
+
+        val cppEnvironment = CPPEnvironment(Toolchain(OS.fromString(System.getProperty("os.name"))))
+    }
 }
