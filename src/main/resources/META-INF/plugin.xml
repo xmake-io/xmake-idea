@@ -21,7 +21,7 @@
     </depends>
 
     <content>
-        <module name="xmake-idea.clion-debug" loading="optional"/>
+        <module name="xmake-idea.clion" loading="optional"/>
     </content>
 
     <extensions defaultExtensionNs="com.intellij">
