@@ -21,7 +21,7 @@
 
     <actions>
         <action id="XMakeProfileSwitcher"
-                class="io.xmake.debug.clion.XMakeProfileSwitcherAction">
+                class="io.xmake.debug.clion.actions.XMakeProfileSwitcherAction">
             <add-to-group group-id="ExecutionTargetsToolbarGroup"/>
             <add-to-group group-id="ToolbarRunGroup" anchor="before" relative-to-action="RunConfiguration"/>
         </action>

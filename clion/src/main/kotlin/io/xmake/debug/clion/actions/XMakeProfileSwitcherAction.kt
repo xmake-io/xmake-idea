@@ -14,6 +14,7 @@
  *
  * Copyright (C) 2015-present, Xmake Open Source Community.
  */
+package io.xmake.debug.clion.actions
 
 import com.intellij.cidr.debugger.profiles.CidrDebugProfile
 import com.intellij.cidr.debugger.profiles.CidrDebugProfileManager
