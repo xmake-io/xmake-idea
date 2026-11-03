@@ -50,7 +50,6 @@ internal class XMakeRunParameters(
 
     override fun getArchitectureId(): String? = null
 
-    /** Same factory as CLion's local debug; no profiles at all falls back to the bundled LLDB. */
     private fun currentProfileDriverConfiguration(project: Project): DebuggerDriverConfiguration = try {
         val manager = CidrDebugProfileManager.getInstance()
         val profile = manager.getCurrentDebugProfile(project)
@@ -65,7 +64,6 @@ internal class XMakeRunParameters(
     private companion object {
         val Log = logger<XMakeRunParameters>()
 
-        // Profiles require an environment but barely read it.
         val cppEnvironment = CPPEnvironment(Toolchain(OS.fromString(System.getProperty("os.name"))))
     }
 }
