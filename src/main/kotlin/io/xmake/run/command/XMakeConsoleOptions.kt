@@ -33,6 +33,7 @@ package io.xmake.run.command
  */
 internal data class XMakeConsoleOptions(
     val showConsole: Boolean = true,
+    val showOnFailure: Boolean = false,
     val showProblems: Boolean = false,
     val showExitCode: Boolean = false,
     /** Leaves ANSI escapes for a downstream console that performs its own decoding. */

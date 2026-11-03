@@ -28,7 +28,6 @@ import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtil
 import io.xmake.utils.notify
-import io.xmake.project.console.XMakeConsoleManager
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import io.xmake.project.directory.hasRootXMakeLuaCached
@@ -107,9 +106,6 @@ class QuickStartAction : XMakeProjectAction() {
         project.basePath
             ?.let { withContext(Dispatchers.IO) { LocalFileSystem.getInstance().findFileByPath(it) } }
             ?.let { VfsUtil.markDirtyAndRefresh(true, true, true, it) }
-        if (!project.isDisposed) {
-            XMakeConsoleManager.getInstance(project).awaitReady().showOutput()
-        }
     }
 
     private companion object {

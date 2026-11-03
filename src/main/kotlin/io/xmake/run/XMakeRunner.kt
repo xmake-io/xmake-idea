@@ -43,6 +43,7 @@ import io.xmake.project.toolkit.XMakeVersionRefusalException
 import io.xmake.utils.info.XMakeInfoManager
 import io.xmake.project.console.XMakeConsole
 import io.xmake.project.console.XMakeConsoleManager
+import io.xmake.run.command.XMakeConsoleOptions
 import io.xmake.run.command.XMakeExecutor
 import io.xmake.run.command.xmakeExecutor
 import io.xmake.run.state.XMakeDebugState
@@ -91,7 +92,10 @@ class XMakeRunner : AsyncProgramRunner<RunnerSettings>() {
         environment: ExecutionEnvironment,
         console: XMakeConsole,
     ): RunContentDescriptor {
-        executor.execute(console, state.configureCommand)
+        executor.execute(
+            console, state.configureCommand,
+            XMakeConsoleOptions(showConsole = false, showOnFailure = true),
+        )
 
         val processHandler = state.startProcess()
         return try {
