@@ -228,11 +228,8 @@ private class TargetSynchronizer(
                 configureTaskTermination = termination
                 result.onSuccess { taskResult ->
                     if (taskResult.hasErrors()) {
-                        if (configureJob === request) {
-                            notifyConfigureFailed(profile.name, null)
-                        } else {
-                            Log.info("Superseded configure for '${profile.name}' finished with errors")
-                        }
+                        // The Build window is activated by the runner and already shows this failure.
+                        Log.info("Configure for '${profile.name}' finished with errors")
                     }
                 }
                 result.onError { error ->
@@ -252,7 +249,7 @@ private class TargetSynchronizer(
 
     private fun notifyConfigureFailed(profileName: String, details: String?) {
         val content = details?.takeIf { it.isNotBlank() }?.let(StringUtil::escapeXmlEntities)
-            ?: "Open the Build tool window for details"
+            ?: "The configure run could not start"
         project.notify("Configure failed for profile '${StringUtil.escapeXmlEntities(profileName)}'", content)
     }
 

@@ -26,6 +26,7 @@ import io.xmake.build.XMakeBuildTaskExecution
 import io.xmake.run.command.XMakeExecutor
 import io.xmake.run.state.XMakeDebugState
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Builds the debug target through [com.intellij.task.ProjectTaskManager] (same path as the Build
@@ -151,8 +152,11 @@ private fun notifyGdbDapUnavailable(
     project.notify(title, message)
 }
 
+private val warnedBuildModes = ConcurrentHashMap.newKeySet<String>()
+
 private fun warnAboutBuildMode(project: Project, buildMode: String) {
     if (buildMode in setOf("debug", "releasedbg")) return
+    if (!warnedBuildModes.add(buildMode)) return
 
     project.notify(
         "Debug symbols may be missing",
