@@ -27,22 +27,18 @@ import com.intellij.openapi.project.Project
 
 private const val NOTIFICATION_GROUP = "XMake.NotificationGroup"
 
-/** Shows a notification from any thread; delivery is posted to the EDT and skipped after disposal. */
+/** Shows a notification from any thread; delivery is posted to the EDT and skipped after disposal.
+ *  The content is rendered as HTML, so interpolated external output must be escaped. */
 fun Project.notify(
-    message: String,
+    title: String,
+    content: String,
     type: NotificationType = NotificationType.ERROR,
-    title: String? = null,
 ) {
     val application = ApplicationManager.getApplication()
     val show = {
         if (!isDisposed) {
             val group = NotificationGroupManager.getInstance().getNotificationGroup(NOTIFICATION_GROUP)
-            val notification = if (title == null) {
-                group.createNotification(message, type)
-            } else {
-                group.createNotification(title, message, type)
-            }
-            notification.notify(this)
+            group.createNotification(title, content.ifBlank { title }, type).notify(this)
         }
     }
     if (application.isDispatchThread) show() else application.invokeLater(show, ModalityState.any())

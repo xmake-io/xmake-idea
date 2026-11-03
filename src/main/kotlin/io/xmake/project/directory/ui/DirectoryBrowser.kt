@@ -111,7 +111,7 @@ class DirectoryBrowser(
     private fun unavailableBackendListener(reason: String): ActionListener = ActionListener {
         Messages.showErrorDialog(
             this,
-            "Browsing is unavailable: $reason.",
+            "Browsing is unavailable: $reason",
             browseTitle,
         )
     }

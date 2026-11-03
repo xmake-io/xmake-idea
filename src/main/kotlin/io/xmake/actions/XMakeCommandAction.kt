@@ -21,6 +21,7 @@ import com.intellij.openapi.application.EDT
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.text.StringUtil
 import io.xmake.utils.notify
 import io.xmake.project.console.XMakeConsole
 import io.xmake.project.console.XMakeConsoleManager
@@ -31,6 +32,7 @@ import io.xmake.run.command.XMakeConsoleOptions
 import io.xmake.run.command.xmakeExecutor
 import io.xmake.run.command.xmakeCommands
 import io.xmake.run.target.activeOrSingleXMakeBuildProfile
+import io.xmake.run.target.notifyMissingBuildProfile
 import io.xmake.utils.execute.fetchGeneratedFile
 import io.xmake.utils.execute.syncBeforeFetch
 import kotlinx.coroutines.CancellationException
@@ -98,17 +100,19 @@ abstract class XMakeCommandAction : XMakeProjectAction() {
 }
 
 private fun XMakeConsole.reportMissingBuildProfile(project: Project) {
-    print("Please select an XMake build profile first!\n", ConsoleViewContentType.ERROR_OUTPUT)
-    project.notify("XMake build profile is not selected!", title = "Error with XMake Build Profile")
+    print("XMake build profile is not selected\n", ConsoleViewContentType.ERROR_OUTPUT)
+    project.notifyMissingBuildProfile()
 }
 
 private fun XMakeConsole.reportCommandError(project: Project, error: Throwable) {
     print(
-        "XMake command failed: ${error.message}\n",
+        (error.message?.takeIf { it.isNotBlank() } ?: "XMake command failed") + "\n",
         ConsoleViewContentType.ERROR_OUTPUT,
     )
-    project.notify(error.message.orEmpty(), title = "XMake Command Failed")
+    project.notify(
+        "XMake command failed",
+        StringUtil.escapeXmlEntities(error.message?.takeIf { it.isNotBlank() } ?: "The XMake command did not run"),
+    )
 }
-
 
 private val Log = logger<XMakeCommandAction>()

@@ -19,12 +19,14 @@ package io.xmake.debug
 import com.intellij.execution.ExecutionException
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.text.StringUtil
 import io.xmake.utils.notify
 import io.xmake.build.XMakeBuildTask
 import io.xmake.build.XMakeBuildTaskExecution
 import io.xmake.run.command.XMakeExecutor
 import io.xmake.run.state.XMakeDebugState
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Builds the debug target through [com.intellij.task.ProjectTaskManager] (same path as the Build
@@ -110,7 +112,7 @@ private suspend fun resolveDapDriver(project: Project, state: XMakeDebugState): 
     }
     if (driverPath.isBlank()) {
         throw ExecutionException(
-            "No DAP driver found. Please install lldb-dap or GDB with DAP support, " +
+            "No DAP driver found. Install lldb-dap or a GDB with DAP support, " +
             "or specify a custom path in the debug configuration.",
         )
     }
@@ -122,7 +124,7 @@ private suspend fun resolveDapDriver(project: Project, state: XMakeDebugState): 
             if (info.support is DapSupport.Unsupported) {
                 "GDB does not support DAP: ${info.path}"
             } else {
-                "GDB DAP support could not be verified: ${info.path}"
+                "Could not verify GDB DAP support: ${info.path}"
             }
         )
     }
@@ -136,28 +138,31 @@ private fun notifyGdbDapUnavailable(
     val (title, message) = when (val support = driver.support) {
         is DapSupport.Unsupported -> "GDB does not support DAP" to (
             "The selected GDB does not support Debug Adapter Protocol (DAP).<br/>" +
-                "${support.reason}<br/><br/>" +
-                "Please use a GDB build with DAP support or lldb-dap, then retry.<br/><br/>" +
-                "driver=${driver.path}"
+                "${StringUtil.escapeXmlEntities(support.reason)}<br/><br/>" +
+                "Use a GDB build with DAP support or lldb-dap, then retry.<br/><br/>" +
+                "driver=${StringUtil.escapeXmlEntities(driver.path)}"
             )
-        is DapSupport.Unverified -> "GDB DAP support could not be verified" to (
+        is DapSupport.Unverified -> "Could not verify GDB DAP support" to (
             "Starting the DAP interpreter of the selected GDB failed or timed out.<br/>" +
-                "Run '${GdbSupportDetector.detectionCommand(driver.path)}' in a terminal to check the driver directly.<br/><br/>" +
-                "driver=${driver.path}<br/><br/>${support.diagnostics}"
+                "Run '${StringUtil.escapeXmlEntities(GdbSupportDetector.detectionCommand(driver.path))}' in a terminal to check the driver directly.<br/><br/>" +
+                "driver=${StringUtil.escapeXmlEntities(driver.path)}<br/><br/>${StringUtil.escapeXmlEntities(support.diagnostics)}"
             )
         DapSupport.Supported -> return
     }
-    project.notify(message, title = title)
+    project.notify(title, message)
 }
+
+private val warnedBuildModes = ConcurrentHashMap.newKeySet<String>()
 
 private fun warnAboutBuildMode(project: Project, buildMode: String) {
     if (buildMode in setOf("debug", "releasedbg")) return
+    if (!warnedBuildModes.add(buildMode)) return
 
     project.notify(
-        "The current build mode '<b>$buildMode</b>' may not contain debug symbols.<br/>" +
-            "For better debugging experience, consider using 'debug' or 'releasedbg' mode.<br/>" +
+        "Debug symbols may be missing",
+        "The current build mode '<b>${StringUtil.escapeXmlEntities(buildMode)}</b>' may not contain debug symbols.<br/>" +
+            "For a better debugging experience, consider using 'debug' or 'releasedbg' mode.<br/>" +
             "You can continue debugging, but some debugging features may be limited.",
         NotificationType.WARNING,
-            title = "Build mode warning",
     )
 }

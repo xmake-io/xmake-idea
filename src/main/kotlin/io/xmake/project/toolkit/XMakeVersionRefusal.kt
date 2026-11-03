@@ -22,8 +22,8 @@ internal data class XMakeVersionRefusal(
     val minimumVersion: String,
 ) {
     val message: String
-        get() = "The project refused xmake ${toolkit.presentableVersion} on ${toolkit.name} " +
-            "because it requires xmake $minimumVersion or newer"
+        get() = "The project requires xmake $minimumVersion or newer, " +
+            "but the toolkit '${toolkit.name}' provides xmake ${toolkit.presentableVersion}"
 }
 
 /** The project script refused this xmake version. */

@@ -24,10 +24,10 @@ import com.intellij.notification.NotificationType
 import com.intellij.openapi.actionSystem.AnActionEvent
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VfsUtil
 import io.xmake.utils.notify
-import io.xmake.project.console.XMakeConsoleManager
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import io.xmake.project.directory.hasRootXMakeLuaCached
@@ -70,32 +70,47 @@ class QuickStartAction : XMakeProjectAction() {
                 if (result.exitCode == 0) {
                     onQuickStartCreated(project)
                 } else {
+                    val output = failureDetail((result.stdOut + result.stdErr).trim())
+                        .takeLast(BALLOON_OUTPUT_LENGTH)
                     project.notify(
-                        "xmake create failed (exit=${result.exitCode}): " +
-                                failureDetail((result.stdOut + result.stdErr).trim()),
+                        CREATE_FAILED_TITLE,
+                        "xmake create exited with code ${result.exitCode}.<br/>" +
+                                StringUtil.escapeXmlEntities(output).replace("\n", "<br/>") +
+                                "<br/>Fix the reported problem and run Quick Start again.",
                     )
                 }
-            } catch (e: ProcessTimeoutException) {
-                project.notify("xmake create timed out and was terminated.")
+            } catch (_: ProcessTimeoutException) {
+                project.notify(
+                    CREATE_FAILED_TITLE,
+                    "xmake create timed out after ${CREATE_TIMEOUT.inWholeSeconds} seconds and was terminated. " +
+                            "Check the XMake toolkit and retry.",
+                )
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                project.notify("Failed to start xmake create: ${e.message}")
+                project.notify(
+                    CREATE_FAILED_TITLE,
+                    "Failed to start xmake create: ${e.message ?: "an unknown error"}. " +
+                            "Check the XMake toolkit settings.",
+                )
             }
         }
     }
 
     private suspend fun onQuickStartCreated(project: Project) {
-        project.notify("XMake project created successfully!", NotificationType.INFORMATION)
+        project.notify(
+            "XMake project created",
+            "xmake create completed successfully",
+            NotificationType.INFORMATION,
+        )
         project.basePath
             ?.let { withContext(Dispatchers.IO) { LocalFileSystem.getInstance().findFileByPath(it) } }
             ?.let { VfsUtil.markDirtyAndRefresh(true, true, true, it) }
-        if (!project.isDisposed) {
-            XMakeConsoleManager.getInstance(project).awaitReady().showOutput()
-        }
     }
 
     private companion object {
         private val CREATE_TIMEOUT = 120.seconds
+        private const val BALLOON_OUTPUT_LENGTH = 600
+        private const val CREATE_FAILED_TITLE = "XMake create failed"
     }
 }

@@ -32,7 +32,6 @@ import com.intellij.openapi.util.Disposer
 
 class XMakeToolWindowOutputPanel(project: Project) : SimpleToolWindowPanel(false), Disposable {
 
-    // the toolbar
     val toolbar: ActionToolbar = run {
         val actionManager = ActionManager.getInstance()
         val group = actionManager.getAction(TOOLBAR_ACTION_GROUP_ID) as? DefaultActionGroup
@@ -40,7 +39,6 @@ class XMakeToolWindowOutputPanel(project: Project) : SimpleToolWindowPanel(false
         actionManager.createActionToolbar("XMake Toolbar", group, false)
     }
 
-    // the console view
     val consoleView: ConsoleView = run {
         val builder = TextConsoleBuilderFactory.getInstance().createBuilder(project)
         builder.setViewer(true)
@@ -49,19 +47,12 @@ class XMakeToolWindowOutputPanel(project: Project) : SimpleToolWindowPanel(false
     }
 
     init {
-
-        // init toolbar
         setToolbar(toolbar.component)
         toolbar.targetComponent = this
-
-        // init content
         setContent(consoleView.component)
-
-        // register console view to disposer
         Disposer.register(this, consoleView)
     }
 
-    // dispose
     override fun dispose() {
     }
 

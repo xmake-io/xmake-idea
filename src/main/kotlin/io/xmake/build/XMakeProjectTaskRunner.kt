@@ -26,6 +26,7 @@ import com.intellij.execution.process.ProcessOutputType
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
+import com.intellij.openapi.util.text.StringUtil
 import com.intellij.task.ProjectTask
 import com.intellij.task.ProjectTaskContext
 import com.intellij.task.ProjectTaskRunner
@@ -114,9 +115,10 @@ class XMakeProjectTaskRunner : ProjectTaskRunner() {
                             .lineSequence().firstOrNull { it.isNotBlank() } ?: "failed"
                         progress.output("Failed to fetch $generatedPath: $detail\n", ProcessOutputType.STDERR)
                         project.notify(
-                            "The existing $generatedPath is kept and may not match the project. $detail",
+                            "Compile commands were not updated",
+                            "The existing ${StringUtil.escapeXmlEntities(generatedPath)} is kept and may not " +
+                                "match the project. ${StringUtil.escapeXmlEntities(detail)}",
                             NotificationType.WARNING,
-                            title = "Compile commands were not updated",
                         )
                         throw error
                     }
@@ -154,7 +156,7 @@ class XMakeProjectTaskRunner : ProjectTaskRunner() {
             val message = error.message ?: "$title failed"
             finish(FAILED_EXIT_CODE) {
                 progress.output("$message\n", ProcessOutputType.STDERR)
-                progress.fail(System.currentTimeMillis(), message)
+                progress.fail(System.currentTimeMillis(), "$title failed")
             }
         }
 
@@ -225,6 +227,7 @@ class XMakeProjectTaskRunner : ProjectTaskRunner() {
     private fun XMakeProblem.messageKind(): MessageEvent.Kind = when {
         kind?.contains("warning", ignoreCase = true) == true -> MessageEvent.Kind.WARNING
         kind?.contains("note", ignoreCase = true) == true -> MessageEvent.Kind.INFO
+        kind?.contains("remark", ignoreCase = true) == true -> MessageEvent.Kind.INFO
         else -> MessageEvent.Kind.ERROR
     }
 

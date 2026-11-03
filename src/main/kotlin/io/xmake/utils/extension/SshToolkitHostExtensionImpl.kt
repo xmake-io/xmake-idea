@@ -179,8 +179,8 @@ class SshToolkitHostExtensionImpl : ToolkitHostExtension {
                 if (project?.isDisposed != true) {
                     Messages.showErrorDialog(
                         project,
-                        error.message ?: "Unable to open the SSH directory browser",
-                        "SSH Directory Browser",
+                        error.message ?: "Failed to open the SSH directory browser",
+                        "Cannot Browse the Remote Directory",
                     )
                 }
             }

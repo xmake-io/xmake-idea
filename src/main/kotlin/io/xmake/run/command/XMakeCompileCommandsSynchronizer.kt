@@ -21,11 +21,13 @@ package io.xmake.run.command
 
 import com.intellij.execution.ExecutionTargetListener
 import com.intellij.execution.ExecutionTargetManager
+import com.intellij.notification.NotificationType
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.startup.ProjectActivity
 import com.intellij.openapi.vfs.VirtualFileManager
 import io.xmake.build.XMakeBuildTask
@@ -36,6 +38,7 @@ import io.xmake.project.directory.xmakeProjectDirectories
 import io.xmake.project.profile.XMakeBuildProfileManager
 import io.xmake.run.target.activeOrSingleXMakeBuildProfile
 import io.xmake.utils.info.XMakeInfoManager
+import io.xmake.utils.notify
 import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -50,6 +53,7 @@ class XMakeCompileCommandsSynchronizer(
 ) : Disposable {
 
     private val refreshRequests = Channel<Unit>(Channel.CONFLATED)
+    private var notifiedNotUpdatedReason: String? = null
 
     init {
         scope.launch {
@@ -107,9 +111,22 @@ class XMakeCompileCommandsSynchronizer(
     private suspend fun refreshCompileCommands() {
         val profile = project.activeOrSingleXMakeBuildProfile ?: return
         if (!XMakeSettings.getInstance(project).state.autoUpdateCompileCommands) return
-        val toolkit = profile.resolveToolkit(project)?.takeIf { it.isAvailable } ?: return
+        val toolkit = profile.resolveToolkit(project)?.takeIf { it.isAvailable }
+        if (toolkit == null) {
+            notifyNotUpdated("The XMake toolkit for profile '${profile.name}' is unavailable")
+            return
+        }
         if (XMakeInfoManager.getInstance(project).versionRefusal(toolkit) != null) return
-        val commands = project.xmakeCommands(profile)
+        val commands = try {
+            project.xmakeCommands(profile)
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            Log.warn("Cannot build the XMake commands for profile '${profile.name}'", error)
+            notifyNotUpdated("The XMake configuration for profile '${profile.name}' is invalid")
+            return
+        }
+        notifiedNotUpdatedReason = null
         project.xmakeExecutor.submit {
             XMakeBuildTaskExecution.run(
                 project,
@@ -120,6 +137,19 @@ class XMakeCompileCommandsSynchronizer(
                 ),
             )
         }.await()
+    }
+
+    /** One balloon per stall streak: a successful refresh resets the memory. */
+    private fun notifyNotUpdated(reason: String) {
+        if (notifiedNotUpdatedReason == reason) return
+        notifiedNotUpdatedReason = reason
+        Log.warn(reason)
+        project.notify(
+            "Compile commands were not updated",
+            "${StringUtil.escapeXmlEntities(reason)}, so compile_commands.json was not refreshed. " +
+                    "Fix the problem, then save xmake.lua or switch the execution target to retry.",
+            NotificationType.WARNING,
+        )
     }
 
 }

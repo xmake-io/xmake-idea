@@ -28,7 +28,11 @@ import io.xmake.run.XMakeRunConfiguration
 internal fun launchSelectedXMakeRunConfiguration(project: Project, executor: Executor) {
     val settings = project.selectedXMakeRunConfigurationSettings
     if (settings == null) {
-        project.notify("Please select a valid XMake configuration first", NotificationType.WARNING)
+        project.notify(
+            "No valid XMake run configuration is selected",
+            "Select a valid XMake run configuration first",
+            NotificationType.WARNING,
+        )
         return
     }
 

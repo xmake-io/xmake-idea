@@ -41,7 +41,14 @@ object SystemUtils {
     private val IAR_STYLE = Pattern.compile("^\"(.*)\",([0-9]+)\\s+(Error|Warning)\\[Pe[0-9]+]: (.*)$")
     private val LINE_ONLY = Pattern.compile("^(.*?):([0-9]+): (error|warning|fatal error|note)(?: [0-9]+)?: (.*)$")
 
-    // get platform
+    private val PROBLEM_KINDS = setOf("error", "fatal error", "warning", "note", "remark")
+
+    // MSVC and Keil kinds carry a compiler code, for example "error C2065".
+    private fun isProblemKind(kind: String?): Boolean {
+        val normalized = kind?.trim()?.trimEnd(':')?.lowercase() ?: return false
+        return PROBLEM_KINDS.any { normalized == it || normalized.startsWith("$it ") }
+    }
+
     fun platform(): String = when {
         SystemInfo.isWindows -> "windows"
         SystemInfo.isMac -> "macosx"
@@ -62,7 +69,7 @@ object SystemUtils {
     private fun parseGccStyleProblem(info: String, workingDirectory: Path?): XMakeProblem? {
         val pattern = GCC_STYLE
         val matcher = pattern.matcher(info)
-        if (!matcher.find()) return null
+        if (!matcher.find() || !isProblemKind(matcher.group(4))) return null
         return XMakeProblem(
             file = matcher.group(1),
             line = matcher.intGroup(2),
@@ -77,7 +84,7 @@ object SystemUtils {
     private fun parseMsvcFamilyProblem(info: String, workingDirectory: Path?): XMakeProblem? {
         val pattern = MSVC_FAMILY
         val matcher = pattern.matcher(info)
-        if (!matcher.find()) return null
+        if (!matcher.find() || !isProblemKind(matcher.group(4))) return null
         return XMakeProblem(
             file = matcher.group(1).unquote(),
             line = matcher.intGroup(2),
@@ -92,7 +99,7 @@ object SystemUtils {
     private fun parseArmCcStyleProblem(info: String, workingDirectory: Path?): XMakeProblem? {
         val pattern = ARM_CC_STYLE
         val matcher = pattern.matcher(info)
-        if (!matcher.find()) return null
+        if (!matcher.find() || !isProblemKind(matcher.group(3))) return null
         return XMakeProblem(
             file = matcher.group(1),
             line = matcher.intGroup(2),

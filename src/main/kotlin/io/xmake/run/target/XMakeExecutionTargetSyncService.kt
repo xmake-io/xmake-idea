@@ -31,6 +31,7 @@ import com.intellij.openapi.application.EDT
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity
+import com.intellij.openapi.util.text.StringUtil
 import com.intellij.task.ProjectTaskContext
 import com.intellij.task.ProjectTaskManager
 import com.intellij.util.messages.SimpleMessageBusConnection
@@ -227,11 +228,8 @@ private class TargetSynchronizer(
                 configureTaskTermination = termination
                 result.onSuccess { taskResult ->
                     if (taskResult.hasErrors()) {
-                        if (configureJob === request) {
-                            notifyConfigureFailed(profile.name, null)
-                        } else {
-                            Log.info("Superseded configure for '${profile.name}' finished with errors")
-                        }
+                        // The Build window is activated by the runner and already shows this failure.
+                        Log.info("Configure for '${profile.name}' finished with errors")
                     }
                 }
                 result.onError { error ->
@@ -250,11 +248,9 @@ private class TargetSynchronizer(
     }
 
     private fun notifyConfigureFailed(profileName: String, details: String?) {
-        val message = buildString {
-            append("Configure failed for profile '").append(profileName).append("'")
-            if (!details.isNullOrBlank()) append(": ").append(details)
-        }
-        project.notify(message)
+        val content = details?.takeIf { it.isNotBlank() }?.let(StringUtil::escapeXmlEntities)
+            ?: "The configure run could not start"
+        project.notify("Configure failed for profile '${StringUtil.escapeXmlEntities(profileName)}'", content)
     }
 
     private fun switchActiveTarget(target: ExecutionTarget) {

@@ -72,7 +72,6 @@ open class NewProjectWizardDirectoryGeneratorAdapter<T : Any>(val wizard: Genera
     /** Owns the peer's [WizardContext]; parented to the settings step inside [createPeer]. */
     internal lateinit var wizardDisposable: Disposable
 
-    @Suppress("DialogTitleCapitalization")
     override fun getName(): String = wizard.name
     override fun getLogo(): Icon = wizard.icon
 
@@ -84,7 +83,11 @@ open class NewProjectWizardDirectoryGeneratorAdapter<T : Any>(val wizard: Genera
         } catch (error: Exception) {
             // The welcome-screen generator chain has no outer handler: report the failure
             // instead of killing the IDE with an uncaught exception.
-            Messages.showErrorDialog(project, error.message, wizard.name)
+            Messages.showErrorDialog(
+                project,
+                error.message ?: "The project generator failed",
+                "XMake Project Generation Failed",
+            )
             Log.warn("XMake project generation failed", error)
         }
     }

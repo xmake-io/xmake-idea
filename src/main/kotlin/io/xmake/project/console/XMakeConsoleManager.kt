@@ -67,7 +67,7 @@ class XMakeConsoleManager(private val project: Project) {
         check(ApplicationManager.getApplication().isDispatchThread)
         check(!project.isDisposed) { "Project was disposed before the XMake console was initialized" }
 
-                val toolWindow = ToolWindowManager.getInstance(project).getToolWindow(XMAKE_TOOL_WINDOW_ID)
+        val toolWindow = ToolWindowManager.getInstance(project).getToolWindow(XMAKE_TOOL_WINDOW_ID)
             ?: error("XMake tool window is not registered")
 
         // Accessing the content manager initializes descriptor-owned tool window content.

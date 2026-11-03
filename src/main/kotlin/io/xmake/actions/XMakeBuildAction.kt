@@ -27,6 +27,7 @@ import io.xmake.run.command.XMakeCommandFactory
 import io.xmake.run.command.xmakeExecutor
 import io.xmake.run.command.xmakeCommands
 import io.xmake.run.target.activeOrSingleXMakeBuildProfile
+import io.xmake.run.target.notifyMissingBuildProfile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -34,7 +35,7 @@ abstract class XMakeBuildAction : XMakeProjectAction() {
     final override fun execute(project: Project) {
         val profile = project.activeOrSingleXMakeBuildProfile
         if (profile == null) {
-            project.notify("Please select an XMake build profile first")
+            project.notifyMissingBuildProfile()
             return
         }
 
@@ -43,7 +44,11 @@ abstract class XMakeBuildAction : XMakeProjectAction() {
             val task = try {
                 createTask(project, profile, project.xmakeCommands(profile))
             } catch (error: Exception) {
-                project.notify(error.message ?: "The XMake build profile is invalid")
+                project.notify(
+                    "XMake build profile is invalid",
+                    error.message
+                        ?: "The build profile could not be turned into commands. Open the XMake settings and fix the profile",
+                )
                 return@submit
             }
             withContext(Dispatchers.EDT) {

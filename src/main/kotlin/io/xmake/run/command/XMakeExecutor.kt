@@ -73,15 +73,24 @@ internal class XMakeExecutor(
         console: XMakeConsole,
         command: XMakeCommand,
         options: XMakeConsoleOptions = XMakeConsoleOptions(),
-    ) = runAndAwait(
-        command,
-        timeout = BUILD_TIMEOUT,
-        options = options,
-        onTextAvailable = { text, outputType ->
-            console.print(text, ConsoleViewContentType.getConsoleViewType(outputType))
-        },
-        beforeStart = { if (options.showConsole) console.showOutput() },
-    )
+    ) {
+        try {
+            runAndAwait(
+                command,
+                timeout = BUILD_TIMEOUT,
+                options = options,
+                onTextAvailable = { text, outputType ->
+                    console.print(text, ConsoleViewContentType.getConsoleViewType(outputType))
+                },
+                beforeStart = { if (options.showConsole) console.showOutput() },
+            )
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Throwable) {
+            if (options.showOnFailure) console.showOutput()
+            throw error
+        }
+    }
 
     suspend fun executeSilently(command: XMakeCommand) {
         runAndAwait(command, timeout = ACTION_TIMEOUT)
