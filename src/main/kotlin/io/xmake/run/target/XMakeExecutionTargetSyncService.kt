@@ -139,6 +139,8 @@ private class TargetSynchronizer(
     private var activeTargetUpdateDepth = 0
     private var lastProfileId: String? = null
 
+    private var startupReconciled = false
+
     /** The newest configure request; a request compares its own job against this. */
     @Volatile
     private var configureJob: Job? = null
@@ -159,6 +161,14 @@ private class TargetSynchronizer(
         val profileTargets = ExecutionTargetManager.getInstance(project).getTargetsFor(selectedConfiguration)
             .filterIsInstance<XMakeBuildProfileExecutionTarget>()
         val activeProfileId = (activeTarget as? XMakeBuildProfileExecutionTarget)?.profileId
+        if (!startupReconciled) {
+            startupReconciled = true
+            // The preferred profile is this service's cache; the first call follows the restored target.
+            if (activeProfileId != null) {
+                configuration.preferredBuildProfileId = activeProfileId
+                return
+            }
+        }
         val targetProfileId = configuration.preferredBuildProfileId ?: activeProfileId
         val targetToActivate = targetProfileId
             ?.let { profileId -> profileTargets.firstOrNull { candidate -> candidate.profileId == profileId } }
