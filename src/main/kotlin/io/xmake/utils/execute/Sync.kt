@@ -397,14 +397,25 @@ suspend fun fetchGeneratedFile(
         }
         val tempRelativePath = "$generatedFileRelativePath.tmp"
         try {
-            transferProjectFiles(
-                project,
-                toolkit,
-                SyncDirection.REMOTE_TO_LOCAL,
-                hostDirectoryPath,
-                localDirectoryPath,
-                tempRelativePath,
-            )
+            if (toolkit.host.type == ToolkitHostType.SSH) {
+                // The remote file keeps its real name; the temp suffix is local only.
+                ToolkitHostExtension.requireForHostType(ToolkitHostType.SSH).syncProject(
+                    toolkit.host,
+                    SyncDirection.REMOTE_TO_LOCAL,
+                    resolveSshSyncPath(hostDirectoryPath, generatedFileRelativePath),
+                    Paths.get(localDirectoryPath, tempRelativePath).toString(),
+                )
+                rewriteRemoteRoots(Paths.get(localDirectoryPath, tempRelativePath), localDirectoryPath)
+            } else {
+                transferProjectFiles(
+                    project,
+                    toolkit,
+                    SyncDirection.REMOTE_TO_LOCAL,
+                    hostDirectoryPath,
+                    localDirectoryPath,
+                    tempRelativePath,
+                )
+            }
             replaceFileIfValid(localDirectoryPath, tempRelativePath, generatedFileRelativePath)
         } finally {
             Files.deleteIfExists(Paths.get(localDirectoryPath, tempRelativePath))
@@ -425,6 +436,17 @@ private fun mirrorsLocalDirectory(hostDirectoryPath: String, localDirectoryPath:
     val localSpelling = wslPathToLocal(hostDirectoryPath) ?: return false
     return localSpelling.replace('\\', '/').equals(localDirectoryPath.replace('\\', '/'), ignoreCase = true)
 }
+
+private fun rewriteRemoteRoots(tempFile: NioPath, localDirectoryPath: String) {
+    val text = Files.readString(tempFile)
+    val remoteRoot = DIRECTORY_FIELD.find(text)?.groupValues?.get(1)?.takeIf { it.isNotBlank() } ?: return
+    val localRoot = localDirectoryPath.replace('\\', '/')
+    // The delimiter lookahead keeps a sibling path sharing the prefix (/root vs /root2) intact.
+    val rewritten = Regex("${Regex.escape(remoteRoot)}(?=[\"/])").replace(text, localRoot)
+    if (rewritten != text) Files.writeString(tempFile, rewritten)
+}
+
+private val DIRECTORY_FIELD = Regex("\"directory\"\\s*:\\s*\"(/[^\" ]*)\"")
 
 /** Replaces the destination file only when the fetched candidate is a non-empty JSON array. */
 private fun replaceFileIfValid(localDirectoryPath: String, tempRelativePath: String, destinationRelativePath: String) {
