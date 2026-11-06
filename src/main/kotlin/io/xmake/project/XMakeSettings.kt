@@ -9,7 +9,7 @@ class XMakeSettings : PersistentStateComponent<XMakeSettings.State> {
     data class State(
         var compileCommandsPath: String = "",
         var autoUpdateCompileCommands: Boolean = true,
-        var autoLinkCompilationDatabase: Boolean = false
+        var autoLinkCompilationDatabase: Boolean = true
     )
 
     private var myState = State()

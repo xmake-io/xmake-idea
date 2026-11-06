@@ -78,6 +78,7 @@ class XMakeCompDBToolchainAlignmentService(
             if (events.any { it.isArtifactChange(project) }) {
                 object : AsyncFileListener.ChangeApplier {
                     override fun afterVfsChange() {
+                        linkCompilationDatabaseIfNeeded(project)
                         requestAlignment()
                     }
                 }

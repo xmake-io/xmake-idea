@@ -111,7 +111,7 @@ class XMakeSettingsConfigurable(private val project: Project) :
                         .bindSelected(settings.state::autoUpdateCompileCommands)
                 }
                 row {
-                    checkBox("Link the compilation database when the project opens")
+                    checkBox("Link the compilation database automatically")
                         .bindSelected(settings.state::autoLinkCompilationDatabase)
                 }
             }
