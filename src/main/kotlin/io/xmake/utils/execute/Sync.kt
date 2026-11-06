@@ -391,6 +391,10 @@ suspend fun fetchGeneratedFile(
             )
             return@withBackgroundProgress
         }
+        if (mirrorsLocalDirectory(hostDirectoryPath, localDirectoryPath)) {
+            refreshVirtualFileSystem(localDirectoryPath)
+            return@withBackgroundProgress
+        }
         val tempRelativePath = "$generatedFileRelativePath.tmp"
         try {
             transferProjectFiles(
@@ -407,6 +411,19 @@ suspend fun fetchGeneratedFile(
             refreshVirtualFileSystem(localDirectoryPath)
         }
     }
+}
+
+private fun wslPathToLocal(path: String): String? {
+    val match = WSL_PATH.matchEntire(path) ?: return null
+    val rest = match.groupValues[2].replace('/', '\\')
+    return "${match.groupValues[1]}:\\$rest"
+}
+
+private val WSL_PATH = Regex("/mnt/([a-z])/(.*)")
+
+private fun mirrorsLocalDirectory(hostDirectoryPath: String, localDirectoryPath: String): Boolean {
+    val localSpelling = wslPathToLocal(hostDirectoryPath) ?: return false
+    return localSpelling.replace('\\', '/').equals(localDirectoryPath.replace('\\', '/'), ignoreCase = true)
 }
 
 /** Replaces the destination file only when the fetched candidate is a non-empty JSON array. */
