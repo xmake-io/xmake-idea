@@ -253,7 +253,7 @@ internal fun Project.xmakeCommands(profile: XMakeBuildProfile): XMakeCommandFact
  *  compile_commands.json, so only the directory part of [setting] applies. */
 internal fun compileCommandsGeneratedPath(setting: String): String {
     val normalized = setting.trim().replace('\\', '/').trimEnd('/')
-    if (normalized.isEmpty()) return "compile_commands.json"
+    if (normalized.isEmpty()) return COMPILE_COMMANDS_FILE_NAME
     val directory = normalized.substringBeforeLast('/', "")
-    return if (directory.isEmpty()) "compile_commands.json" else "$directory/compile_commands.json"
+    return if (directory.isEmpty()) COMPILE_COMMANDS_FILE_NAME else "$directory/$COMPILE_COMMANDS_FILE_NAME"
 }
