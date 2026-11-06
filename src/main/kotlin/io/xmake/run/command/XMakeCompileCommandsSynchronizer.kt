@@ -43,6 +43,8 @@ import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.launch
 
@@ -61,7 +63,9 @@ class XMakeCompileCommandsSynchronizer(
                 try {
                     refreshCompileCommands()
                 } catch (error: CancellationException) {
-                    throw error
+                    // A task abort must not end the collector; only a scope cancellation may.
+                    if (!currentCoroutineContext().isActive || !scope.isActive) throw error
+                    Log.info("A compile-commands refresh was aborted and skipped: ${error.message}")
                 } catch (error: Exception) {
                     Log.warn("Failed to update the compile commands", error)
                 }
@@ -109,7 +113,11 @@ class XMakeCompileCommandsSynchronizer(
     }
 
     private suspend fun refreshCompileCommands() {
-        val profile = project.activeOrSingleXMakeBuildProfile ?: return
+        val profile = project.activeOrSingleXMakeBuildProfile
+        if (profile == null) {
+            Log.info("Skipped a compile-commands refresh: no XMake build profile is selected")
+            return
+        }
         if (!XMakeSettings.getInstance(project).state.autoUpdateCompileCommands) return
         val toolkit = profile.resolveToolkit(project)?.takeIf { it.isAvailable }
         if (toolkit == null) {
