@@ -17,12 +17,15 @@
  * @file        XMakeCompDBAutoLinkActivity.kt
  *
  */
+
 package io.xmake.debug
 
+import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.jetbrains.cidr.cpp.compdb.CompDBUtil
+import io.xmake.debug.clion.compdb.XMakeCompDBToolchainAlignmentService
 import io.xmake.project.XMakeSettings
 import io.xmake.utils.ui.uiEdt
 import kotlinx.coroutines.withContext
@@ -30,6 +33,7 @@ import kotlinx.coroutines.withContext
 class XMakeCompDBAutoLinkActivity : ProjectActivity {
     override suspend fun execute(project: Project) {
         if (project.isDisposed) return
+        project.service<XMakeCompDBToolchainAlignmentService>().requestAlignment()
         if (!XMakeSettings.getInstance(project).state.autoLinkCompilationDatabase) return
 
         withContext(uiEdt) {
