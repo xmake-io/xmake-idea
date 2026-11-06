@@ -20,6 +20,7 @@ package io.xmake.debug.clion.compdb
 import com.intellij.notification.NotificationType
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.EDT
+import com.intellij.openapi.application.edtWriteAction
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
@@ -33,7 +34,9 @@ import com.jetbrains.cidr.cpp.compdb.settings.CompDBLocalSettings
 import com.jetbrains.cidr.cpp.compdb.settings.CompDBSettingsListener
 import com.jetbrains.cidr.cpp.toolchains.CPPToolSet
 import com.jetbrains.cidr.cpp.toolchains.CPPToolchains
+import com.jetbrains.cidr.system.HostData
 import io.xmake.run.command.COMPILE_COMMANDS_FILE_NAME
+import io.xmake.run.command.XMakeCompileCommandsArtifact
 import io.xmake.run.command.XMakeCompileCommandsDomain
 import io.xmake.run.command.compileCommandsArtifact
 import io.xmake.run.command.compileCommandsArtifactFile
@@ -109,6 +112,7 @@ class XMakeCompDBToolchainAlignmentService(
         val distribution = artifact.wslDistributionName?.takeIf { domain == XMakeCompileCommandsDomain.WSL }
         val target = distribution?.let { d -> candidates.firstOrNull { it.toolSetPath.equals(d, ignoreCase = true) } }
             ?: candidates.firstOrNull()
+            ?: deriveToolchainIfNeeded(domain, artifact)
             ?: run {
                 notifyMissingToolchain(domain)
                 return
@@ -137,6 +141,44 @@ class XMakeCompDBToolchainAlignmentService(
         }
         CompDBUtil.markAllCompDBProjectsDirty(project)
         Log.info("Aligned the compilation database toolchain to '$name'")
+    }
+
+    private suspend fun deriveToolchainIfNeeded(
+        domain: XMakeCompileCommandsDomain,
+        artifact: XMakeCompileCommandsArtifact,
+    ): CPPToolchains.Toolchain? = edtWriteAction {
+        val displayName = artifact.hostDisplayName ?: return@edtWriteAction null
+        val name = "$DERIVED_PREFIX$displayName"
+        CPPToolchains.getInstance().toolchains.firstOrNull { it.name == name }
+            ?.let { return@edtWriteAction if (it.toolSetKind in domain.kinds()) it else null }
+        val toolchain = when (domain) {
+            XMakeCompileCommandsDomain.WSL -> {
+                val distribution = artifact.wslDistributionName ?: return@edtWriteAction null
+                CPPToolchains.Toolchain(OS.CURRENT).apply {
+                    setName(name)
+                    setToolSetKind(CPPToolSet.Kind.WSL)
+                    toolSetPath = distribution
+                }
+            }
+            XMakeCompileCommandsDomain.SSH -> {
+                val config = artifact.sshConfig ?: return@edtWriteAction null
+                CPPToolchains.Toolchain(OS.CURRENT).apply {
+                    setName(name)
+                    setToolSetKind(CPPToolSet.Kind.SSH)
+                    hostData = HostData(config.id, config)
+                }
+            }
+            else -> return@edtWriteAction null
+        }
+        CPPToolchains.getInstance().apply {
+            beginUpdate()
+            try {
+                addToolchain(toolchain)
+            } finally {
+                endUpdate()
+            }
+        }
+        toolchain
     }
 
     private fun preservesManualChoice(
@@ -170,6 +212,8 @@ private fun XMakeCompileCommandsDomain.kinds(): List<CPPToolSet.Kind> = when (th
     XMakeCompileCommandsDomain.MSVC -> listOf(CPPToolSet.Kind.MSVC, CPPToolSet.Kind.SYSTEM_WINDOWS_TOOLSET)
     XMakeCompileCommandsDomain.MINGW -> listOf(CPPToolSet.Kind.MINGW, CPPToolSet.Kind.SYSTEM_WINDOWS_TOOLSET)
 }
+
+private const val DERIVED_PREFIX = "XMake - "
 
 private fun VFileEvent.isArtifactChange(project: Project): Boolean {
     if (!path.endsWith(COMPILE_COMMANDS_FILE_NAME, ignoreCase = true)) return false

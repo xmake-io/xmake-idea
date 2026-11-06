@@ -18,6 +18,7 @@
 package io.xmake.run.command
 
 import com.intellij.openapi.project.Project
+import com.intellij.ssh.config.unified.SshConfig
 import com.intellij.util.system.OS
 import io.xmake.project.XMakeSettings
 import io.xmake.project.directory.xmakeProjectDirectories
@@ -37,6 +38,8 @@ data class XMakeCompileCommandsArtifact(
     val driver: String,
     val hostType: ToolkitHostType?,
     val wslDistributionName: String?,
+    val sshConfig: SshConfig?,
+    val hostDisplayName: String?,
 )
 
 fun compileCommandsArtifact(project: Project): XMakeCompileCommandsArtifact? {
@@ -52,6 +55,8 @@ fun compileCommandsArtifact(project: Project): XMakeCompileCommandsArtifact? {
         driver = driver,
         hostType = host?.type,
         wslDistributionName = host?.takeIf { it.type == ToolkitHostType.WSL }?.wslDistribution?.msId,
+        sshConfig = host?.takeIf { it.type == ToolkitHostType.SSH }?.sshConfig,
+        hostDisplayName = host?.takeIf { it.type != ToolkitHostType.LOCAL }?.displayName,
     )
 }
 
