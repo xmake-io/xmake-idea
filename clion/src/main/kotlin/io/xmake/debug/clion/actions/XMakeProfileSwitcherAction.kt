@@ -43,7 +43,7 @@ import javax.swing.JComponent
 
 class XMakeProfileSwitcherAction : ComboBoxAction(), DumbAware {
 
-    override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.EDT
+    override fun getActionUpdateThread(): ActionUpdateThread = ActionUpdateThread.BGT
 
     override fun update(e: AnActionEvent) {
         val project = e.project ?: return
