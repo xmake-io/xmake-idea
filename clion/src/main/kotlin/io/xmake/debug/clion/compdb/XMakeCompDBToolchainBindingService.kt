@@ -49,6 +49,7 @@ import io.xmake.run.command.sshConfig
 import io.xmake.run.command.toolchainRequirement
 import io.xmake.run.command.wslDistributionName
 import io.xmake.utils.notify
+import java.nio.file.Files
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -86,7 +87,16 @@ class XMakeCompDBToolchainBindingService(
                     override fun afterVfsChange() {
                         if (project.isDisposed) return
                         autoLinkCompilationDatabase(project)
-                        scope.launch { bindSafely() }
+                        // Nothing re-imports the changed file; bind before marking so the
+                        // import uses the new toolchain.
+                        val file = compileCommandsFile(project)
+                        if (file == null || !Files.isRegularFile(file)) return
+                        scope.launch {
+                            bindSafely()
+                            if (!project.isDisposed && isCompilationDatabaseInUse()) {
+                                CompDBUtil.markAllCompDBProjectsDirty(project)
+                            }
+                        }
                     }
                 }
             } else {
