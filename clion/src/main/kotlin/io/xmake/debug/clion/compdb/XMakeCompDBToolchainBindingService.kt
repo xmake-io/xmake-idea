@@ -85,6 +85,7 @@ class XMakeCompDBToolchainBindingService(
                 object : AsyncFileListener.ChangeApplier {
                     override fun afterVfsChange() {
                         if (project.isDisposed) return
+                        autoLinkCompilationDatabase(project)
                         scope.launch { bindSafely() }
                     }
                 }
