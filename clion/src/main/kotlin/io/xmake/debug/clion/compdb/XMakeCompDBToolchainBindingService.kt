@@ -23,6 +23,7 @@ import com.intellij.notification.NotificationType
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.EDT
+import com.intellij.openapi.application.edtWriteAction
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
@@ -30,12 +31,14 @@ import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.vfs.AsyncFileListener
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.openapi.vfs.newvfs.events.VFileEvent
+import com.intellij.util.system.OS
 import com.jetbrains.cidr.cpp.compdb.CompDBUtil
 import com.jetbrains.cidr.cpp.compdb.settings.CompDBLocalSettings
 import com.jetbrains.cidr.cpp.compdb.settings.CompDBSettingsListener
 import com.jetbrains.cidr.cpp.toolchains.CPPToolSet
 import com.jetbrains.cidr.cpp.toolchains.CPPToolchains
 import com.jetbrains.cidr.cpp.toolchains.CPPToolchainsListener
+import com.jetbrains.cidr.system.HostData
 import io.xmake.project.XMakeSettings
 import io.xmake.run.command.COMPILE_COMMANDS_FILE_NAME
 import io.xmake.run.command.XMakeCompileCommandsContext
@@ -74,6 +77,7 @@ class XMakeCompDBToolchainBindingService(
     private var notifiedMissingKind: String? = null
 
     private val choices = XMakeCompDBToolchainChoices.getInstance(project)
+    private val derivedToolchains = XMakeDerivedToolchains.getInstance()
 
     init {
         VirtualFileManager.getInstance().addAsyncFileListener({ events ->
@@ -184,12 +188,16 @@ class XMakeCompDBToolchainBindingService(
         }
         val manual = pending ?: choices.stored(environmentKey)
             ?: current?.takeIf { !choices.isBindingAdopted() }?.let { name ->
-                if (CPPToolchains.getInstance().toolchains.none { it.name == name }) {
-                    bindToolchain(settings, null)
-                    null
-                } else {
-                    choices.store(environmentKey, name)
-                    ManualChoice.Named(name)
+                when {
+                    CPPToolchains.getInstance().toolchains.none { it.name == name } -> {
+                        bindToolchain(settings, null)
+                        null
+                    }
+                    derivedToolchains.contains(name) -> null
+                    else -> {
+                        choices.store(environmentKey, name)
+                        ManualChoice.Named(name)
+                    }
                 }
             }
         choices.markBindingAdopted()
@@ -220,7 +228,11 @@ class XMakeCompDBToolchainBindingService(
             bindToolchain(settings, existing.name)
             return
         }
-        notifyMissingToolchain(requirement)
+        val derived = deriveToolchainIfNeeded(requirement, context) ?: run {
+            notifyMissingToolchain(requirement)
+            return
+        }
+        bindToolchain(settings, derived.name)
     }
 
     private fun isCompilationDatabaseInUse(): Boolean =
@@ -267,6 +279,96 @@ class XMakeCompDBToolchainBindingService(
         }
     }
 
+    @Suppress("OPT_IN_USAGE")
+    private suspend fun deriveToolchainIfNeeded(
+        requirement: XMakeCompileCommandsToolchainRequirement,
+        context: XMakeCompileCommandsContext,
+    ): CPPToolchains.Toolchain? = edtWriteAction {
+        val name = context.derivedToolchainName(requirement) ?: return@edtWriteAction null
+        if (wasDerivedToolchainDeleted(name)) {
+            clearDanglingBinding(name)
+            return@edtWriteAction null
+        }
+        val existing = CPPToolchains.getInstance().toolchains.firstOrNull { it.name == name }
+        if (existing != null) {
+            if (!derivedToolchains.contains(name)) return@edtWriteAction null
+            if (existing.toolSetKind !in requirement.preferredToolSetKinds()) return@edtWriteAction null
+            repairPersistedRemoteIdentity(existing, requirement, context)
+            return@edtWriteAction existing
+        }
+        val toolchain = when (requirement) {
+            XMakeCompileCommandsToolchainRequirement.WSL -> {
+                val distribution = context.wslDistributionName ?: return@edtWriteAction null
+                CPPToolchains.Toolchain(OS.CURRENT).apply {
+                    setName(name)
+                    toolSetKind = CPPToolSet.Kind.WSL
+                    toolSetPath = distribution
+                }
+            }
+            XMakeCompileCommandsToolchainRequirement.SSH -> {
+                val config = context.sshConfig ?: return@edtWriteAction null
+                CPPToolchains.Toolchain(OS.CURRENT).apply {
+                    setName(name)
+                    toolSetKind = CPPToolSet.Kind.SSH
+                    hostData = HostData(config.id, config)
+                }
+            }
+            else -> return@edtWriteAction null
+        }
+        // setToolSetKind silently keeps the default kind when the kind is not
+        // supported on this OS; a toolchain of the wrong kind must not be added.
+        if (toolchain.toolSetKind !in requirement.preferredToolSetKinds()) return@edtWriteAction null
+        CPPToolchains.getInstance().apply {
+            beginUpdate()
+            try {
+                addToolchain(toolchain)
+            } finally {
+                endUpdate()
+            }
+        }
+        derivedToolchains.add(name)
+        toolchain
+    }
+
+    private fun repairPersistedRemoteIdentity(
+        toolchain: CPPToolchains.Toolchain,
+        requirement: XMakeCompileCommandsToolchainRequirement,
+        context: XMakeCompileCommandsContext,
+    ) {
+        when (requirement) {
+            XMakeCompileCommandsToolchainRequirement.WSL -> {
+                val distribution = context.wslDistributionName ?: return
+                if (!toolchain.toolSetPath.equals(distribution, ignoreCase = true)) {
+                    toolchain.toolSetPath = distribution
+                }
+            }
+            XMakeCompileCommandsToolchainRequirement.SSH -> {
+                val config = context.sshConfig ?: return
+                if (toolchain.hostData?.sshConfig?.id != config.id) {
+                    toolchain.hostData = HostData(config.id, config)
+                }
+            }
+            else -> {}
+        }
+    }
+
+    private fun wasDerivedToolchainDeleted(name: String): Boolean =
+        derivedToolchains.contains(name) &&
+                CPPToolchains.getInstance().toolchains.none { it.name == name }
+
+    private fun clearDanglingBinding(name: String) {
+        val settings = CompDBLocalSettings.getInstance(project)
+        if (settings.toolchainName != name) return
+        writingBinding = true
+        try {
+            settings.toolchainName = null
+            settings.toolchainName = null
+        } finally {
+            writingBinding = false
+        }
+        Log.info("Cleared the compilation database binding to the deleted toolchain '$name'")
+    }
+
     private fun notifyMissingToolchain(requirement: XMakeCompileCommandsToolchainRequirement) {
         val kindName = requirement.preferredToolSetKinds().first().displayName
         if (notifiedMissingKind == kindName) return
@@ -293,6 +395,17 @@ private fun XMakeCompileCommandsToolchainRequirement.preferredToolSetKinds(): Li
         listOf(CPPToolSet.Kind.MINGW, CPPToolSet.Kind.SYSTEM_WINDOWS_TOOLSET)
 }
 
+private fun XMakeCompileCommandsContext.derivedToolchainName(
+    requirement: XMakeCompileCommandsToolchainRequirement,
+): String? = when (requirement) {
+    XMakeCompileCommandsToolchainRequirement.WSL ->
+        wslDistributionName?.let { "${DERIVED_PREFIX}WSL $it" }
+    XMakeCompileCommandsToolchainRequirement.SSH -> sshConfig?.let { config ->
+        "${DERIVED_PREFIX}${config.presentableShortName} (${config.id.take(8)})"
+    }
+    else -> null
+}
+
 private fun XMakeCompileCommandsContext.environmentKey(): String? {
     val requirement = toolchainRequirement() ?: return null
     return when (requirement) {
@@ -304,6 +417,8 @@ private fun XMakeCompileCommandsContext.environmentKey(): String? {
         -> requirement.name
     }
 }
+
+private const val DERIVED_PREFIX = "XMake - "
 
 private fun VFileEvent.isCompileCommandsFileChange(project: Project): Boolean {
     if (!path.endsWith(COMPILE_COMMANDS_FILE_NAME, ignoreCase = true)) return false
