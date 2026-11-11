@@ -26,11 +26,8 @@ import io.xmake.run.XMakeProfileRunConfiguration
 class XMakeBuildProfileExecutionTargetProvider : ExecutionTargetProvider() {
     override fun getTargets(project: Project, configuration: RunConfiguration): List<ExecutionTarget> {
         if (configuration !is XMakeProfileRunConfiguration) return emptyList()
-        val preferredProfileId = configuration.preferredBuildProfileId
-        return project.xmakeBuildProfiles.profiles
-            .sortedBy { profile -> profile.id != preferredProfileId }
-            .map { profile ->
-                XMakeBuildProfileExecutionTarget(project, profile)
-            }
+        return project.xmakeBuildProfiles.profiles.map { profile ->
+            XMakeBuildProfileExecutionTarget(project, profile)
+        }
     }
 }
