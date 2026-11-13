@@ -24,7 +24,9 @@ import java.io.File
 import io.xmake.project.profile.xmakeBuildProfiles
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.openapi.startup.ProjectActivity
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.EDT
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.components.Service
 import com.intellij.openapi.components.service
 import com.intellij.openapi.module.ModuleManager
@@ -42,7 +44,12 @@ class XMakeBuildDirectoryExclusions(
     init {
         project.messageBus.connect(this).subscribe(
             XMakeBuildProfileManager.TOPIC,
-            XMakeBuildProfileManager.Listener { excludeBuildDirectories() },
+            XMakeBuildProfileManager.Listener {
+                ApplicationManager.getApplication().invokeLater(
+                    { if (!project.isDisposed) excludeBuildDirectories() },
+                    ModalityState.nonModal(),
+                )
+            },
         )
     }
 
