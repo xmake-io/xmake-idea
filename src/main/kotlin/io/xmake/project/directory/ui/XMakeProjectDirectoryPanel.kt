@@ -73,7 +73,7 @@ internal class XMakeProjectDirectoryPanel(private val project: Project) {
         ToolkitManager.getInstance()
             .registeredToolkits(project)
             .distinctBy { toolkit -> toolkit.host.id.canonical }
-            .filter { toolkit -> toolkit.host.type != ToolkitHostType.LOCAL }
+            .filter { toolkit -> toolkit.host.type == ToolkitHostType.SSH }
             .map { toolkit -> HostDirectoryField(project, toolkit) }
 
     private fun rebuildHostDirectoryFields() {
@@ -89,7 +89,7 @@ internal class XMakeProjectDirectoryPanel(private val project: Project) {
                 }
                 row {
                     comment(
-                        "For WSL, empty resolves from the local project directory. SSH requires an absolute host path.",
+                        "WSL runs in the local project directory through its mount. SSH requires an absolute host path.",
                     )
                 }
             }
@@ -138,8 +138,8 @@ internal class XMakeProjectDirectoryPanel(private val project: Project) {
                 ?.let { directoryPath -> HostDirectory(field.hostId, directoryPath) }
         }
         val fieldHostIds = hostDirectoryFields.mapTo(mutableSetOf()) { it.hostId }
-        // Keep entries for hosts that are not currently registered (an offline WSL distro or a
-        // removed toolkit): dropping them would silently erase the configured directory.
+        /* Keep entries for hosts that are not currently registered (an offline SSH host or a
+         * removed toolkit): dropping them would silently erase the configured directory. */
         val hiddenHosts = baselineState.hostDirectories.filter { it.hostId !in fieldHostIds }
         return XMakeProjectDirectoryState(
             localDirectory = localDirectoryBrowser.text.trim(),

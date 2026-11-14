@@ -9,9 +9,10 @@ import io.xmake.project.toolkit.ToolkitHost
 import io.xmake.project.toolkit.ToolkitHostType
 import io.xmake.utils.path.WorkingDirectoryResolver
 
-/** Computes the directory xmake should run in. The rules are deliberately asymmetric: an
- *  explicit host directory always wins, WSL may otherwise map the local directory into the
- *  distribution, and SSH cannot be verified locally so it requires explicit configuration. */
+/** Computes the directory xmake should run in. The rules are deliberately asymmetric: WSL maps
+ *  the local directory into the distribution and so needs no host entry, an explicit SSH host
+ *  directory is required because it cannot be verified locally, and a local toolkit runs in the
+ *  local directory itself. */
 internal class XMakeProjectDirectoryResolver(
     private val project: Project,
     private val state: XMakeProjectDirectoryState,
@@ -34,8 +35,9 @@ internal class XMakeProjectDirectoryResolver(
 
         return when (toolkit.host.type) {
             ToolkitHostType.LOCAL -> resolveLocalProjectDirectory()
-            ToolkitHostType.WSL -> findExplicitHostDirectoryPath(toolkit.host)
-                ?: WorkingDirectoryResolver.resolve(project, resolveLocalProjectDirectory(), toolkit)
+            // The distribution mounts the local project, so xmake runs there in place.
+            ToolkitHostType.WSL ->
+                WorkingDirectoryResolver.resolve(project, resolveLocalProjectDirectory(), toolkit)
             ToolkitHostType.SSH -> findExplicitHostDirectoryPath(toolkit.host)
                 ?: throw RuntimeConfigurationError(
                     "XMake SSH project directory is not configured for ${toolkit.host.displayName}",
@@ -43,9 +45,9 @@ internal class XMakeProjectDirectoryResolver(
         }
     }
 
-    /** Returns the local directory paired with a host-specific project location for file sync.
-     *  Unlike [resolveLocalProjectDirectory] it does not require xmake.lua to exist yet, so it
-     *  must not be merged with it: a freshly created project syncs before its first build. */
+    /** Returns the local directory that owns the project files. Unlike
+     *  [resolveLocalProjectDirectory] it does not require xmake.lua to exist yet, so it must not
+     *  be merged with it: a freshly created project references it before its first build. */
     fun resolveLocalSyncDirectory(): String {
         val configuredDirectoryPath = state.localDirectory
             .ifBlank { project.basePath }
@@ -64,7 +66,6 @@ internal class XMakeProjectDirectoryResolver(
         return validateLocalDirectory(project, configuredDirectoryPath)
     }
 
-    // An invalid entry must not poison resolution: skip it so the fallbacks still apply.
     private fun findExplicitHostDirectoryPath(host: ToolkitHost): String? =
         state.hostDirectories.firstOrNull { it.hostId == host.id.canonical }
             ?.directory
