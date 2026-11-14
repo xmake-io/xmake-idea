@@ -94,8 +94,8 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
     override val toolkitProperty: GraphProperty<Toolkit?> = propertyGraph.lazyProperty {
         toolkitManager.defaultRegisteredToolkit(context.project)
     }
-    private val requiresBackendProperty: GraphProperty<Boolean> =
-        propertyGraph.lazyProperty { toolkit?.requiresBackend == true }
+    private val requiresRemoteDirectoryProperty: GraphProperty<Boolean> =
+        propertyGraph.lazyProperty { toolkit?.host?.type == SSH }
 
     override var name: String by nameProperty
     override var path: String by pathProperty
@@ -103,7 +103,7 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
     override var language: String by languageProperty
     override var kind: String by kindProperty
     override var toolkit: Toolkit? by toolkitProperty
-    private var requiresBackend by requiresBackendProperty
+    private var requiresRemoteDirectory by requiresRemoteDirectoryProperty
 
     /** The templates behind the combo boxes. */
     private var projectTemplates: XMakeProjectTemplates = FALLBACK_TEMPLATES
@@ -126,8 +126,8 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
         withContext(uiEdt) { applyProjectTemplates(templates) }
     }
 
-    // Wired in class scope, not in an apply block on the combo box: JComponent.getToolkit()
-    // gives the receiver a synthetic `toolkit` property that shadows this step's `toolkit`.
+    /* Wired in class scope, not in an apply block on the combo box: JComponent.getToolkit()
+     * gives the receiver a synthetic `toolkit` property that shadows this step's `toolkit`. */
     init {
         toolkitComboBox.addSelectionListener(::applyToolkitSelection)
         toolkitComboBox.selectToolkit(toolkit)
@@ -138,7 +138,7 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
     private fun applyToolkitSelection(selected: Toolkit?) {
         toolkit = selected
         browser.setToolkit(selected)
-        requiresBackend = selected?.requiresBackend == true
+        requiresRemoteDirectory = selected?.host?.type == SSH
         selected?.let(loadTemplates)
     }
 
@@ -164,7 +164,7 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
     override fun setupUI(builder: Panel) {
         val locationProperty = remotePathProperty.joinCanonicalPath(nameProperty)
         val remoteDirectoryValidations = arrayOf(CHECK_NON_EMPTY, CHECK_DIRECTORY).map2Array { validation ->
-            validation.transformResult { if (!requiresBackend) withOKEnabled() else this }
+            validation.transformResult { if (!requiresRemoteDirectory) withOKEnabled() else this }
         }
         with(builder) {
 
@@ -174,7 +174,7 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
                     .align(AlignX.FILL)
                     .trimmedTextValidation(*remoteDirectoryValidations)
                     .remoteLocationComment(context, locationProperty)
-            }.enabledIf(requiresBackendProperty).visibleIf(requiresBackendProperty).bottomGap(BottomGap.SMALL)
+            }.enabledIf(requiresRemoteDirectoryProperty).visibleIf(requiresRemoteDirectoryProperty).bottomGap(BottomGap.SMALL)
 
             row("XMake Toolkit") {
                 cell(toolkitComboBox)
@@ -230,16 +230,32 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
 
     private fun resolveDirectories(toolkit: Toolkit): WizardDirectories {
         val localDirectory = File(contentEntryPath).path
-        return if (toolkit.requiresBackend) {
-            WizardDirectories(hostDirectory = remoteContentEntryPath, tempDirectory = null)
-        } else {
-            WizardDirectories(localDirectory, localDirectory + TEMP_DIRECTORY_SUFFIX)
+        val tempDirectory = localDirectory + TEMP_DIRECTORY_SUFFIX
+        return when (toolkit.host.type) {
+            LOCAL -> WizardDirectories(localDirectory, tempDirectory, tempDirectory)
+            /* The distribution creates the project in the local directory through its mount, so
+             * only the temp sibling's host spelling differs. The local copy that follows needs
+             * no download. */
+            WSL -> WizardDirectories(
+                hostDirectory = localDirectory,
+                tempDirectory = tempDirectory,
+                createDirectory = toolkit.host.requireWslDistribution()
+                    .getWslPath(Path.of(tempDirectory))
+                    ?: tempDirectory,
+            )
+            /* SSH cannot see the local files: xmake creates the project on the host directly and
+             * the final copy is downloaded. */
+            SSH -> WizardDirectories(
+                hostDirectory = remoteContentEntryPath,
+                tempDirectory = null,
+                createDirectory = remoteContentEntryPath,
+            )
         }
     }
 
     private fun createProject(project: Project, toolkit: Toolkit, directories: WizardDirectories) {
         val commandLine = xmake(toolkit)
-            .create(directories.tempDirectory ?: directories.hostDirectory, language, kind)
+            .create(directories.createDirectory, language, kind)
 
         val tempDirectory = directories.tempDirectory
         if (tempDirectory != null) {
@@ -249,8 +265,8 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
                     "Failed to remove the leftover temp directory $tempDirectory from an earlier attempt",
                 )
             }
-            // xmake create refuses a non-empty directory; the copy step would
-            // overwrite same-named files.
+            /* xmake create refuses a non-empty directory; the copy step would
+             * overwrite same-named files. */
             if (File(directories.hostDirectory).list()?.isNotEmpty() == true) {
                 throw IOException(
                     "${directories.hostDirectory} is not empty; pick an empty directory or remove its contents first",
@@ -262,8 +278,8 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
         Log.info("remote contentEntry path: $remoteContentEntryPath")
         Log.info("host directory: ${directories.hostDirectory}")
 
-        // setupProject runs on the EDT inside the wizard commit; a failed creation aborts
-        // via IOException, which the wizard reports without opening a half-built project.
+        /* setupProject runs on the EDT inside the wizard commit; a failed creation aborts
+         * via IOException, which the wizard reports without opening a half-built project. */
         runWithModalProgressBlocking(project, "Creating XMake project") {
             try {
                 val result = try {
@@ -296,8 +312,8 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
 
     private fun copyOrSyncProject(project: Project, toolkit: Toolkit, directories: WizardDirectories) {
         when (toolkit.host.type) {
-            LOCAL -> copyLocalProject(directories)
-            WSL, SSH -> runWithModalProgressBlocking(project, "Sync directory") {
+            LOCAL, WSL -> copyLocalProject(directories)
+            SSH -> runWithModalProgressBlocking(project, "Sync directory") {
                 transferProjectFiles(
                     project,
                     toolkit,
@@ -347,8 +363,8 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
     ) {
         configureInitialXMakeProjectLayout(project, Path.of(contentEntryPath), module)
         if (toolkit.host.type == SSH) {
-            // Same asymmetry as importLegacyDirectory: WSL folds into the local directory,
-            // only SSH keeps a host-specific entry.
+            /* WSL folds into the local directory: the distribution mounts it, so there is no
+             * separate host copy. Only SSH keeps a host-specific entry. */
             project.xmakeProjectDirectories.replaceState(
                 project.xmakeProjectDirectories.state.copy(
                     hostDirectories = mutableListOf(HostDirectory(toolkit.host.id.canonical, directories.hostDirectory)),
@@ -375,9 +391,14 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
         )
     }
 
-    /** The project's final location, and the temp sibling xmake create writes into first
-     *  (null when a backend toolkit generates straight into the final location). */
-    private data class WizardDirectories(val hostDirectory: String, val tempDirectory: String?)
+    /** The project's final location, the temp sibling xmake create writes into first (null when
+     *  SSH generates straight into the remote location), and the path handed to xmake create in
+     *  that host's spelling. */
+    private data class WizardDirectories(
+        val hostDirectory: String,
+        val tempDirectory: String?,
+        val createDirectory: String,
+    )
 
     init {
         Disposer.register(context.disposable, toolkitComboBox)
@@ -394,8 +415,8 @@ class XMakeProjectWizardStep(parent: NewProjectWizardBaseStep) :
 
         private val TEMPLATE_LISTING_TIMEOUT = 30.seconds
 
-        // The welcome-screen path supplies no projectBuilder, and plugin.xml registers a
-        // moduleBuilder but no moduleType; this id only has to stay stable and unique.
+        /* The welcome-screen path supplies no projectBuilder, and plugin.xml registers a
+         * moduleBuilder but no moduleType; this id only has to stay stable and unique. */
         private const val FALLBACK_MODULE_TYPE_ID = "NPW.XMakeProjectModuleBuilder"
 
         private const val TEMP_DIRECTORY_SUFFIX = ".tmpdir"

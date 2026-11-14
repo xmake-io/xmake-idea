@@ -24,23 +24,25 @@ private fun XMakeProjectDirectoryState.importLegacyDirectory(legacy: LegacyProje
     }
 
 private fun XMakeProjectDirectoryState.importWslDirectory(legacy: LegacyProjectDirectory): XMakeProjectDirectoryState {
-    // Profile-based versions persisted a Windows path for WSL toolkits and mapped it into the
-    // distribution at run time; only a '/'-prefixed value was an explicit distribution path.
+    /* Profile-based versions persisted a Windows path for WSL toolkits and mapped it into the
+     * distribution at run time; only a '/'-prefixed value was an explicit distribution path. */
     if (!legacy.directory.startsWith('/')) {
         return importLocalDirectory(legacy.directory)
     }
-    // The run-configuration migration chain builds hosts without a resolved backend (see
-    // migratedLegacyToolkit), so this Windows-path folding is only reachable from the
-    // profile-based chain; '/'-prefixed directories otherwise stay as host entries, which
-    // resolves to the same directory at run time.
+    /* WSL now runs in the local project directory through the distribution mount, so an explicit
+     * distribution path only survives as the local spelling of that same directory. The
+     * run-configuration migration chain builds hosts without a resolved backend (see
+     * migratedLegacyToolkit), so an offline distribution cannot be translated; dropping the
+     * entry lets resolution fall back to the local project directory. */
     val windowsDirectoryPath = legacy.toolkit
         ?.host
         ?.wslDistribution
         ?.getWindowsPath(legacy.directory)
-    if (windowsDirectoryPath != null) {
-        return importLocalDirectory(windowsDirectoryPath)
+    if (windowsDirectoryPath == null) {
+        Log.warn("Skipped legacy WSL directory that cannot be mapped to Windows: ${legacy.directory}")
+        return this
     }
-    return importHostDirectory(legacy, legacy.directory)
+    return importLocalDirectory(windowsDirectoryPath)
 }
 
 private fun XMakeProjectDirectoryState.importLocalDirectory(directory: String): XMakeProjectDirectoryState =
