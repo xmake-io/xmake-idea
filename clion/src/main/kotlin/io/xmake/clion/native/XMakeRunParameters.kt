@@ -15,10 +15,9 @@
  * Copyright (C) 2015-present, Xmake Open Source Community.
  */
 @file:Suppress("UnstableApiUsage") // CidrDebugProfileManager is the only cross-module door
-package io.xmake.debug.clion.native
+package io.xmake.clion.native
 
 import com.intellij.cidr.debugger.profiles.CidrDebugProfileManager
-import com.intellij.execution.ExecutionException
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project

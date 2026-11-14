@@ -13,9 +13,20 @@
  * limitations under the License.
  *
  * Copyright (C) 2015-present, Xmake Open Source Community.
+ *
+ * @file        XMakeCompDBAutoLinkActivity.kt
+ *
  */
-package io.xmake.debug.clion.dap
+package io.xmake.clion.compdb
 
-import com.intellij.platform.dap.DebugAdapterId
+import com.intellij.openapi.components.service
+import com.intellij.openapi.project.Project
+import com.intellij.openapi.startup.ProjectActivity
 
-object XMakeDebugAdapterId : DebugAdapterId("xmake", "XMake")
+class XMakeCompDBAutoLinkActivity : ProjectActivity {
+    override suspend fun execute(project: Project) {
+        if (project.isDisposed) return
+        project.service<XMakeCompDBToolchainBindingService>().bindBeforeLink()
+        autoLinkCompilationDatabase(project)
+    }
+}

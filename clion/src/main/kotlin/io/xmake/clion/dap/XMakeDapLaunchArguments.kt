@@ -14,7 +14,7 @@
  *
  * Copyright (C) 2015-present, Xmake Open Source Community.
  */
-package io.xmake.debug.clion.dap
+package io.xmake.clion.dap
 
 import com.intellij.openapi.diagnostic.logger
 import io.xmake.debug.XMakeDebugDriver

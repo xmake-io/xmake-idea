@@ -14,7 +14,7 @@
  *
  * Copyright (C) 2015-present, Xmake Open Source Community.
  */
-package io.xmake.debug.clion
+package io.xmake.clion
 
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.openapi.diagnostic.logger
@@ -24,10 +24,10 @@ import com.intellij.xdebugger.XDebugProcessStarter
 import io.xmake.debug.XMakeDebugDriver
 import io.xmake.debug.XMakeDebugLaunch
 import io.xmake.debug.XMakeDebugSupport
-import io.xmake.debug.clion.dap.XMakeDapLaunchArguments
-import io.xmake.debug.clion.dap.XMakeDapLaunchState
-import io.xmake.debug.clion.dap.XMakeDebugAdapterId
-import io.xmake.debug.clion.native.XMakeLocalDebugProcessStarter
+import io.xmake.clion.dap.XMakeDapLaunchArguments
+import io.xmake.clion.dap.XMakeDapLaunchState
+import io.xmake.clion.dap.XMakeDebugAdapterId
+import io.xmake.clion.native.XMakeLocalDebugProcessStarter
 
 class ClionDebugSupport : XMakeDebugSupport {
 

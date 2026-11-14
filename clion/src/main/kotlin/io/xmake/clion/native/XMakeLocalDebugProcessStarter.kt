@@ -14,7 +14,7 @@
  *
  * Copyright (C) 2015-present, Xmake Open Source Community.
  */
-package io.xmake.debug.clion.native
+package io.xmake.clion.native
 
 import com.intellij.execution.filters.TextConsoleBuilderFactory
 import com.intellij.xdebugger.XDebugProcess

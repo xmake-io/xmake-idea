@@ -8,20 +8,20 @@
     </dependencies>
 
     <extensions defaultExtensionNs="io.xmake">
-        <debugSupport implementation="io.xmake.debug.clion.ClionDebugSupport"/>
+        <debugSupport implementation="io.xmake.clion.ClionDebugSupport"/>
     </extensions>
 
     <extensions defaultExtensionNs="com.intellij">
-        <postStartupActivity implementation="io.xmake.debug.XMakeCompDBAutoLinkActivity"/>
+        <postStartupActivity implementation="io.xmake.clion.compdb.XMakeCompDBAutoLinkActivity"/>
     </extensions>
 
     <extensions defaultExtensionNs="com.intellij.platform.dap">
-        <debugAdapterSupportProvider implementation="io.xmake.debug.clion.dap.XMakeDebugAdapterProvider"/>
+        <debugAdapterSupportProvider implementation="io.xmake.clion.dap.XMakeDebugAdapterProvider"/>
     </extensions>
 
     <actions>
         <action id="XMakeProfileSwitcher"
-                class="io.xmake.debug.clion.actions.XMakeProfileSwitcherAction">
+                class="io.xmake.clion.actions.XMakeProfileSwitcherAction">
             <add-to-group group-id="ExecutionTargetsToolbarGroup"/>
             <add-to-group group-id="ToolbarRunGroup" anchor="before" relative-to-action="RunConfiguration"/>
         </action>
