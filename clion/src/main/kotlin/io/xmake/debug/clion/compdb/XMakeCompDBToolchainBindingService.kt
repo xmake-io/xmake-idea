@@ -45,6 +45,8 @@ import io.xmake.run.command.XMakeCompileCommandsContext
 import io.xmake.run.command.XMakeCompileCommandsToolchainRequirement
 import io.xmake.run.command.compileCommandsContext
 import io.xmake.run.command.compileCommandsFile
+import io.xmake.run.command.msvcToolsetVersion
+import io.xmake.run.command.msvcVisualStudioRoot
 import io.xmake.run.command.sshConfig
 import io.xmake.run.command.toolchainRequirement
 import io.xmake.run.command.wslDistributionName
@@ -87,8 +89,6 @@ class XMakeCompDBToolchainBindingService(
                     override fun afterVfsChange() {
                         if (project.isDisposed) return
                         autoLinkCompilationDatabase(project)
-                        // Nothing re-imports the changed file; bind before marking so the
-                        // import uses the new toolchain.
                         val file = compileCommandsFile(project)
                         if (file == null || !Files.isRegularFile(file)) return
                         scope.launch {
@@ -266,6 +266,18 @@ class XMakeCompDBToolchainBindingService(
                 val configId = context.sshConfig?.id
                 candidates.firstOrNull { configId != null && it.hostData?.sshConfig?.id == configId }
             }
+            XMakeCompileCommandsToolchainRequirement.MSVC -> {
+                val root = context.msvcVisualStudioRoot
+                if (root != null) {
+                    candidates.firstOrNull {
+                        sameToolSetPath(it.toolSetPath, root)
+                    }
+                } else {
+                    requirement.preferredToolSetKinds().firstNotNullOfOrNull { kind ->
+                        candidates.firstOrNull { it.toolSetKind == kind }
+                    }
+                }
+            }
             else -> requirement.preferredToolSetKinds().firstNotNullOfOrNull { kind ->
                 candidates.firstOrNull { it.toolSetKind == kind }
             }
@@ -304,6 +316,11 @@ class XMakeCompDBToolchainBindingService(
         if (existing != null) {
             if (!derivedToolchains.contains(name)) return@edtWriteAction null
             if (existing.toolSetKind !in requirement.preferredToolSetKinds()) return@edtWriteAction null
+            if (requirement == XMakeCompileCommandsToolchainRequirement.MSVC &&
+                !sameToolSetPath(existing.toolSetPath, context.msvcVisualStudioRoot)
+            ) {
+                return@edtWriteAction null
+            }
             repairPersistedRemoteIdentity(existing, requirement, context)
             return@edtWriteAction existing
         }
@@ -324,10 +341,17 @@ class XMakeCompDBToolchainBindingService(
                     hostData = HostData(config.id, config)
                 }
             }
+            XMakeCompileCommandsToolchainRequirement.MSVC -> {
+                val root = context.msvcVisualStudioRoot ?: return@edtWriteAction null
+                // An MSVC toolchain uses the bundled LLDB, not the default bundled GDB.
+                CPPToolchains.Toolchain(OS.CURRENT, true, false).apply {
+                    setName(name)
+                    toolSetKind = CPPToolSet.Kind.MSVC
+                    toolSetPath = root
+                }
+            }
             else -> return@edtWriteAction null
         }
-        // setToolSetKind silently keeps the default kind when the kind is not
-        // supported on this OS; a toolchain of the wrong kind must not be added.
         if (toolchain.toolSetKind !in requirement.preferredToolSetKinds()) return@edtWriteAction null
         CPPToolchains.getInstance().apply {
             beginUpdate()
@@ -414,7 +438,18 @@ private fun XMakeCompileCommandsContext.derivedToolchainName(
     XMakeCompileCommandsToolchainRequirement.SSH -> sshConfig?.let { config ->
         "${DERIVED_PREFIX}${config.presentableShortName} (${config.id.take(8)})"
     }
+    XMakeCompileCommandsToolchainRequirement.MSVC -> {
+        val root = msvcVisualStudioRoot
+        val version = msvcToolsetVersion?.split('.')?.take(2)?.joinToString(".")
+        if (root != null && version != null) "${DERIVED_PREFIX}MSVC $version" else null
+    }
     else -> null
+}
+
+private fun sameToolSetPath(left: String?, right: String?): Boolean {
+    if (left.isNullOrEmpty() || right.isNullOrEmpty()) return false
+    return FileUtil.toSystemIndependentName(left).trimEnd('/')
+        .equals(FileUtil.toSystemIndependentName(right).trimEnd('/'), ignoreCase = true)
 }
 
 private fun XMakeCompileCommandsContext.environmentKey(): String? {

@@ -47,6 +47,24 @@ val XMakeCompileCommandsContext.wslDistributionName: String?
 val XMakeCompileCommandsContext.sshConfig: SshConfig?
     get() = host?.takeIf { it.type == ToolkitHostType.SSH }?.sshConfig
 
+/** The Visual Studio installation root that owns this `cl.exe`; null when the
+ *  compiler is not an MSVC `cl.exe` or its package has no `vcvarsall.bat`. */
+val XMakeCompileCommandsContext.msvcVisualStudioRoot: String?
+    get() {
+        val match = MSVC_COMPILER_PATH.matchEntire(compilerPath) ?: return null
+        val root = match.groupValues[1]
+        val vcvarsall = Path.of(root, "VC", "Auxiliary", "Build", "vcvarsall.bat")
+        return root.takeIf { Files.isRegularFile(vcvarsall) }
+    }
+
+val XMakeCompileCommandsContext.msvcToolsetVersion: String?
+    get() = MSVC_COMPILER_PATH.matchEntire(compilerPath)?.groupValues?.get(2)
+
+private val MSVC_COMPILER_PATH = Regex(
+    """^(.+?)[\\/]+VC[\\/]+Tools[\\/]+MSVC[\\/]+([^\\/]+)[\\/]+bin[\\/]+Host[^\\/]*[\\/]+[^\\/]+[\\/]+cl(?:\.exe)?$""",
+    RegexOption.IGNORE_CASE,
+)
+
 private fun firstCommandEntry(project: Project): JsonObject? {
     val file = compileCommandsFile(project)?.takeIf { Files.isRegularFile(it) } ?: return null
     return runCatching {
