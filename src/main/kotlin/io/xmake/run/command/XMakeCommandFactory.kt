@@ -131,10 +131,12 @@ internal class XMakeCommandFactory(
         }
     }
 
+    /** The database is generated in the plain mode: the clangd mode decorates `cl.exe`
+     *  entries with clang-only `-imsvc` include flags, which the named compiler cannot
+     *  parse. */
     fun createUpdateCompileCommands(): XMakeCommand = createCommand {
         project {
             kind = "compile_commands"
-            lsp = "clangd"
             outputDirectory = compileCommandsOutputDirectory
         }
     }
