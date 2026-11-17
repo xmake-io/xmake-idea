@@ -51,6 +51,9 @@ intellijPlatform {
 dependencies {
     intellijPlatform {
         clion(runIdeVersion)
+        bundledModule("intellij.platform.buildView")
+        bundledModule("intellij.platform.debugger")
+        bundledModule("intellij.platform.externalSystem")
         bundledPlugin("intellij.ssh.plugin")
         testFramework(TestFrameworkType.Platform)
         pluginModule(project(":clion"))
