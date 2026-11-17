@@ -6,7 +6,7 @@ import com.intellij.openapi.diagnostic.logger
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.startup.ProjectActivity
 import com.intellij.openapi.vfs.VirtualFileManager
-import com.intellij.openapi.vfs.newvfs.BulkFileListener
+import com.intellij.openapi.vfs.newvfs.BulkFileListenerBackgroundable
 import com.intellij.openapi.vfs.newvfs.events.VFileEvent
 import com.intellij.util.messages.Topic
 import io.xmake.utils.publish
@@ -65,7 +65,7 @@ class XMakeProjectDirectoryResolutionService(
             ToolkitListener.TOPIC,
             ToolkitListener { resolveAsync() },
         )
-        messageBusConnection.subscribe(VirtualFileManager.VFS_CHANGES, object : BulkFileListener {
+        messageBusConnection.subscribe(VirtualFileManager.VFS_CHANGES_BG, object : BulkFileListenerBackgroundable {
             override fun after(events: MutableList<out VFileEvent>) {
                 if (events.any(::isXMakeLuaVfsEvent)) resolveAsync()
             }

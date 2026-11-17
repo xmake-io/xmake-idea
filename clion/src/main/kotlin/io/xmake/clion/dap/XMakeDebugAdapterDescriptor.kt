@@ -67,8 +67,11 @@ internal class XMakeDebugAdapterDescriptor(
         return CommandLineDebugAdapterHandle(commandLine)
     }
 
-    @Suppress("DEPRECATION")
-    override val breakpointsDescription: DapBreakpointsDescription = createBreakpointsDescription()
+    override val breakpointsDescription: DapBreakpointsDescription = DapBreakpointsDescription(
+        CidrLineBreakpointType::class.java,
+        CidrExceptionBreakpointType::class.java,
+        null,
+    )
 
     private fun createDriverCommandLine(launch: XMakeDebugLaunch, driver: XMakeDebugDriver.Dap): GeneralCommandLine {
         val driverPath = driver.info.path
@@ -85,29 +88,6 @@ internal class XMakeDebugAdapterDescriptor(
                     withParameters(GDB_DAP_INTERPRETER_ARGS)
                 }
             }
-    }
-
-    /**
-     * IntelliJ 2026.3 added a nullable function-breakpoint type to this constructor while removing
-     * the old two-argument overload. The constructor is resolved reflectively: a compiled call to
-     * either overload fails plugin verification against the platform that removed it.
-     */
-    private fun createBreakpointsDescription(): DapBreakpointsDescription {
-        val lineBreakpointType = CidrLineBreakpointType::class.java
-        val exceptionBreakpointType = CidrExceptionBreakpointType::class.java
-        val (constructor, initargs) = DapBreakpointsDescription::class.java.constructors
-            .mapNotNull { candidate ->
-                if (!candidate.parameterTypes.all { it == Class::class.java }) return@mapNotNull null
-                val initargs: Array<Any?> = when (candidate.parameterCount) {
-                    2 -> arrayOf(lineBreakpointType, exceptionBreakpointType)
-                    3 -> arrayOf(lineBreakpointType, exceptionBreakpointType, null)
-                    else -> return@mapNotNull null
-                }
-                candidate to initargs
-            }
-            .firstOrNull()
-            ?: throw IllegalStateException("No compatible DapBreakpointsDescription constructor")
-        return constructor.newInstance(*initargs) as DapBreakpointsDescription
     }
 
     private fun MutableMap<String, String>.prependPath(directory: String?) {

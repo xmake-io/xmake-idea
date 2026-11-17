@@ -9,7 +9,7 @@ val localDescription = providers.fileContents(layout.projectDirectory.file("desc
 
 plugins {
     id("java")
-    id("org.jetbrains.intellij.platform") version "2.18.1"
+    id("org.jetbrains.intellij.platform") version "2.20.1"
     id("org.jetbrains.kotlin.jvm") version "2.3.20"
     id("org.jetbrains.changelog") version "2.5.0"
 }
@@ -51,6 +51,9 @@ intellijPlatform {
 dependencies {
     intellijPlatform {
         clion(runIdeVersion)
+        bundledModule("intellij.platform.buildView")
+        bundledModule("intellij.platform.debugger")
+        bundledModule("intellij.platform.externalSystem")
         bundledPlugin("intellij.ssh.plugin")
         testFramework(TestFrameworkType.Platform)
         pluginModule(project(":clion"))
